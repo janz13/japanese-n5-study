@@ -106,4 +106,69 @@ export const LESSONS: Lesson[] = [
       { type: 'order', en: 'How much is this?', tokens: ['これは', 'いくら', 'ですか'] },
     ],
   },
+  {
+    id: 'g3',
+    chapter: 3,
+    title: 'Existence & connecting actions',
+    points: [
+      {
+        pattern: 'N が あります / います',
+        meaning: 'There is / are N',
+        explain: 'Use あります for inanimate objects (gates, buildings) and います for living beings (people, animals).',
+        examples: [
+          { jp: '駅の 前に 門が あります。', en: 'There is a gate in front of the station.' },
+          { jp: '人が たくさん いました。', en: 'There were many people.' },
+        ],
+      },
+      {
+        pattern: 'V-て、V-ます',
+        meaning: 'do A, and then do B',
+        explain: 'Connect actions in sequence using the て-form (撮ります → 撮って).',
+        examples: [{ jp: '写真を 撮って、おかしを 食べました。', en: 'We took photos and ate sweets.' }],
+      },
+      {
+        pattern: 'い-adj past: 〜かったです',
+        meaning: 'was [adjective]',
+        explain: 'Drop final い and add かったです (たのしい → たのしかったです).',
+        examples: [{ jp: 'とても たのしかったです。', en: 'It was very fun.' }],
+      },
+    ],
+    exercises: [
+      { type: 'mcq', prompt: 'あそこに 人が たくさん（　）。', en: 'There are many people over there.', options: ['あります', 'います', 'します'], answer: 1 },
+      { type: 'mcq', prompt: '駅の 前に 赤い 門が（　）。', en: 'There is a red gate in front of the station.', options: ['あります', 'います', 'きます'], answer: 0 },
+      { type: 'mcq', prompt: 'きのうは とても（　）です。', en: 'Yesterday was very fun.', options: ['たのしい', 'たのしかった', 'たのしくて'], answer: 1 },
+      { type: 'order', en: 'I went with my friend Sakura.', tokens: ['友だちの', 'さくらと', '行きました'] },
+    ],
+  },
+  {
+    id: 'g4',
+    chapter: 4,
+    title: 'Desires & listing activities',
+    points: [
+      {
+        pattern: 'V-たいです',
+        meaning: 'want to do V',
+        explain: 'Replace ます with たいです to express what you want to do (行きます → 行きたいです).',
+        examples: [{ jp: '京都へ 行きたいです。', en: 'I want to go to Kyoto.' }],
+      },
+      {
+        pattern: 'V-たり、V-たり します',
+        meaning: 'do things like A and B',
+        explain: 'Use the たり-form (past plain + り) to give representative examples of actions.',
+        examples: [{ jp: 'お寺を 見たり、抹茶を 飲んだり したいです。', en: 'I want to see temples, drink matcha, etc.' }],
+      },
+      {
+        pattern: '手段の で (by means of)',
+        meaning: 'by (transport / tool)',
+        explain: 'Use で after a vehicle to show how you travel.',
+        examples: [{ jp: '新幹線で 京都へ 行きます。', en: 'I go to Kyoto by bullet train.' }],
+      },
+    ],
+    exercises: [
+      { type: 'mcq', prompt: '京都へ（　）です。', en: 'I want to go to Kyoto.', options: ['行く', '行きたい', '行った'], answer: 1 },
+      { type: 'mcq', prompt: '新幹線（　）行きます。', en: 'I will go by bullet train.', options: ['に', 'を', 'で'], answer: 2 },
+      { type: 'mcq', prompt: '映画を（　）、本を 読んだり します。', en: 'I do things like watch movies and read books.', options: ['見たり', '見て', '見る'], answer: 0 },
+      { type: 'order', en: 'Tonight I will buy a ticket.', tokens: ['今晩', 'きっぷを', '買います'] },
+    ],
+  },
 ];

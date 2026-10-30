@@ -43,4 +43,29 @@ export const SCENES: Scene[] = [
       { who: 'npc', name: '店員', jp: 'ありがとうございます。', kana: 'ありがとうございます。', en: 'Thank you.' },
     ],
   },
+  {
+    id: 's3',
+    chapter: 3,
+    title: '道を きく',
+    setting: 'Asking for directions to Asakusa Station.',
+    lines: [
+      { who: 'you', jp: 'すみません。駅は どこですか。', kana: 'すみません。えきは どこですか。', en: 'Excuse me. Where is the station?' },
+      { who: 'npc', name: '駅員', jp: 'あそこです。白い ビルの 前です。', kana: 'あそこです。しろい びるの まえです。', en: 'It is over there. In front of the white building.' },
+      { who: 'you', jp: '歩いて 何分ぐらい ですか。', kana: 'あるいて なんぷんぐらい ですか。', en: 'About how many minutes is it on foot?' },
+      { who: 'npc', name: '駅員', jp: '五分ぐらい です。', kana: 'ごふんぐらい です。', en: 'About five minutes.' },
+      { who: 'you', jp: 'ありがとうございます。', kana: 'ありがとうございます。', en: 'Thank you very much.' },
+    ],
+  },
+  {
+    id: 's4',
+    chapter: 4,
+    title: '週末の 予定',
+    setting: 'Inviting a friend to go to Kyoto on Sunday.',
+    lines: [
+      { who: 'npc', name: 'けん', jp: '日曜日は 何を しますか。', kana: 'にちようびは なにを しますか。', en: 'What will you do on Sunday?' },
+      { who: 'you', jp: '京都へ 行きたいです。', kana: 'きょうとへ いきたいです。', en: 'I want to go to Kyoto.' },
+      { who: 'npc', name: 'けん', jp: 'いいですね。いっしょに 行きましょうか。', kana: 'いいですね。いっしょに いきましょうか。', en: 'Sounds nice! Shall we go together?' },
+      { who: 'you', jp: 'はい、ぜひ 行きましょう。', kana: 'はい、ぜひ いきましょう。', en: 'Yes, let’s definitely go!' },
+    ],
+  },
 ];

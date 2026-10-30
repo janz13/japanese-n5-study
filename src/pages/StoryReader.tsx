@@ -7,25 +7,81 @@ import { storyUnlocked } from '../lib/progress';
 
 const plain = (tokens: Token[]) => tokens.map((t) => t.r ?? t.t).join('');
 
+const isKana = (ch: string) => {
+  const c = ch.charCodeAt(0);
+  return (c >= 0x3040 && c <= 0x309f) || (c >= 0x30a0 && c <= 0x30ff);
+};
+
+/**
+ * Splits a token like ("着きました", "つきました") into:
+ * prefix="", base="着", rt="つ", suffix="きました"
+ * so furigana sits strictly above the kanji characters and never shifts over adjacent kana/kanji.
+ */
+function splitFurigana(t: string, r: string) {
+  let p = 0;
+  while (p < t.length && p < r.length && t[p] === r[p] && isKana(t[p])) p++;
+  let s = 0;
+  while (
+    s < t.length - p &&
+    s < r.length - p &&
+    t[t.length - 1 - s] === r[r.length - 1 - s] &&
+    isKana(t[t.length - 1 - s])
+  ) {
+    s++;
+  }
+  const prefix = t.slice(0, p);
+  const suffix = s > 0 ? t.slice(t.length - s) : '';
+  const base = t.slice(p, t.length - s);
+  const rt = r.slice(p, r.length - s);
+  return { prefix, base: base || t, rt: base ? rt : r, suffix: base ? suffix : '' };
+}
+
 function Word({ tok, furigana, onTap, active }: { tok: Token; furigana: boolean; onTap: () => void; active: boolean }) {
   const cls = `word${tok.en ? ' has-gloss' : ''}${active ? ' active' : ''}`;
-  if (tok.r && furigana)
-    return <ruby className={cls} onClick={onTap}>{tok.t}<rt>{tok.r}</rt></ruby>;
+  if (tok.r && furigana) {
+    const { prefix, base, rt, suffix } = splitFurigana(tok.t, tok.r);
+    return (
+      <span className={cls} onClick={onTap}>
+        {prefix}
+        <ruby className="ruby-pair">
+          <span className="rb-text">{base}</span>
+          <rp>(</rp>
+          <rt>{rt}</rt>
+          <rp>)</rp>
+        </ruby>
+        {suffix}
+      </span>
+    );
+  }
   return <span className={cls} onClick={onTap}>{tok.t}</span>;
 }
 
 export default function StoryReader() {
   const { id } = useParams();
   const story = STORIES.find((s) => s.id === id);
-  const { showFurigana, toggleFurigana, saveWord, savedWords, completeStory } = useStore();
+  const state = useStore();
+  const { showFurigana, toggleFurigana, saveWord, savedWords, completeStory } = state;
   const [gloss, setGloss] = useState<Token | null>(null);
   const [playing, setPlaying] = useState<number | null>(null);
   const [showEn, setShowEn] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [forceOpen, setForceOpen] = useState(false);
+  const [savedScore, setSavedScore] = useState(false);
 
   if (!story) return <div className="page">Story not found. <Link to="/stories">Back</Link></div>;
-  if (!storyUnlocked(story.chapter, useStore.getState()))
-    return <div className="page">🔒 Locked. Pass <Link className="link" to="/grammar">grammar lesson {story.chapter}</Link> first.</div>;
+  if (!forceOpen && !storyUnlocked(story.chapter, state)) {
+    return (
+      <div className="page">
+        <p>
+          🔒 This chapter unlocks after passing <Link className="link" to={`/grammar/g${story.chapter}`}>Grammar Lesson {story.chapter}</Link>.
+        </p>
+        <div className="controls">
+          <Link className="chip on" to={`/grammar/g${story.chapter}`}>Go to Grammar Lesson {story.chapter} →</Link>
+          <button className="chip" onClick={() => setForceOpen(true)}>Read anyway</button>
+        </div>
+      </div>
+    );
+  }
 
   const playFrom = (i: number) => {
     if (i >= story.paragraphs.length) return setPlaying(null);
@@ -53,10 +109,20 @@ export default function StoryReader() {
       <div className="story-body">
         {story.paragraphs.map((para, i) => (
           <div key={i} className={`para${playing === i ? ' playing' : ''}`}>
-            <p onDoubleClick={() => speak(plain(para))}>
+            <p className="story-line" onDoubleClick={() => speak(plain(para))}>
               {para.map((tok, j) => (
-                <Word key={j} tok={tok} furigana={showFurigana} active={gloss === tok}
-                  onTap={() => { if (tok.en) { setGloss(tok); speak(tok.r ?? tok.t); } }} />
+                <Word
+                  key={j}
+                  tok={tok}
+                  furigana={showFurigana}
+                  active={gloss === tok}
+                  onTap={() => {
+                    if (tok.en) {
+                      setGloss(tok);
+                      speak(tok.r ?? tok.t);
+                    }
+                  }}
+                />
               ))}
             </p>
             {showEn && <p className="en">{story.translation[i]}</p>}
@@ -87,8 +153,14 @@ export default function StoryReader() {
               const chosen = answers[i] === j;
               const cls = answers[i] === undefined ? 'chip' : j === q.answer ? 'chip ok' : chosen ? 'chip bad' : 'chip';
               return (
-                <button key={j} className={cls} disabled={answers[i] !== undefined}
-                  onClick={() => setAnswers((a) => ({ ...a, [i]: j }))}>{o}</button>
+                <button
+                  key={j}
+                  className={cls}
+                  disabled={answers[i] !== undefined}
+                  onClick={() => setAnswers((a) => ({ ...a, [i]: j }))}
+                >
+                  {o}
+                </button>
               );
             })}
           </div>
@@ -96,8 +168,14 @@ export default function StoryReader() {
       ))}
       {allAnswered && (
         <div className="result">
-          Score: {score}%{' '}
-          <button className="chip on" onClick={() => completeStory(story.id, score)}>Mark complete</button>
+          <span>Score: {score}%</span>
+          {!savedScore ? (
+            <button className="chip on" onClick={() => { completeStory(story.id, score); setSavedScore(true); }}>
+              Mark complete
+            </button>
+          ) : (
+            <Link className="chip on" to="/stories">✓ Completed — Back to Stories</Link>
+          )}
         </div>
       )}
     </div>

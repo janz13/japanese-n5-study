@@ -8,8 +8,8 @@ import { lessonUnlocked, storyUnlocked } from '../lib/progress';
 
 export default function Dashboard() {
   const p = useStore();
-  const { kanaStats, streak, completedStories, srs, grammarDone } = p;
-  const mastered = (list: typeof HIRAGANA) => list.filter((k) => (kanaStats[k.kana]?.correct ?? 0) >= 3).length;
+  const { kanaStats, streak, completedStories, srs, grammarDone, examBest } = p;
+  const practiced = (list: typeof HIRAGANA) => list.filter((k) => (kanaStats[k.kana]?.correct ?? 0) >= 1).length;
   const due = Object.values(srs).filter((i) => isDue(i)).length;
 
   // Suggest the next step on the story path
@@ -37,20 +37,20 @@ export default function Dashboard() {
 
       <div className="stats">
         <div className="stat"><b>{streak}</b><span>day streak 🔥</span></div>
-        <div className="stat"><b>{mastered(HIRAGANA)}/{HIRAGANA.length}</b><span>hiragana</span></div>
-        <div className="stat"><b>{mastered(KATAKANA)}/{KATAKANA.length}</b><span>katakana</span></div>
+        <div className="stat"><b>{practiced(HIRAGANA)}/{HIRAGANA.length}</b><span>hiragana</span></div>
+        <div className="stat"><b>{practiced(KATAKANA)}/{KATAKANA.length}</b><span>katakana</span></div>
         <div className="stat"><b>{Object.values(srs).filter((i) => i.kind === 'kanji').length}/{KANJI.length}</b><span>kanji in deck</span></div>
         <div className="stat"><b>{Object.keys(grammarDone).length}/{LESSONS.length}</b><span>lessons</span></div>
         <div className="stat"><b>{Object.keys(completedStories).length}/{STORIES.length}</b><span>stories</span></div>
       </div>
       <div className="grid">
-        <Link to="/kana" className="tile"><span className="big">あ</span>Kana Dojo<small>Typing drills</small></Link>
+        <Link to="/kana" className="tile"><span className="big">あ</span>Kana Dojo<small>Typing &amp; Yōon drills</small></Link>
         <Link to="/review" className="tile"><span className="big">復</span>Review<small>{due} due</small></Link>
-        <Link to="/kanji" className="tile"><span className="big">漢</span>Kanji<small>Strokes &amp; writing</small></Link>
+        <Link to="/kanji" className="tile"><span className="big">漢</span>Kanji<small>103 N5 · Search &amp; write</small></Link>
         <Link to="/grammar" className="tile"><span className="big">文</span>Grammar<small>Unlock chapters</small></Link>
         <Link to="/stories" className="tile"><span className="big">物語</span>Stories<small>Read &amp; listen</small></Link>
-        <Link to="/speaking" className="tile"><span className="big">話</span>Speaking<small>Role-play</small></Link>
-        <div className="tile disabled"><span className="big">試</span>Mock Exam<small>Coming soon</small></div>
+        <Link to="/speaking" className="tile"><span className="big">話</span>Speaking<small>Role-play dialogues</small></Link>
+        <Link to="/exam" className="tile"><span className="big">試</span>Mock Exam<small>{examBest !== null ? `Best: ${examBest}%` : 'Timed N5 test'}</small></Link>
       </div>
     </div>
   );

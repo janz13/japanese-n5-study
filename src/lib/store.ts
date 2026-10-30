@@ -33,6 +33,7 @@ interface State {
   completedStories: Record<string, number>; // id -> best score %
   grammarDone: Record<string, number>; // lesson id -> best score %
   scenesDone: Record<string, number>;
+  examBest: number | null;
   streak: number;
   lastStudy: string | null;
   showFurigana: boolean;
@@ -43,6 +44,7 @@ interface State {
   completeStory: (id: string, score: number) => void;
   completeLesson: (id: string, score: number) => void;
   completeScene: (id: string, score: number) => void;
+  completeExam: (score: number) => void;
   toggleFurigana: () => void;
 }
 
@@ -71,6 +73,7 @@ export const useStore = create<State>()(
       completedStories: {},
       grammarDone: {},
       scenesDone: {},
+      examBest: null,
       streak: 0,
       lastStudy: null,
       showFurigana: true,
@@ -97,7 +100,7 @@ export const useStore = create<State>()(
         }),
       addCard: (item) =>
         set((s) => (s.srs[item.id] ? s : { srs: { ...s.srs, [item.id]: { ...item, card: createEmptyCard() } } })),
-      reviewCard: (id, grade) =>
+      reviewCard: (id: string, grade) =>
         set((s) => {
           const item = s.srs[id];
           if (!item) return s;
@@ -113,20 +116,27 @@ export const useStore = create<State>()(
         set((s) => ({ ...bumpStreak(s), grammarDone: { ...s.grammarDone, [id]: Math.max(score, s.grammarDone[id] ?? 0) } })),
       completeScene: (id, score) =>
         set((s) => ({ ...bumpStreak(s), scenesDone: { ...s.scenesDone, [id]: Math.max(score, s.scenesDone[id] ?? 0) } })),
+      completeExam: (score) =>
+        set((s) => ({ ...bumpStreak(s), examBest: Math.max(score, s.examBest ?? 0) })),
       toggleFurigana: () => set((s) => ({ showFurigana: !s.showFurigana })),
     }),
     {
       name: 'n5-study',
-      version: 2,
-      // v1 had savedWords but no SRS cards: convert them
+      version: 3,
       migrate: (old: unknown) => {
-        const s = old as State;
+        const s = (old ?? {}) as Partial<State>;
         const srs: Record<string, SrsItem> = s.srs ?? {};
         for (const w of s.savedWords ?? []) {
           const id = `w:${w.t}`;
           srs[id] ??= { id, kind: 'word', front: w.t, reading: w.r, back: w.en ?? '', card: createEmptyCard() };
         }
-        return { ...s, srs, grammarDone: s.grammarDone ?? {}, scenesDone: s.scenesDone ?? {} } as State;
+        return {
+          ...s,
+          srs,
+          grammarDone: s.grammarDone ?? {},
+          scenesDone: s.scenesDone ?? {},
+          examBest: s.examBest ?? null,
+        } as State;
       },
     },
   ),
