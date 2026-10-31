@@ -1,15 +1,47 @@
-const CACHE = 'n5-study-v1';
+const CACHE = 'n5-study-v2';
+const PRECACHE_URLS = ['./', './index.html', './manifest.webmanifest', './favicon.svg'];
 
-self.addEventListener('install', () => {
-  self.skipWaiting();
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(self.clients.claim());
+  e.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
+  );
 });
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+
+  // Cache-first for KanjiVG stroke SVGs and hashed build assets
+  if (url.pathname.includes('/strokes/') || url.pathname.includes('/assets/')) {
+    e.respondWith(
+      caches.match(e.request).then(
+        (cached) =>
+          cached ||
+          fetch(e.request).then((res) => {
+            if (res && res.status === 200) {
+              const clone = res.clone();
+              caches.open(CACHE).then((c) => c.put(e.request, clone));
+            }
+            return res;
+          }),
+      ),
+    );
+    return;
+  }
+
+  // Network-first with offline cache fallback for HTML and everything else
   e.respondWith(
     fetch(e.request)
       .then((res) => {
@@ -19,6 +51,6 @@ self.addEventListener('fetch', (e) => {
         }
         return res;
       })
-      .catch(() => caches.match(e.request)),
+      .catch(() => caches.match(e.request).then((cached) => cached || caches.match('./index.html'))),
   );
 });

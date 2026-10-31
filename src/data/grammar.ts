@@ -308,4 +308,78 @@ export const LESSONS: Lesson[] = [
       { type: 'order', en: 'I want to try eating natto.', tokens: ['なっとうを', '食べて', 'みたいです'] },
     ],
   },
+  {
+    id: 'g9',
+    chapter: 9,
+    title: 'N4 · Conditionals (〜たら・〜なら・〜ば・〜と)',
+    points: [
+      {
+        pattern: 'V-たら / Adj-かったら',
+        meaning: 'if / when (after V happens)',
+        explain: 'Past plain (た-form) + ら. The most versatile conditional: works for one-time future events ("when you arrive") and hypotheticals.',
+        examples: [{ jp: '駅に 着いたら、電話して ください。', en: 'When you arrive at the station, please call me.', audio: 'えきに ついたら、でんわして ください。' }],
+      },
+      {
+        pattern: 'N / V なら',
+        meaning: 'if it is the case that / regarding',
+        explain: 'Responds to context someone else just brought up ("If you are going to Kyoto, go by Shinkansen").',
+        examples: [{ jp: '京都へ 行くなら、新幹線が 便利です。', en: 'If you are going to Kyoto, the Shinkansen is convenient.', audio: 'きょうとへ いくなら、しんかんせんが べんりです。' }],
+      },
+      {
+        pattern: 'V-えば / い-Adj-ければ',
+        meaning: 'if (general condition)',
+        explain: 'Godan: う-row → え-row + ば (行く → 行けば). Ichidan: る → れば (食べる → 食べれば). い-Adj: い → ければ (安い → 安ければ).',
+        examples: [{ jp: '天気が よければ、富士山が 見えます。', en: 'If the weather is good, you can see Mt. Fuji.', audio: 'てんきが よければ、ふじさんが みえます。' }],
+      },
+      {
+        pattern: 'V-る と',
+        meaning: 'whenever / automatically when',
+        explain: 'Dictionary/negative form + と expresses natural results, machine operations, or directions (cannot be followed by requests/commands).',
+        examples: [{ jp: 'この ボタンを 押すと、きっぷが 出ます。', en: 'When you press this button, a ticket comes out.', audio: 'この ボタンを おすと、きっぷが でます。' }],
+      },
+    ],
+    exercises: [
+      { type: 'mcq', prompt: '雨が（　）、ピクニックは 行きません。', en: 'If it rains, we will not go on the picnic.', options: ['降ったら', '降ると', '降るなら'], answer: 0 },
+      { type: 'mcq', prompt: 'カメラを 買う（　）、秋葉原の 店が いいですよ。', en: 'If you are buying a camera, the shops in Akihabara are good.', options: ['なら', 'たら', 'と'], answer: 0 },
+      { type: 'mcq', prompt: '春に なる（　）、さくらが 咲きます。', en: 'Whenever spring comes, the cherry blossoms bloom.', options: ['と', 'なら', 'たらば'], answer: 0 },
+      { type: 'order', en: 'When you arrive at the station, please call me.', tokens: ['駅に', '着いたら', '電話して', 'ください'] },
+    ],
+  },
+  {
+    id: 'g10',
+    chapter: 10,
+    title: 'N4 · Keigo & Polite Requests (敬語)',
+    points: [
+      {
+        pattern: 'いらっしゃいます / ご覧になります',
+        meaning: 'be / go / come / see (Honorific 尊敬語)',
+        explain: 'Elevates the listener/customer or respected person’s actions: 行く・来る・いる → いらっしゃいます; 見る → ご覧に なります; 食べる・飲む → 召し上がります.',
+        examples: [{ jp: '先生は もう いらっしゃいましたか。', en: 'Has the teacher arrived yet?', audio: 'せんせいは もう いらっしゃいましたか。' }],
+      },
+      {
+        pattern: 'お + V-stem + に なります',
+        meaning: 'honorific verb pattern (尊敬語)',
+        explain: 'お + masu-stem + に なります politely elevates a customer’s or superior’s action (お待ちに なる, お読みに なる).',
+        examples: [{ jp: 'カードを お使いに なりますか。', en: 'Will you be using a card?', audio: 'カードを おつかいに なりますか。' }],
+      },
+      {
+        pattern: '参ります / 申します / いたします',
+        meaning: 'go/come / be called / do (Humble 謙譲語)',
+        explain: 'Lowers your own action to show respect: 行く・来る → 参ります (まいります); 言う → 申します (もうします); する → いたします.',
+        examples: [{ jp: '私が ご案内いたします。', en: 'I will guide you.', audio: 'わたしが ごあんない いたします。' }],
+      },
+      {
+        pattern: 'V-て いただけますか / 〜でございます',
+        meaning: 'could you kindly V? / polite copula (丁寧語)',
+        explain: 'て-form + いただけますか is much softer and more polite than 〜てください. でございます is the super-polite form of です heard in hotels and shops.',
+        examples: [{ jp: 'お名前を 書いて いただけますか。', en: 'Could you kindly write your name?', audio: 'おなまえを かいて いただけますか。' }],
+      },
+    ],
+    exercises: [
+      { type: 'mcq', prompt: '社長は 今 会議室に（　）。', en: 'The company president is in the meeting room now (Honorific).', options: ['いらっしゃいます', '参ります', '申します'], answer: 0 },
+      { type: 'mcq', prompt: '少し ゆっくり 話して（　）。', en: 'Could you kindly speak a little more slowly?', options: ['いただけますか', 'いたしますか', 'ございますか'], answer: 0 },
+      { type: 'mcq', prompt: 'こちらは 案内所で（　）。', en: 'This is the information desk (Super-polite).', options: ['ございます', 'いらっしゃいます', '申します'], answer: 0 },
+      { type: 'order', en: 'I will guide you (Humble).', tokens: ['私が', 'ご案内', 'いたします'] },
+    ],
+  },
 ];

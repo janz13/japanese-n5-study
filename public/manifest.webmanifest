@@ -1,7 +1,7 @@
 {
-  "name": "日本語 N5 — Japanese Study App",
-  "short_name": "日本語 N5",
-  "description": "JLPT N5 Kana, Kanji, Grammar, Stories, Speaking, and Spaced Repetition Study App",
+  "name": "日本語 N5 & N4 — Japanese Study & JLPT Simulator",
+  "short_name": "日本語 N5/N4",
+  "description": "Offline-ready JLPT N5 & N4 study suite: Kana, 150 Kanji + Radicals, Grammar, Stories, Hands-Free Driving Podcast, FSRS Review, and 67-Q Mock Exam.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#16161e",

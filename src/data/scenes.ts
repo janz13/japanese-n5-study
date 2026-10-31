@@ -99,4 +99,19 @@ export const SCENES: Scene[] = [
       { who: 'you', jp: 'ありがとうございます。それを ください。', kana: 'ありがとうございます。それを ください。', en: 'Thank you. I will take that, please.' },
     ],
   },
+  {
+    id: 's7',
+    chapter: 10,
+    level: 'N4',
+    title: 'デパートの 案内所（敬語）',
+    setting: 'Asking a department store concierge for the souvenir floor and tax-free counter using polite requests.',
+    lines: [
+      { who: 'npc', name: '受付', jp: 'いらっしゃいませ。ご案内所で ございます。', kana: 'いらっしゃいませ。ごあんないじょで ございます。', en: 'Welcome. This is the information desk.' },
+      { who: 'you', jp: 'すみません、お土産の 売り場は 何階ですか。', kana: 'すみません、おみやげの うりばは なんがいですか。', en: 'Excuse me, what floor is the souvenir section on?' },
+      { who: 'npc', name: '受付', jp: 'お土産で いらっしゃいますね。地下一階で ございます。', kana: 'おみやげで いらっしゃいますね。ちかいっかいで ございます。', en: 'Souvenirs, right? That is on the 1st basement floor.' },
+      { who: 'you', jp: 'カードを 使う ことは できますか。', kana: 'カードを つかう ことは できますか。', en: 'Is it possible to use a credit card?' },
+      { who: 'npc', name: '受付', jp: 'はい、お使いに なれます。エレベーターへ ご案内いたします。', kana: 'はい、おつかいに なれます。エレベーターへ ごあんない いたします。', en: 'Yes, you can use it. I will guide you to the elevator.' },
+      { who: 'you', jp: 'ご親切に ありがとうございます。', kana: 'ごしんせつに ありがとうございます。', en: 'Thank you very much for your kindness.' },
+    ],
+  },
 ];

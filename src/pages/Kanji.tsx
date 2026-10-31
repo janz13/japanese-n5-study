@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { toHiragana, toKatakana } from 'wanakana';
 import { KANJI } from '../data/kanji';
+import { getKanjiBreakdown, RADICAL_FAMILIES } from '../data/kanjiRadicals';
 import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
 import { StrokeOrder, TraceCanvas } from '../components/Strokes';
@@ -16,6 +17,7 @@ export function KanjiList() {
   const [levelFilter, setLevelFilter] = useState<LevelFilter>('all');
   const [filter, setFilter] = useState<DeckFilter>('all');
   const [strokeFilter, setStrokeFilter] = useState<StrokeFilter>('all');
+  const [radicalFam, setRadicalFam] = useState<string>('all');
 
   const n5Count = KANJI.filter((k) => k.level === 'N5').length;
   const n4Count = KANJI.filter((k) => k.level === 'N4').length;
@@ -30,8 +32,10 @@ export function KanjiList() {
     const q = query.trim().toLowerCase();
     const hira = q ? toHiragana(q) : '';
     const kata = q ? toKatakana(q) : '';
+    const activeFam = RADICAL_FAMILIES.find((f) => f.id === radicalFam);
     return KANJI.filter((k) => {
       if (levelFilter !== 'all' && k.level !== levelFilter) return false;
+      if (activeFam && !activeFam.chars.includes(k.k)) return false;
       const isIn = !!srs[`k:${k.k}`];
       if (filter === 'in' && !isIn) return false;
       if (filter === 'out' && isIn) return false;
@@ -52,7 +56,7 @@ export function KanjiList() {
         k.ex.en.toLowerCase().includes(q)
       );
     });
-  }, [query, levelFilter, filter, strokeFilter, srs]);
+  }, [query, levelFilter, radicalFam, filter, strokeFilter, srs]);
 
   return (
     <div className="page">
@@ -98,6 +102,24 @@ export function KanjiList() {
           <button className="chip on" onClick={addAll}>+ Add to review</button>
         )}
       </div>
+
+      {/* Radical & Component Family Filter */}
+      <div className="controls">
+        <span className="muted small" style={{ alignSelf: 'center' }}>🧩 Radicals:</span>
+        <button className={radicalFam === 'all' ? 'chip on' : 'chip'} onClick={() => setRadicalFam('all')}>
+          All Radicals
+        </button>
+        {RADICAL_FAMILIES.map((fam) => (
+          <button
+            key={fam.id}
+            className={radicalFam === fam.id ? 'chip on' : 'chip'}
+            onClick={() => setRadicalFam(fam.id)}
+          >
+            {fam.label} ({fam.chars.length})
+          </button>
+        ))}
+      </div>
+
       <div className="kanji-grid">
         {filtered.map((k) => (
           <Link key={k.k} to={`/kanji/${k.k}`} className={`kanji-cell${srs[`k:${k.k}`] ? ' in' : ''}`}>
@@ -120,6 +142,10 @@ export function KanjiDetail() {
   if (!kj) return <div className="page">Not found. <Link to="/kanji">Back</Link></div>;
   const id = `k:${kj.k}`;
   const prev = KANJI[idx - 1], next = KANJI[idx + 1];
+
+  const breakdown = getKanjiBreakdown(kj.k, kj.meaning, kj.strokes);
+  const family = RADICAL_FAMILIES.find((f) => f.chars.includes(kj.k));
+  const siblings = family ? family.chars.filter((c) => c !== kj.k) : [];
 
   return (
     <div className="page">
@@ -154,6 +180,43 @@ export function KanjiDetail() {
           </button>
         </div>
       </div>
+
+      {/* Radical Decomposition & Visual Mnemonic Card */}
+      <div className="gp" style={{ margin: '1rem 0' }}>
+        <div className="row-between">
+          <div>
+            <span className="tag">🧩 RADICAL &amp; COMPONENT BREAKDOWN (部首・成り立ち)</span>
+            <h3 className="nomargin" style={{ marginTop: '0.2rem' }}>
+              Primary Radical: <span className="jp" style={{ color: 'var(--accent)' }}>{breakdown.radical}</span>{' '}
+              <span className="muted small">— {breakdown.radicalName}</span>
+            </h3>
+          </div>
+          <div className="controls nomargin">
+            {breakdown.parts.map((pt, i) => (
+              <span key={i} className="chip on" style={{ fontSize: '0.85rem' }}>
+                {pt}
+              </span>
+            ))}
+          </div>
+        </div>
+        <p style={{ marginTop: '0.5rem', marginBottom: siblings.length ? '0.6rem' : 0 }}>
+          💡 <b>Mnemonic:</b> {breakdown.mnemonic}
+        </p>
+        {siblings.length > 0 && (
+          <div className="controls nomargin" style={{ alignItems: 'center' }}>
+            <span className="muted small">Related in {family?.label}:</span>
+            {siblings.map((sib) => {
+              const sibObj = KANJI.find((x) => x.k === sib);
+              return (
+                <Link key={sib} to={`/kanji/${sib}`} className="chip" style={{ padding: '0.22rem 0.65rem', fontSize: '0.82rem' }}>
+                  <b className="jp">{sib}</b> {sibObj ? <span className="muted small">({sibObj.meaning.split(',')[0]})</span> : null}
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <div className="two-col">
         <section><h2>Stroke order</h2><StrokeOrder kanji={kj.k} /></section>
         <section><h2>Practice writing</h2><TraceCanvas kanji={kj.k} /></section>
