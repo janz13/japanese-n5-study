@@ -114,6 +114,9 @@ export default function Dashboard() {
           <Link to="/bento" className="chip on" style={{ padding: '0.65rem 1.3rem', fontWeight: 600 }}>
             {bentoDoneToday ? '🍱 Practice Another Bento →' : '🍱 Start Today’s Bento (5 min) →'}
           </Link>
+          <Link to="/drive" className="chip on" style={{ padding: '0.65rem 1.1rem' }}>
+            📻 Hands-Free Drive Mode
+          </Link>
           <Link to="/stamps" className="chip">
             印 Stamp Book ({earnedStamps.length}/{STAMPS.length})
           </Link>
@@ -148,6 +151,7 @@ export default function Dashboard() {
         <Link to="/stories" className="tile"><span className="big">物語</span>Stories<small>Read &amp; listen</small></Link>
         <Link to="/speaking" className="tile"><span className="big">話</span>Speaking<small>Role-play dialogues</small></Link>
         <Link to="/listening" className="tile"><span className="big">聴</span>Listening<small>JLPT-style 聴解 drills</small></Link>
+        <Link to="/drive" className="tile"><span className="big">音</span>Drive Mode<small>Hands-free podcast</small></Link>
         <Link to="/signs" className="tile"><span className="big">看板</span>Sign Decoder<small>Station · Konbini · Izakaya</small></Link>
         <Link to="/stamps" className="tile"><span className="big">印</span>Stamp Book<small>{earnedStamps.length}/{STAMPS.length} Goshuin &amp; Eki</small></Link>
         <Link to="/exam" className="tile"><span className="big">試</span>Mock Exam<small>{examBest !== null ? `Best: ${examBest}%` : 'Timed N5 test'}</small></Link>

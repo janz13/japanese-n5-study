@@ -28,6 +28,20 @@ interface Word {
 
 export type ThemeMode = 'dark' | 'light';
 
+export interface ExamCertificate {
+  id: string;
+  date: string;
+  level: 'N5' | 'N4';
+  mode: 'full' | 'mini';
+  totalPts: number;
+  langReadingPts: number;
+  listenPts: number;
+  passed: boolean;
+  vocabGrade: 'A' | 'B' | 'C';
+  grammarGrade: 'A' | 'B' | 'C';
+  weakMondai: string[];
+}
+
 interface State {
   kanaStats: Record<string, KanaStat>;
   savedWords: Word[];
@@ -36,6 +50,7 @@ interface State {
   grammarDone: Record<string, number>; // lesson id -> best score %
   scenesDone: Record<string, number>;
   examBest: number | null;
+  examHistory: ExamCertificate[];
   bentoCount: number;
   lastBentoDate: string | null;
   unlockedStamps: Record<string, string>; // stampId -> YYYY-MM-DD
@@ -48,11 +63,13 @@ interface State {
   recordKana: (kana: string, ok: boolean) => void;
   saveWord: (w: Word) => void;
   addCard: (item: Omit<SrsItem, 'card'>) => void;
+  removeCard: (id: string) => void;
   reviewCard: (id: string, grade: Grade) => void;
   completeStory: (id: string, score: number) => void;
   completeLesson: (id: string, score: number) => void;
   completeScene: (id: string, score: number) => void;
   completeExam: (score: number) => void;
+  recordExamCertificate: (cert: ExamCertificate) => void;
   completeBento: () => void;
   unlockStamp: (id: string) => void;
   toggleFurigana: () => void;
@@ -87,6 +104,7 @@ const initialData = {
   grammarDone: {} as Record<string, number>,
   scenesDone: {} as Record<string, number>,
   examBest: null as number | null,
+  examHistory: [] as ExamCertificate[],
   bentoCount: 0,
   lastBentoDate: null as string | null,
   unlockedStamps: {} as Record<string, string>,
@@ -125,6 +143,12 @@ export const useStore = create<State>()(
         }),
       addCard: (item) =>
         set((s) => (s.srs[item.id] ? s : { srs: { ...s.srs, [item.id]: { ...item, card: createEmptyCard() } } })),
+      removeCard: (id) =>
+        set((s) => {
+          const next = { ...s.srs };
+          delete next[id];
+          return { srs: next };
+        }),
       reviewCard: (id: string, grade) =>
         set((s) => {
           const item = s.srs[id];
@@ -143,6 +167,11 @@ export const useStore = create<State>()(
         set((s) => ({ ...bumpStreak(s), scenesDone: { ...s.scenesDone, [id]: Math.max(score, s.scenesDone[id] ?? 0) } })),
       completeExam: (score) =>
         set((s) => ({ ...bumpStreak(s), examBest: Math.max(score, s.examBest ?? 0) })),
+      recordExamCertificate: (cert) =>
+        set((s) => ({
+          ...bumpStreak(s),
+          examHistory: [cert, ...(s.examHistory ?? [])].slice(0, 20),
+        })),
       completeBento: () =>
         set((s) => {
           const t = todayStr();

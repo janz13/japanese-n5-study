@@ -2,13 +2,16 @@ import { useStore } from './store';
 
 let jaVoice: SpeechSynthesisVoice | null = null;
 let jaVoices: SpeechSynthesisVoice[] = [];
+let enVoice: SpeechSynthesisVoice | null = null;
 /** Incremented on every new speak/stop so stale dialogue chains abort. */
 let generation = 0;
 
 function pickVoice() {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-  jaVoices = speechSynthesis.getVoices().filter((v) => v.lang.startsWith('ja'));
+  const all = speechSynthesis.getVoices();
+  jaVoices = all.filter((v) => v.lang.startsWith('ja'));
   jaVoice = jaVoices[0] ?? null;
+  enVoice = all.find((v) => v.lang.startsWith('en-US')) ?? all.find((v) => v.lang.startsWith('en')) ?? null;
 }
 
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -101,6 +104,34 @@ export function speak(rawText: string, rate?: number, onEnd?: () => void) {
     u.lang = 'ja-JP';
     u.rate = effectiveRate;
     if (jaVoice) u.voice = jaVoice;
+    u.onend = finish;
+    u.onerror = finish;
+    speechSynthesis.speak(u);
+  } catch {
+    finish();
+  }
+}
+
+export function speakEnglish(text: string, rate = 1.02, onEnd?: () => void) {
+  generation++;
+  let called = false;
+  const finish = () => {
+    if (called) return;
+    called = true;
+    clearTimeout(fallbackTimer);
+    onEnd?.();
+  };
+  const estMs = Math.min(8000, Math.max(1100, (text.length * 85) / rate));
+  const fallbackTimer = setTimeout(finish, estMs);
+
+  if (!ttsSupported()) return;
+
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US';
+    u.rate = rate;
+    if (enVoice) u.voice = enVoice;
     u.onend = finish;
     u.onerror = finish;
     speechSynthesis.speak(u);

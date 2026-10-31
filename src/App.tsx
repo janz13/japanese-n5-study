@@ -5,6 +5,7 @@ import DailyBento from './pages/DailyBento';
 import StampBook from './pages/StampBook';
 import SignDecoder from './pages/SignDecoder';
 import Listening from './pages/Listening';
+import DriveMode from './pages/DriveMode';
 import KanaDojo from './pages/KanaDojo';
 import ConjugationDojo from './pages/ConjugationDojo';
 import CounterDojo from './pages/CounterDojo';
@@ -22,6 +23,7 @@ interface NavItem {
   to: string;
   icon: string;
   label: string;
+  shortLabel?: string;
   end?: boolean;
 }
 
@@ -38,6 +40,7 @@ const LINKS: NavItem[] = [
   { to: '/stories', icon: '物', label: 'Stories' },
   { to: '/speaking', icon: '話', label: 'Speak' },
   { to: '/listening', icon: '聴', label: 'Listen' },
+  { to: '/drive', icon: '音', label: 'Drive' },
   { to: '/signs', icon: '看', label: 'Signs' },
   { to: '/stamps', icon: '印', label: 'Stamps' },
   { to: '/exam', icon: '試', label: 'Exam' },
@@ -49,9 +52,9 @@ const NAV_GROUPS: { id: string; label: string; icon: string; items: NavItem[] }[
     label: 'Daily',
     icon: '🍱',
     items: [
-      { to: '/bento', icon: '弁', label: 'Daily Bento' },
-      { to: '/review', icon: '復', label: 'FSRS Review' },
-      { to: '/stamps', icon: '印', label: 'Stamp Book' },
+      { to: '/bento', icon: '弁', label: 'Daily Bento', shortLabel: 'Bento' },
+      { to: '/review', icon: '復', label: 'FSRS Review', shortLabel: 'Review' },
+      { to: '/stamps', icon: '印', label: 'Stamp Book', shortLabel: 'Stamps' },
     ],
   },
   {
@@ -59,11 +62,11 @@ const NAV_GROUPS: { id: string; label: string; icon: string; items: NavItem[] }[
     label: 'Drills',
     icon: '🥋',
     items: [
-      { to: '/kana', icon: 'あ', label: 'Kana Dojo' },
-      { to: '/kanji', icon: '漢', label: 'Kanji Studio' },
-      { to: '/conjugate', icon: '活', label: 'Verb & Adj Dojo' },
-      { to: '/counters', icon: '数', label: 'Counter Dojo' },
-      { to: '/particles', icon: '助', label: 'Particle Dojo' },
+      { to: '/kana', icon: 'あ', label: 'Kana Dojo', shortLabel: 'Kana' },
+      { to: '/kanji', icon: '漢', label: 'Kanji Studio', shortLabel: 'Kanji' },
+      { to: '/conjugate', icon: '活', label: 'Verb & Pair Dojo', shortLabel: 'Verbs' },
+      { to: '/counters', icon: '数', label: 'Counter Dojo', shortLabel: 'Counters' },
+      { to: '/particles', icon: '助', label: 'Particle Dojo', shortLabel: 'Particles' },
     ],
   },
   {
@@ -71,11 +74,12 @@ const NAV_GROUPS: { id: string; label: string; icon: string; items: NavItem[] }[
     label: 'Immersion',
     icon: '🏮',
     items: [
-      { to: '/grammar', icon: '文', label: 'Grammar' },
-      { to: '/stories', icon: '物', label: 'Graded Stories' },
-      { to: '/speaking', icon: '話', label: 'Speaking' },
-      { to: '/listening', icon: '聴', label: 'Listening' },
-      { to: '/signs', icon: '看', label: 'Sign Decoder' },
+      { to: '/drive', icon: '音', label: 'Hands-Free Drive Podcast', shortLabel: 'Drive' },
+      { to: '/grammar', icon: '文', label: 'Grammar', shortLabel: 'Grammar' },
+      { to: '/stories', icon: '物', label: 'Graded Stories', shortLabel: 'Stories' },
+      { to: '/speaking', icon: '話', label: 'Speaking', shortLabel: 'Speak' },
+      { to: '/listening', icon: '聴', label: 'Listening', shortLabel: 'Listen' },
+      { to: '/signs', icon: '看', label: 'Sign Decoder', shortLabel: 'Signs' },
     ],
   },
 ];
@@ -141,7 +145,7 @@ function HeaderNav({
               >
                 <span>
                   {group.icon} {group.label}
-                  {activeItem ? ` · ${activeItem.label.split(' ')[0]}` : ''}
+                  {activeItem ? ` · ${activeItem.shortLabel ?? activeItem.label}` : ''}
                 </span>
                 {showDueBadge && <i className="badge">{due}</i>}
                 <span className="nav-caret">▾</span>
@@ -168,6 +172,15 @@ function HeaderNav({
             </div>
           );
         })}
+
+        <NavLink
+          to="/drive"
+          className={({ isActive }) => `nav-group-btn ${isActive ? 'active' : ''}`}
+          style={{ textDecoration: 'none' }}
+          title="Hands-Free Driving & Commute Podcast Mode"
+        >
+          📻 Drive
+        </NavLink>
 
         <NavLink
           to="/exam"
@@ -267,6 +280,7 @@ export default function App() {
           <Route path="/stamps" element={<StampBook />} />
           <Route path="/signs" element={<SignDecoder />} />
           <Route path="/listening" element={<Listening />} />
+          <Route path="/drive" element={<DriveMode />} />
           <Route path="/exam" element={<Exam />} />
         </Routes>
       </main>
