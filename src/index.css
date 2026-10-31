@@ -409,3 +409,26 @@ button, .chip, .cell, .kanji-cell { -webkit-tap-highlight-color: transparent; }
   .card-front { font-size: 3.2rem; }
   .bubble { max-width: 92%; }
 }
+
+.kbd-badge {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.18rem 0.42rem;
+  margin-left: 0.35rem;
+  border-radius: 5px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  vertical-align: middle;
+}
+.grade .kbd-badge {
+  background: rgba(0, 0, 0, 0.18);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: inherit;
+  margin-left: 0;
+  margin-right: 0.35rem;
+}
+

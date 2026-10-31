@@ -18,6 +18,24 @@ function letterGrade(pct: number): 'A' | 'B' | 'C' {
   return 'C';
 }
 
+function mondaiToDojoLink(label: string): { to: string; dojo: string } {
+  if (label.includes('漢字') || label.includes('表記')) return { to: '/kanji', dojo: 'Kanji Studio' };
+  if (label.includes('文脈') || label.includes('言い換え')) return { to: '/conjugate', dojo: 'Vocab & Verb Dojo' };
+  if (label.includes('組み立て')) return { to: '/grammar', dojo: 'Grammar Patterns' };
+  if (label.includes('文法')) return { to: '/particles', dojo: 'Particle & Grammar Dojo' };
+  if (label.includes('内容理解') || label.includes('情報検索') || label.includes('文章'))
+    return { to: '/stories', dojo: 'Graded Stories' };
+  if (
+    label.includes('課題理解') ||
+    label.includes('ポイント') ||
+    label.includes('発話') ||
+    label.includes('即時応答') ||
+    label.includes('聴解')
+  )
+    return { to: '/listening', dojo: 'Listening & Pitch Dojo' };
+  return { to: '/bento', dojo: 'Daily Bento' };
+}
+
 function examQuestionToSrsCard(q: GeneratedExamQuestion): Omit<SrsItem, 'card'> {
   const bracketMatch = q.prompt.match(/【([^】]+)】/);
   const firstLine = q.prompt.split('\n')[0].trim();
@@ -244,8 +262,22 @@ export default function Exam() {
                     {cert.passed ? '合格 PASSED' : '不合格 NOT PASSED'}
                   </span>
                   {cert.weakMondai.length > 0 && (
-                    <div className="muted small">
-                      Focus areas: {cert.weakMondai.join(' · ')}
+                    <div className="controls nomargin" style={{ marginTop: '0.3rem', gap: '0.35rem' }}>
+                      <span className="muted small">Focus areas:</span>
+                      {cert.weakMondai.map((wm) => {
+                        const target = mondaiToDojoLink(wm);
+                        return (
+                          <Link
+                            key={wm}
+                            to={target.to}
+                            className="chip"
+                            style={{ padding: '0.14rem 0.5rem', fontSize: '0.72rem' }}
+                            title={`Practice in ${target.dojo}`}
+                          >
+                            🎯 {wm} → {target.dojo}
+                          </Link>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -375,6 +407,32 @@ export default function Exam() {
               <span>文法・読解 ({grammarStats.ok}/{grammarStats.total})</span>
             </div>
           </div>
+
+          {missedQuestions.length > 0 && (() => {
+            const liveWeakMondai = Array.from(
+              new Set(missedQuestions.map((q) => q.mondaiTitle.split('（')[0])),
+            ).slice(0, 4);
+            return (
+              <div className="controls nomargin" style={{ gap: '0.4rem', flexWrap: 'wrap' }}>
+                <span className="muted small">
+                  <b>🎯 Recommended Focus Dojos:</b>
+                </span>
+                {liveWeakMondai.map((wm) => {
+                  const target = mondaiToDojoLink(wm);
+                  return (
+                    <Link
+                      key={wm}
+                      to={target.to}
+                      className="chip"
+                      style={{ padding: '0.22rem 0.65rem', fontSize: '0.78rem' }}
+                    >
+                      {wm} → {target.dojo}
+                    </Link>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           <div className="controls">
             {missedQuestions.length > 0 && (

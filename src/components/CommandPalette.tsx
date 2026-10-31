@@ -7,12 +7,27 @@ import { COUNTERS } from '../data/counters';
 import { VERB_PAIRS } from '../data/verbPairs';
 import { ONOMATOPOEIA } from '../data/onomatopoeia';
 import { PITCH_PAIRS } from '../data/pitchAccent';
+import { STORIES } from '../data/stories';
+import { SIGNS } from '../data/signs';
+import { TICKET_BUTTONS } from '../data/shokkenki';
+import { CONJUGATIONS } from '../data/conjugations';
 import { useStore, type CardKind } from '../lib/store';
 import { speak } from '../lib/tts';
 
+type SearchCategory =
+  | 'Module'
+  | 'Kanji'
+  | 'Vocab'
+  | 'Grammar'
+  | 'Sign & Menu'
+  | 'Counter'
+  | 'Verb Pair'
+  | 'Sound Word'
+  | 'Pitch Accent';
+
 interface SearchEntry {
   id: string;
-  category: 'Module' | 'Kanji' | 'Grammar' | 'Counter' | 'Verb Pair' | 'Sound Word' | 'Pitch Accent';
+  category: SearchCategory;
   jp: string;
   reading: string;
   en: string;
@@ -49,12 +64,14 @@ export default function CommandPalette({
   const navigate = useNavigate();
   const { srs, addCard } = useStore();
   const [query, setQuery] = useState('');
-  const [catFilter, setCatFilter] = useState<string>('all');
+  const [catFilter, setCatFilter] = useState<'all' | SearchCategory>('all');
+  const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setQuery('');
+      setSelectedIdx(0);
       setTimeout(() => inputRef.current?.focus(), 20);
     }
   }, [open]);
@@ -72,6 +89,72 @@ export default function CommandPalette({
         to: `/kanji/${k.k}`,
         tts: k.ex.r,
         srsKind: 'kanji',
+      });
+    }
+
+    // Story Vocabulary (きっぷ, 駅弁, お守り, 温泉, お土産, etc.)
+    const seenStoryWords = new Set<string>();
+    for (const story of STORIES) {
+      for (const para of story.paragraphs) {
+        for (const tok of para) {
+          if (!tok.en || seenStoryWords.has(tok.t)) continue;
+          seenStoryWords.add(tok.t);
+          const reading = tok.r ?? tok.t;
+          list.push({
+            id: `w:${tok.t}`,
+            category: 'Vocab',
+            jp: tok.t,
+            reading: `${reading} · Ch.${story.chapter}`,
+            en: `${tok.en} (Story Ch.${story.chapter}: ${story.titleEn})`,
+            to: `/stories/${story.id}`,
+            tts: reading,
+            srsKind: 'word',
+          });
+        }
+      }
+    }
+
+    // Conjugatable Verbs & Adjectives (including te-form, negative, past)
+    for (const cw of CONJUGATIONS) {
+      const allFormsKana = Object.values(cw.forms)
+        .map((f) => `${f.kanji} (${f.kana} / ${f.romaji})`)
+        .join(' · ');
+      list.push({
+        id: `conj:${cw.id}`,
+        category: 'Vocab',
+        jp: cw.dict,
+        reading: cw.reading,
+        en: `${cw.en} — Forms: ${allFormsKana}`,
+        to: '/conjugate',
+        tts: cw.reading,
+        srsKind: 'word',
+      });
+    }
+
+    // Real-World Signage & Ramen Ticket Machine Buttons (大盛り, 飲み放題, 替玉, etc.)
+    for (const sg of SIGNS) {
+      list.push({
+        id: `sign:${sg.id}`,
+        category: 'Sign & Menu',
+        jp: sg.sign,
+        reading: sg.reading,
+        en: `${sg.options[sg.answer]} — ${sg.note} (${sg.place})`,
+        to: '/signs',
+        tts: sg.reading,
+        srsKind: 'word',
+      });
+    }
+
+    for (const btn of TICKET_BUTTONS) {
+      list.push({
+        id: `shokken:${btn.id}`,
+        category: 'Sign & Menu',
+        jp: btn.kanji,
+        reading: btn.kana,
+        en: `${btn.en} (¥${btn.price} · Ramen Ticket Machine)`,
+        to: '/signs',
+        tts: btn.kana,
+        srsKind: 'word',
       });
     }
 
@@ -160,7 +243,7 @@ export default function CommandPalette({
         if (kata && hay.includes(kata)) return true;
         return false;
       })
-      .slice(0, 30);
+      .slice(0, 35);
   }, [allEntries, query, catFilter]);
 
   if (!open) return null;
@@ -184,7 +267,7 @@ export default function CommandPalette({
         className="gp"
         style={{
           width: '100%',
-          maxWidth: '680px',
+          maxWidth: '700px',
           margin: 0,
           padding: '1rem 1.2rem',
           boxShadow: '0 18px 50px #0009',
@@ -197,15 +280,25 @@ export default function CommandPalette({
             ref={inputRef}
             type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedIdx(0);
+            }}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') onClose();
-              else if (e.key === 'Enter' && results[0]) {
-                navigate(results[0].to);
+              if (e.key === 'Escape') {
+                onClose();
+              } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setSelectedIdx((i) => (results.length ? (i + 1) % results.length : 0));
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setSelectedIdx((i) => (results.length ? (i - 1 + results.length) % results.length : 0));
+              } else if (e.key === 'Enter' && results[selectedIdx]) {
+                navigate(results[selectedIdx].to);
                 onClose();
               }
             }}
-            placeholder="Search 150 Kanji, 40 Grammar rules, Counters, Verb Pairs, or type romaji (e.g. onsen, taberu)…"
+            placeholder={`Search ${allEntries.length}+ Kanji, Vocab, Grammar, Signs, or romaji (kippu, omamori, oomori, taberu)…`}
             className="search-input"
             style={{ width: '100%' }}
           />
@@ -215,18 +308,32 @@ export default function CommandPalette({
         </div>
 
         <div className="controls" style={{ marginTop: '0.6rem', marginBottom: '0.5rem' }}>
-          {(['all', 'Module', 'Kanji', 'Grammar', 'Counter', 'Verb Pair', 'Sound Word', 'Pitch Accent'] as const).map(
-            (c) => (
-              <button
-                key={c}
-                className={catFilter === c ? 'chip on' : 'chip'}
-                style={{ padding: '0.22rem 0.65rem', fontSize: '0.76rem' }}
-                onClick={() => setCatFilter(c)}
-              >
-                {c === 'all' ? 'All Dictionary & Modules' : c}
-              </button>
-            ),
-          )}
+          {(
+            [
+              'all',
+              'Kanji',
+              'Vocab',
+              'Grammar',
+              'Sign & Menu',
+              'Counter',
+              'Verb Pair',
+              'Sound Word',
+              'Pitch Accent',
+              'Module',
+            ] as const
+          ).map((c) => (
+            <button
+              key={c}
+              className={catFilter === c ? 'chip on' : 'chip'}
+              style={{ padding: '0.22rem 0.65rem', fontSize: '0.76rem' }}
+              onClick={() => {
+                setCatFilter(c);
+                setSelectedIdx(0);
+              }}
+            >
+              {c === 'all' ? `All (${allEntries.length})` : c}
+            </button>
+          ))}
         </div>
 
         <div
@@ -238,8 +345,9 @@ export default function CommandPalette({
             marginTop: '0.4rem',
           }}
         >
-          {results.map((r) => {
+          {results.map((r, idx) => {
             const inSrs = !!srs[r.id];
+            const isSelected = idx === selectedIdx;
             return (
               <div
                 key={r.id}
@@ -249,7 +357,9 @@ export default function CommandPalette({
                   padding: '0.55rem 0.85rem',
                   borderRadius: '10px',
                   cursor: 'pointer',
+                  border: isSelected ? '1px solid var(--accent)' : '1px solid transparent',
                 }}
+                onMouseEnter={() => setSelectedIdx(idx)}
                 onClick={() => {
                   navigate(r.to);
                   onClose();
@@ -286,7 +396,7 @@ export default function CommandPalette({
                           id: r.id,
                           kind: r.srsKind!,
                           front: r.jp.split('（')[0],
-                          reading: r.reading,
+                          reading: r.reading.split(' · ')[0],
                           back: r.en,
                         })
                       }
@@ -300,7 +410,7 @@ export default function CommandPalette({
           })}
           {results.length === 0 && (
             <p className="muted center small" style={{ padding: '1.2rem 0' }}>
-              No matching kanji, vocabulary, grammar, or module found.
+              No matching kanji, vocabulary, grammar, sign, or module found.
             </p>
           )}
         </div>

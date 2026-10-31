@@ -40,7 +40,10 @@ export default function Review() {
   // Deck Browser state
   const [showBrowser, setShowBrowser] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [kindFilter, setKindFilter] = useState<'all' | CardKind>('all');
+  const [kindFilter, setKindFilter] = useState<'all' | CardKind | 'leech'>('all');
+
+  const isLeechOrHard = (c: SrsItem) =>
+    (c.card.lapses ?? 0) > 0 || (c.card.difficulty ?? 0) >= 6.0 || c.id.startsWith('exam:');
 
   const items = Object.values(srs);
   const total = items.length;
@@ -48,6 +51,7 @@ export default function Review() {
     kanji: items.filter((i) => i.kind === 'kanji').length,
     word: items.filter((i) => i.kind === 'word').length,
     grammar: items.filter((i) => i.kind === 'grammar').length,
+    leech: items.filter(isLeechOrHard).length,
   };
 
   const nextDue = useMemo(() => {
@@ -147,7 +151,11 @@ export default function Review() {
   const filteredBrowserItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return items.filter((c) => {
-      if (kindFilter !== 'all' && c.kind !== kindFilter) return false;
+      if (kindFilter === 'leech') {
+        if (!isLeechOrHard(c)) return false;
+      } else if (kindFilter !== 'all' && c.kind !== kindFilter) {
+        return false;
+      }
       if (!q) return true;
       return (
         c.front.toLowerCase().includes(q) ||
@@ -155,7 +163,17 @@ export default function Review() {
         c.back.toLowerCase().includes(q)
       );
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, kindFilter, searchQuery]);
+
+  const cramFilteredCards = () => {
+    if (!filteredBrowserItems.length) return;
+    setQueue(filteredBrowserItems.map((c) => c.id));
+    setFlipped(false);
+    setTypedInput('');
+    setTypedResult(null);
+    setShowBrowser(false);
+  };
 
   if (!total)
     return (
@@ -229,9 +247,9 @@ export default function Review() {
           <div className="row-between">
             <b>🗂️ SRS Deck Browser ({filteredBrowserItems.length} / {total} cards)</b>
             <div className="controls nomargin">
-              {(['all', 'kanji', 'word', 'grammar'] as const).map((k) => (
+              {(['all', 'kanji', 'word', 'grammar', 'leech'] as const).map((k) => (
                 <button key={k} className={kindFilter === k ? 'chip on' : 'chip'} onClick={() => setKindFilter(k)}>
-                  {k === 'all' ? 'All' : k.toUpperCase()}
+                  {k === 'all' ? 'All' : k === 'leech' ? `🔥 Leech / Hard (${counts.leech})` : k.toUpperCase()}
                 </button>
               ))}
             </div>
@@ -244,39 +262,61 @@ export default function Review() {
               placeholder="Search Japanese, reading, or English meaning…"
               className="search-input"
             />
+            {filteredBrowserItems.length > 0 && (
+              <button className="chip on" onClick={cramFilteredCards}>
+                🎯 Drill These {filteredBrowserItems.length} Cards Now
+              </button>
+            )}
           </div>
           <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'grid', gap: '0.45rem', marginTop: '0.6rem' }}>
-            {filteredBrowserItems.map((c) => (
-              <div
-                key={c.id}
-                className="row-between"
-                style={{
-                  background: 'var(--surface2)',
-                  padding: '0.5rem 0.85rem',
-                  borderRadius: '10px',
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <span className="tag" style={{ marginRight: '0.5rem' }}>{c.kind}</span>
-                  <b className="jp" style={{ cursor: 'pointer' }} onClick={() => speakCurrentItem(c)}>
-                    🔊 {c.front}
-                  </b>
-                  {c.reading && <span className="muted small"> ({c.reading})</span>}
-                  <div className="muted small">{c.back}</div>
-                </div>
-                <button
-                  className="chip"
-                  style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem' }}
-                  title="Remove card from SRS deck"
-                  onClick={() => {
-                    removeCard(c.id);
-                    setQueue((q) => q.filter((id) => id !== c.id));
+            {filteredBrowserItems.map((c) => {
+              const lapses = c.card.lapses ?? 0;
+              const isHard = isLeechOrHard(c);
+              return (
+                <div
+                  key={c.id}
+                  className="row-between"
+                  style={{
+                    background: 'var(--surface2)',
+                    padding: '0.5rem 0.85rem',
+                    borderRadius: '10px',
+                    borderLeft: isHard ? '3px solid var(--bad)' : undefined,
                   }}
                 >
-                  ✕
-                </button>
-              </div>
-            ))}
+                  <div style={{ flex: 1 }}>
+                    <span className="tag" style={{ marginRight: '0.45rem' }}>{c.kind}</span>
+                    {isHard && (
+                      <span className="tag" style={{ marginRight: '0.45rem', color: 'var(--bad)' }}>
+                        🔥 {lapses > 0 ? `${lapses} lapse${lapses > 1 ? 's' : ''}` : c.id.startsWith('exam:') ? 'Missed Exam' : 'Hard'}
+                      </span>
+                    )}
+                    <b className="jp" style={{ cursor: 'pointer' }} onClick={() => speakCurrentItem(c)}>
+                      🔊 {c.front}
+                    </b>
+                    {c.reading && <span className="muted small"> ({c.reading})</span>}
+                    <div className="muted small">{c.back}</div>
+                  </div>
+                  <button
+                    className="chip"
+                    style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem' }}
+                    title="Remove card from SRS deck"
+                    onClick={() => {
+                      removeCard(c.id);
+                      setQueue((q) => q.filter((id) => id !== c.id));
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
+            {filteredBrowserItems.length === 0 && (
+              <p className="muted small center" style={{ padding: '0.8rem 0' }}>
+                {kindFilter === 'leech'
+                  ? 'No leech or missed-exam cards yet! Cards you grade "Again" or export from missed exam questions appear here.'
+                  : 'No cards match your filter.'}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -288,6 +328,17 @@ export default function Review() {
           {nextDue && <p className="muted">Next card due {nextDue.toLocaleString()}</p>}
           <div className="controls">
             <button className="chip on" onClick={refreshQueue}>Refresh Queue</button>
+            {counts.leech > 0 && (
+              <button
+                className="chip"
+                onClick={() => {
+                  const leechIds = items.filter(isLeechOrHard).map((c) => c.id);
+                  setQueue(leechIds);
+                }}
+              >
+                🔥 Cram {counts.leech} Leech / Missed Cards
+              </button>
+            )}
             {counts.word === 0 && (
               <button className="chip" onClick={seedVocabAndGrammar}>+ Add Story Vocab &amp; Grammar</button>
             )}
@@ -310,7 +361,7 @@ export default function Review() {
                   speakCurrentItem(item);
                 }}
               >
-                🔊 Replay Audio (R)
+                🔊 Replay Audio <kbd className="kbd-badge">R</kbd>
               </button>
             </div>
 
@@ -376,16 +427,28 @@ export default function Review() {
                 {reviewMode !== 'recall' && <div className="card-meaning">{item.back}</div>}
               </div>
             ) : (
-              reviewMode !== 'recall' && <div className="muted">Tap or press Space to reveal</div>
+              reviewMode !== 'recall' && (
+                <div className="muted">
+                  Tap or press <kbd className="kbd-badge">Space</kbd> to reveal
+                </div>
+              )
             )}
           </div>
 
           {flipped && (
             <div className="grade-row">
-              <button className="grade again" onClick={() => grade(Rating.Again)}>1 · Again</button>
-              <button className="grade hard" onClick={() => grade(Rating.Hard)}>2 · Hard</button>
-              <button className="grade good" onClick={() => grade(Rating.Good)}>3 · Good</button>
-              <button className="grade easy" onClick={() => grade(Rating.Easy)}>4 · Easy</button>
+              <button className="grade again" onClick={() => grade(Rating.Again)}>
+                <kbd className="kbd-badge">1</kbd>Again
+              </button>
+              <button className="grade hard" onClick={() => grade(Rating.Hard)}>
+                <kbd className="kbd-badge">2</kbd>Hard
+              </button>
+              <button className="grade good" onClick={() => grade(Rating.Good)}>
+                <kbd className="kbd-badge">3</kbd>Good
+              </button>
+              <button className="grade easy" onClick={() => grade(Rating.Easy)}>
+                <kbd className="kbd-badge">4</kbd>Easy
+              </button>
             </div>
           )}
         </>
