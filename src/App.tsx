@@ -7,6 +7,7 @@ import SignDecoder from './pages/SignDecoder';
 import Listening from './pages/Listening';
 import KanaDojo from './pages/KanaDojo';
 import ConjugationDojo from './pages/ConjugationDojo';
+import CounterDojo from './pages/CounterDojo';
 import Stories from './pages/Stories';
 import StoryReader from './pages/StoryReader';
 import Review from './pages/Review';
@@ -22,6 +23,7 @@ const LINKS = [
   { to: '/kana', icon: 'あ', label: 'Kana' },
   { to: '/kanji', icon: '漢', label: 'Kanji' },
   { to: '/conjugate', icon: '活', label: 'Verbs' },
+  { to: '/counters', icon: '数', label: 'Counters' },
   { to: '/review', icon: '復', label: 'Review' },
   { to: '/grammar', icon: '文', label: 'Grammar' },
   { to: '/stories', icon: '物', label: 'Stories' },
@@ -95,6 +97,7 @@ export default function App() {
           <Route path="/kanji" element={<KanjiList />} />
           <Route path="/kanji/:k" element={<KanjiDetail />} />
           <Route path="/conjugate" element={<ConjugationDojo />} />
+          <Route path="/counters" element={<CounterDojo />} />
           <Route path="/review" element={<Review />} />
           <Route path="/grammar" element={<GrammarList />} />
           <Route path="/grammar/:id" element={<GrammarLesson />} />

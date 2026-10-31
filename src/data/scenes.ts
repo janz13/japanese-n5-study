@@ -10,6 +10,7 @@ export interface Line {
 export interface Scene {
   id: string;
   chapter: number;
+  level?: 'N5' | 'N4';
   title: string;
   setting: string;
   lines: Line[];
@@ -66,6 +67,36 @@ export const SCENES: Scene[] = [
       { who: 'you', jp: '京都へ 行きたいです。', kana: 'きょうとへ いきたいです。', en: 'I want to go to Kyoto.' },
       { who: 'npc', name: 'けん', jp: 'いいですね。いっしょに 行きましょうか。', kana: 'いいですね。いっしょに いきましょうか。', en: 'Sounds nice! Shall we go together?' },
       { who: 'you', jp: 'はい、ぜひ 行きましょう。', kana: 'はい、ぜひ いきましょう。', en: 'Yes, let’s definitely go!' },
+    ],
+  },
+  {
+    id: 's5',
+    chapter: 7,
+    level: 'N4',
+    title: '旅館の チェックイン',
+    setting: 'Checking into a traditional ryokan in Hakone and asking about onsen rules.',
+    lines: [
+      { who: 'npc', name: 'スタッフ', jp: 'いらっしゃいませ。ご予約の アナ様ですね。', kana: 'いらっしゃいませ。ごよやくの あなさまですね。', en: 'Welcome. You are Ms. Ana with a reservation, right?' },
+      { who: 'you', jp: 'はい、今日から 一泊 おねがいします。', kana: 'はい、きょうから いっぱく おねがいします。', en: 'Yes, one night starting today, please.' },
+      { who: 'npc', name: 'スタッフ', jp: 'お部屋は 三階です。温泉は 一階に あります。', kana: 'おへやは さんがいです。おんせんは いっかいに あります。', en: 'Your room is on the 3rd floor. The hot spring is on the 1st floor.' },
+      { who: 'you', jp: '夜も 温泉に 入っても いいですか。', kana: 'よるも おんせんに はいっても いいですか。', en: 'May I use the hot spring at night too?' },
+      { who: 'npc', name: 'スタッフ', jp: 'はい、十一時まで 入れますよ。入る 前に 体を 洗って ください。', kana: 'はい、じゅういちじまで はいれますよ。はいる まえに からだを あらって ください。', en: 'Yes, you can enter until 11 o’clock. Please wash your body before getting in.' },
+      { who: 'you', jp: 'わかりました。ありがとうございます。', kana: 'わかりました。ありがとうございます。', en: 'Understood. Thank you very much.' },
+    ],
+  },
+  {
+    id: 's6',
+    chapter: 8,
+    level: 'N4',
+    title: '薬局で 相談する',
+    setting: 'Explaining cold symptoms at a pharmacy and asking how to take medicine.',
+    lines: [
+      { who: 'npc', name: '薬剤師', jp: 'こんにちは。今日は どうしましたか。', kana: 'こんにちは。きょうは どうしましたか。', en: 'Hello. What seems to be the trouble today?' },
+      { who: 'you', jp: 'きのうから 頭が 痛くて、少し 熱が あります。', kana: 'きのうから あたまが いたくて、すこし ねつが あります。', en: 'Since yesterday I have a headache and a slight fever.' },
+      { who: 'npc', name: '薬剤師', jp: 'そうですか。では、こちらの かぜ薬は どうですか。', kana: 'そうですか。では、こちらの かぜぐすりは どうですか。', en: 'I see. How about this cold medicine?' },
+      { who: 'you', jp: '一日に 何回 飲めば いいですか。', kana: 'いちにちに なんかい のめば いいですか。', en: 'How many times a day should I take it?' },
+      { who: 'npc', name: '薬剤師', jp: 'ご飯を 食べた 後で、一日 三回 飲んで ください。お大事に。', kana: 'ごはんを たべた あとで、いちにち さんかい のんで ください。おだいじに。', en: 'Please take it three times a day after eating meals. Take care.' },
+      { who: 'you', jp: 'ありがとうございます。それを ください。', kana: 'ありがとうございます。それを ください。', en: 'Thank you. I will take that, please.' },
     ],
   },
 ];

@@ -19,7 +19,7 @@ export function SceneList() {
       <div className="story-list">
         {SCENES.map((s) => (
           <Link key={s.id} to={`/speaking/${s.id}`} className="story-card">
-            <span className="tag">Ch.{s.chapter}</span>
+            <span className="tag">Ch.{s.chapter} · {s.level ?? 'N5'}</span>
             <span className="story-title">{s.title}</span>
             <span className="muted">{s.setting}</span>
             {done[s.id] !== undefined && <span className="done">✓ {done[s.id]}%</span>}
@@ -57,7 +57,7 @@ export function ScenePlayer() {
     if (line.who === 'npc') {
       let active = true;
       const t = setTimeout(() => {
-        speak(line.jp, 0.9, () => {
+        speak(line.kana, 0.9, () => {
           if (active) setTimeout(() => setStep((s) => (s === step ? s + 1 : s)), 350);
         });
       }, 250);
@@ -103,7 +103,7 @@ export function ScenePlayer() {
     const sc = similarity(typed.trim(), [line.jp, line.kana]);
     setHeard(typed.trim());
     setScores((s) => ({ ...s, [step]: Math.max(s[step] ?? 0, sc) }));
-    speak(line.jp, 0.85);
+    speak(line.kana, 0.85);
   };
 
   const next = () => {
@@ -152,7 +152,7 @@ export function ScenePlayer() {
           <div key={i} className={`bubble ${l.who}`}>
             {l.name && <span className="tag">{l.name}</span>}
             {l.who === 'you' && <span className="tag">You (アナ)</span>}
-            <p className="jp" onClick={() => speak(l.jp)}>
+            <p className="jp" onClick={() => speak(l.kana)}>
               {l.who === 'you' && i === step && !showText ? '？？？' : l.jp}
             </p>
             {l.who === 'you' && showText && <p className="muted small">{l.kana}</p>}
@@ -169,7 +169,7 @@ export function ScenePlayer() {
         <div className="speak-panel">
           <div className="controls center">
             <span className="muted small">🔊 {line.name ?? 'Partner'} is speaking…</span>
-            <button className="chip" onClick={() => speak(line.jp, 0.9)}>🔊 Replay</button>
+            <button className="chip" onClick={() => speak(line.kana, 0.9)}>🔊 Replay</button>
             <button className="chip on" onClick={next}>Continue →</button>
           </div>
         </div>
@@ -178,7 +178,7 @@ export function ScenePlayer() {
       {line?.who === 'you' && (
         <div className="speak-panel">
           <div className="controls center">
-            <button className="chip" onClick={() => speak(line.jp, 0.85)}>🔊 Hear line</button>
+            <button className="chip" onClick={() => speak(line.kana, 0.85)}>🔊 Hear line</button>
             {canListen && (
               <button
                 className={`mic ${listening ? 'on' : ''}`}
