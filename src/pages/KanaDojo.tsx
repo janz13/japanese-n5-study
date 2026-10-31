@@ -24,7 +24,7 @@ function matchesRomaji(input: string, k: Kana) {
 export default function KanaDojo() {
   const { kanaStats, recordKana } = useStore();
   const [script, setScript] = useState<Script>('hiragana');
-  const [rows, setRows] = useState<string[]>(['a', 'k', 's']);
+  const [rows, setRows] = useState<string[]>(ROWS);
   const [current, setCurrent] = useState<Kana | null>(null);
   const [input, setInput] = useState('');
   const [flash, setFlash] = useState<'ok' | 'bad' | null>(null);
@@ -68,17 +68,11 @@ export default function KanaDojo() {
   const toggleRow = (r: string) =>
     setRows((rs) => (rs.includes(r) ? (rs.length > 1 ? rs.filter((x) => x !== r) : rs) : [...rs, r]));
 
-  const toggleGroup = (groupRows: string[]) => {
-    const allActive = groupRows.every((r) => rows.includes(r));
-    if (allActive) {
-      const remaining = rows.filter((r) => !groupRows.includes(r));
-      if (remaining.length > 0) setRows(remaining);
-    } else {
-      setRows(Array.from(new Set([...rows, ...groupRows])));
-    }
-  };
+  const selectOnlyGroup = (groupRows: string[]) => setRows(groupRows);
 
   const refSource = script === 'katakana' ? KATAKANA : HIRAGANA;
+  const basicAndDakuten = refSource.filter((k) => k.group !== 'yoon');
+  const yoonList = refSource.filter((k) => k.group === 'yoon');
 
   return (
     <div className="page">
@@ -90,28 +84,28 @@ export default function KanaDojo() {
           </button>
         ))}
         <span className="muted small" style={{ alignSelf: 'center', marginLeft: '0.4rem' }}>
-          Presets:
+          Filter:
         </span>
         <button
-          className={BASIC_ROWS.every((r) => rows.includes(r)) ? 'chip on' : 'chip'}
-          onClick={() => toggleGroup(BASIC_ROWS)}
+          className={rows.length === BASIC_ROWS.length && BASIC_ROWS.every((r) => rows.includes(r)) ? 'chip on' : 'chip'}
+          onClick={() => selectOnlyGroup(BASIC_ROWS)}
         >
-          Basic (あ–ん)
+          Basic (46)
         </button>
         <button
-          className={DAKUTEN_ROWS.every((r) => rows.includes(r)) ? 'chip on' : 'chip'}
-          onClick={() => toggleGroup(DAKUTEN_ROWS)}
+          className={rows.length === DAKUTEN_ROWS.length && DAKUTEN_ROWS.every((r) => rows.includes(r)) ? 'chip on' : 'chip'}
+          onClick={() => selectOnlyGroup(DAKUTEN_ROWS)}
         >
-          Dakuten (が–ぽ)
+          Dakuten (25)
         </button>
         <button
-          className={YOON_ROWS.every((r) => rows.includes(r)) ? 'chip on' : 'chip'}
-          onClick={() => toggleGroup(YOON_ROWS)}
+          className={rows.length === YOON_ROWS.length && YOON_ROWS.every((r) => rows.includes(r)) ? 'chip on' : 'chip'}
+          onClick={() => selectOnlyGroup(YOON_ROWS)}
         >
-          Yōon Combos (きゃ–ぴょ)
+          Yōon Combos (33)
         </button>
         <button className={rows.length === ROWS.length ? 'chip on' : 'chip'} onClick={() => setRows(ROWS)}>
-          All ({refSource.length})
+          All (104)
         </button>
       </div>
 
@@ -144,9 +138,23 @@ export default function KanaDojo() {
         </div>
       </div>
 
-      <h2>Chart ({pool.length} active)</h2>
+      <h2>Basic, Dakuten &amp; Handakuten ({basicAndDakuten.length})</h2>
       <div className="chart">
-        {pool.map((k) => {
+        {basicAndDakuten.map((k) => {
+          const s = kanaStats[k.kana];
+          const level = !s || s.correct === 0 ? 0 : s.correct >= 3 && s.correct > s.wrong * 2 ? 2 : 1;
+          return (
+            <button key={k.kana} className={`cell l${level}`} onClick={() => speak(k.kana)}>
+              <span>{k.kana}</span>
+              <small>{k.romaji}</small>
+            </button>
+          );
+        })}
+      </div>
+
+      <h2>Combination Kana — Yōon 拗音 ({yoonList.length})</h2>
+      <div className="chart">
+        {yoonList.map((k) => {
           const s = kanaStats[k.kana];
           const level = !s || s.correct === 0 ? 0 : s.correct >= 3 && s.correct > s.wrong * 2 ? 2 : 1;
           return (

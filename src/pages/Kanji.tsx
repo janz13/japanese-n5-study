@@ -7,11 +7,13 @@ import { speak } from '../lib/tts';
 import { StrokeOrder, TraceCanvas } from '../components/Strokes';
 
 type DeckFilter = 'all' | 'in' | 'out';
+type StrokeFilter = 'all' | '1-4' | '5-7' | '8+';
 
 export function KanjiList() {
   const { srs, addCard } = useStore();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<DeckFilter>('all');
+  const [strokeFilter, setStrokeFilter] = useState<StrokeFilter>('all');
 
   const addAll = () =>
     KANJI.forEach((k) => addCard({ id: `k:${k.k}`, kind: 'kanji', front: k.k, reading: `${k.on} / ${k.kun}`, back: k.meaning }));
@@ -25,9 +27,13 @@ export function KanjiList() {
       const isIn = !!srs[`k:${k.k}`];
       if (filter === 'in' && !isIn) return false;
       if (filter === 'out' && isIn) return false;
+      if (strokeFilter === '1-4' && k.strokes > 4) return false;
+      if (strokeFilter === '5-7' && (k.strokes < 5 || k.strokes > 7)) return false;
+      if (strokeFilter === '8+' && k.strokes < 8) return false;
       if (!q) return true;
       return (
         k.k.includes(q) ||
+        String(k.strokes) === q ||
         k.meaning.toLowerCase().includes(q) ||
         k.on.includes(q) ||
         k.on.includes(kata) ||
@@ -38,7 +44,7 @@ export function KanjiList() {
         k.ex.en.toLowerCase().includes(q)
       );
     });
-  }, [query, filter, srs]);
+  }, [query, filter, strokeFilter, srs]);
 
   return (
     <div className="page">
@@ -47,7 +53,7 @@ export function KanjiList() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search kanji, meaning, or reading (e.g. sun, やま, yama)…"
+          placeholder="Search kanji, meaning, reading, or stroke count (e.g. sun, やま, yama, 4)…"
           className="search-input"
         />
         {query && (
@@ -64,6 +70,12 @@ export function KanjiList() {
         <button className={filter === 'out' ? 'chip on' : 'chip'} onClick={() => setFilter('out')}>
           Not in Deck ({KANJI.length - inDeck})
         </button>
+        <span className="muted small" style={{ alignSelf: 'center', marginLeft: '0.4rem' }}>Strokes:</span>
+        {(['all', '1-4', '5-7', '8+'] as StrokeFilter[]).map((sf) => (
+          <button key={sf} className={strokeFilter === sf ? 'chip on' : 'chip'} onClick={() => setStrokeFilter(sf)}>
+            {sf === 'all' ? 'Any' : `${sf}画`}
+          </button>
+        ))}
         {inDeck < KANJI.length && (
           <button className="chip on" onClick={addAll}>+ Add all to review</button>
         )}
@@ -73,6 +85,7 @@ export function KanjiList() {
           <Link key={k.k} to={`/kanji/${k.k}`} className={`kanji-cell${srs[`k:${k.k}`] ? ' in' : ''}`}>
             <span>{k.k}</span>
             <small>{k.meaning.split(',')[0]}</small>
+            <small style={{ fontSize: '0.62rem', opacity: 0.7 }}>{k.strokes}画</small>
           </Link>
         ))}
       </div>
@@ -102,7 +115,7 @@ export function KanjiDetail() {
       <div className="kanji-head">
         <span className="kanji-big">{kj.k}</span>
         <div>
-          <h2 className="nomargin">{kj.meaning}</h2>
+          <h2 className="nomargin">{kj.meaning} <span className="muted small">({kj.strokes} strokes)</span></h2>
           <p><span className="muted">音</span> {kj.on}<br /><span className="muted">訓</span> {kj.kun}</p>
           <p className="example" onClick={() => speak(kj.ex.r)}>
             🔊{' '}

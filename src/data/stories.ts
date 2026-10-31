@@ -1,8 +1,13 @@
-/** A token is a word in the story. `r` = reading (furigana) when it contains kanji. */
+/**
+ * A token is a word in the story.
+ * `r` = reading (furigana). For multi-kanji compounds, `parts` can specify exact per-kanji readings
+ * e.g. parts: [['東','とう'], ['京','きょう']] so each kanji gets its own centered <ruby> tag.
+ */
 export interface Token {
   t: string;
   r?: string;
   en?: string;
+  parts?: [string, string?][];
 }
 
 export interface Question {
@@ -17,17 +22,31 @@ export interface Story {
   chapter: number;
   title: string;
   titleEn: string;
-  /** Each paragraph is a list of tokens. */
   paragraphs: Token[][];
   translation: string[];
   questions: Question[];
 }
 
-// Helper: build tokens quickly. Format "word|reading|meaning", reading optional.
-const p = (...parts: string[]): Token[] =>
-  parts.map((s) => {
-    const [t, r, en] = s.split('|');
-    return { t, r: r || undefined, en: en || undefined };
+/**
+ * Format: "word|reading|meaning"
+ * In `word`, you can optionally write per-kanji furigana segments separated by `.`
+ * e.g. "東.京|とう.きょう|Tokyo" or "着.きました|つ.|arrived"
+ */
+const p = (...items: string[]): Token[] =>
+  items.map((s) => {
+    const [rawT, rawR, en] = s.split('|');
+    if (rawT.includes('.') && rawR) {
+      const tSegs = rawT.split('.');
+      const rSegs = rawR.split('.');
+      const parts: [string, string?][] = tSegs.map((seg, i) => [seg, rSegs[i] || undefined]);
+      return {
+        t: tSegs.join(''),
+        r: rSegs.map((r, i) => r || tSegs[i]).join(''),
+        en: en || undefined,
+        parts,
+      };
+    }
+    return { t: rawT, r: rawR || undefined, en: en || undefined };
   });
 
 export const STORIES: Story[] = [
@@ -39,11 +58,11 @@ export const STORIES: Story[] = [
     titleEn: 'To Tokyo',
     paragraphs: [
       p('わたし||I', 'は', 'アナ||Ana', 'です||is', '。'),
-      p('アメリカ||America', 'から', '来ました|きました|came', '。'),
-      p('今日|きょう|today', 'は', '東京|とうきょう|Tokyo', 'に', '着きました|つきました|arrived', '。'),
-      p('空港|くうこう|airport', 'は', 'とても||very', '大きい|おおきい|big', 'です', '。'),
-      p('駅|えき|station', 'で', '電車|でんしゃ|train', 'に', '乗りました|のりました|rode', '。'),
-      p('窓|まど|window', 'から', '山|やま|mountain', 'が', '見えました|みえました|could see', '。', 'きれい||pretty', 'でした||was', '。'),
+      p('アメリカ||America', 'から', '来.ました|き.|came', '。'),
+      p('今日|きょう|today', 'は', '東.京|とう.きょう|Tokyo', 'に', '着.きました|つ.|arrived', '。'),
+      p('空.港|くう.こう|airport', 'は', 'とても||very', '大.きい|おお.|big', 'です', '。'),
+      p('駅|えき|station', 'で', '電.車|でん.しゃ|train', 'に', '乗.りました|の.|rode', '。'),
+      p('窓|まど|window', 'から', '山|やま|mountain', 'が', '見.えました|み.|could see', '。', 'きれい||pretty', 'でした||was', '。'),
     ],
     translation: [
       'I am Ana.',
@@ -66,11 +85,11 @@ export const STORIES: Story[] = [
     title: 'きっさてんで',
     titleEn: 'At the Café',
     paragraphs: [
-      p('朝|あさ|morning', '、', 'アナ', 'は', '喫茶店|きっさてん|café', 'に', '行きました|いきました|went', '。'),
-      p('店員|てんいん|clerk', '：「', 'いらっしゃいませ||welcome', '。」'),
-      p('アナ', '：「', 'コーヒー||coffee', 'を', '一つ|ひとつ|one', 'ください||please', '。」'),
-      p('店員', '：「', 'はい||yes', '。', '三百円|さんびゃくえん|300 yen', 'です', '。」'),
-      p('コーヒー', 'は', '少し|すこし|a little', '高い|たかい|expensive', 'です', 'が', '、', 'おいしい||tasty', 'です', '。'),
+      p('朝|あさ|morning', '、', 'アナ', 'は', '喫.茶.店|きっ.さ.てん|café', 'に', '行.きました|い.|went', '。'),
+      p('店.員|てん.いん|clerk', '：「', 'いらっしゃいませ||welcome', '。」'),
+      p('アナ', '：「', 'コーヒー||coffee', 'を', '一.つ|ひと.|one', 'ください||please', '。」'),
+      p('店.員|てん.いん|clerk', '：「', 'はい||yes', '。', '三.百.円|さん.びゃく.えん|300 yen', 'です', '。」'),
+      p('コーヒー', 'は', '少.し|すこ.|a little', '高.い|たか.|expensive', 'です', 'が', '、', 'おいしい||tasty', 'です', '。'),
     ],
     translation: [
       'In the morning, Ana went to a café.',
@@ -91,10 +110,10 @@ export const STORIES: Story[] = [
     title: 'あさくさの おてら',
     titleEn: 'Temple in Asakusa',
     paragraphs: [
-      p('土曜日|どようび|Saturday', '、', '友だち|ともだち|friend', 'の', 'さくら||Sakura', 'と', '浅草|あさくさ|Asakusa', 'へ', '行きました|いきました|went', '。'),
-      p('駅|えき|station', 'の', '前|まえ|in front', 'に', '赤い|あかい|red', '門|もん|gate', 'が', 'あります||there is', '。'),
+      p('土.曜.日|ど.よう.び|Saturday', '、', '友.だち|とも.|friend', 'の', 'さくら||Sakura', 'と', '浅.草|あさ.くさ|Asakusa', 'へ', '行.きました|い.|went', '。'),
+      p('駅|えき|station', 'の', '前|まえ|in front', 'に', '赤.い|あか.|red', '門|もん|gate', 'が', 'あります||there is', '。'),
       p('そこ||there', 'に', '人|ひと|people', 'が', 'たくさん||many', 'いました||were', '。'),
-      p('わたしたち||we', 'は', '写真|しゃしん|photo', 'を', '撮って|とって|took (and)', '、', 'おかし||sweets', 'を', '食べました|たべました|ate', '。'),
+      p('わたしたち||we', 'は', '写.真|しゃ.しん|photo', 'を', '撮.って|と.|took (and)', '、', 'おかし||sweets', 'を', '食.べました|た.|ate', '。'),
       p('とても||very', 'たのしかった||was fun', 'です', '。'),
     ],
     translation: [
@@ -117,10 +136,10 @@ export const STORIES: Story[] = [
     title: 'しゅうまつの よてい',
     titleEn: 'Weekend Plans',
     paragraphs: [
-      p('来週|らいしゅう|next week', 'は', '学校|がっこう|school', 'が', '休み|やすみ|holiday', 'です', '。'),
-      p('アナ', 'は', '新幹線|しんかんせん|bullet train', 'で', '京都|きょうと|Kyoto', 'へ', '行きたい|いきたい|want to go', 'です', '。'),
-      p('古い|ふるい|old', 'お寺|おてら|temple', 'を', '見たり|みたり|see (among things)', '、', '抹茶|まっちゃ|matcha', 'を', '飲んだり|のんだり|drink (among things)', 'したい||want to do', 'です', '。'),
-      p('だから||therefore', '、', '今晩|こんばん|tonight', 'きっぷ||ticket', 'を', '買います|かいます|will buy', '。'),
+      p('来.週|らい.しゅう|next week', 'は', '学.校|がっ.こう|school', 'が', '休.み|やす.|holiday', 'です', '。'),
+      p('アナ', 'は', '新.幹.線|しん.かん.せん|bullet train', 'で', '京.都|きょう.と|Kyoto', 'へ', '行.きたい|い.|want to go', 'です', '。'),
+      p('古.い|ふる.|old', 'お.寺|.てら|temple', 'を', '見.たり|み.|see (among things)', '、', '抹.茶|まっ.ちゃ|matcha', 'を', '飲.んだり|の.|drink (among things)', 'したい||want to do', 'です', '。'),
+      p('だから||therefore', '、', '今.晩|こん.ばん|tonight', 'きっぷ||ticket', 'を', '買.います|か.|will buy', '。'),
     ],
     translation: [
       'Next week school is on holiday.',

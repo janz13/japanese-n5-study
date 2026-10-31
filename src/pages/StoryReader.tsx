@@ -7,49 +7,33 @@ import { storyUnlocked } from '../lib/progress';
 
 const plain = (tokens: Token[]) => tokens.map((t) => t.r ?? t.t).join('');
 
-const isKana = (ch: string) => {
-  const c = ch.charCodeAt(0);
-  return (c >= 0x3040 && c <= 0x309f) || (c >= 0x30a0 && c <= 0x30ff);
-};
-
-/**
- * Splits a token like ("着きました", "つきました") into:
- * prefix="", base="着", rt="つ", suffix="きました"
- * so furigana sits strictly above the kanji characters and never shifts over adjacent kana/kanji.
- */
-function splitFurigana(t: string, r: string) {
-  let p = 0;
-  while (p < t.length && p < r.length && t[p] === r[p] && isKana(t[p])) p++;
-  let s = 0;
-  while (
-    s < t.length - p &&
-    s < r.length - p &&
-    t[t.length - 1 - s] === r[r.length - 1 - s] &&
-    isKana(t[t.length - 1 - s])
-  ) {
-    s++;
-  }
-  const prefix = t.slice(0, p);
-  const suffix = s > 0 ? t.slice(t.length - s) : '';
-  const base = t.slice(p, t.length - s);
-  const rt = r.slice(p, r.length - s);
-  return { prefix, base: base || t, rt: base ? rt : r, suffix: base ? suffix : '' };
+function RubyUnit({ base, rt }: { base: string; rt?: string }) {
+  if (!rt) return <span>{base}</span>;
+  return (
+    <ruby className="ruby-pair">
+      <span className="rb-text">{base}</span>
+      <rp>(</rp>
+      <rt>{rt}</rt>
+      <rp>)</rp>
+    </ruby>
+  );
 }
 
 function Word({ tok, furigana, onTap, active }: { tok: Token; furigana: boolean; onTap: () => void; active: boolean }) {
   const cls = `word${tok.en ? ' has-gloss' : ''}${active ? ' active' : ''}`;
-  if (tok.r && furigana) {
-    const { prefix, base, rt, suffix } = splitFurigana(tok.t, tok.r);
+  if (furigana && tok.parts) {
     return (
       <span className={cls} onClick={onTap}>
-        {prefix}
-        <ruby className="ruby-pair">
-          <span className="rb-text">{base}</span>
-          <rp>(</rp>
-          <rt>{rt}</rt>
-          <rp>)</rp>
-        </ruby>
-        {suffix}
+        {tok.parts.map(([b, r], idx) => (
+          <RubyUnit key={idx} base={b} rt={r} />
+        ))}
+      </span>
+    );
+  }
+  if (furigana && tok.r) {
+    return (
+      <span className={cls} onClick={onTap}>
+        <RubyUnit base={tok.t} rt={tok.r} />
       </span>
     );
   }

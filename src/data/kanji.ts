@@ -1,10 +1,25 @@
 export interface Kanji {
   k: string;
+  strokes: number;
   meaning: string;
   on: string;
   kun: string;
   ex: { w: string; r: string; en: string };
 }
+
+const STROKES: Record<string, number> = {
+  一: 1, 二: 2, 三: 3, 四: 5, 五: 4, 六: 4, 七: 2, 八: 2, 九: 2, 十: 2,
+  百: 6, 千: 3, 万: 3, 円: 4, 日: 4, 月: 4, 火: 4, 水: 4, 木: 4, 金: 8,
+  土: 3, 曜: 18, 年: 6, 時: 10, 分: 4, 半: 5, 今: 4, 何: 7, 週: 11, 毎: 6,
+  午: 4, 前: 9, 後: 9, 人: 2, 男: 7, 女: 3, 子: 3, 父: 4, 母: 5, 友: 4,
+  名: 6, 学: 8, 生: 5, 先: 6, 校: 10, 語: 14, 本: 5, 国: 8, 山: 3, 川: 3,
+  天: 4, 気: 6, 雨: 8, 電: 13, 車: 7, 駅: 14, 道: 12, 店: 8, 社: 7, 会: 6,
+  上: 3, 下: 3, 中: 4, 外: 5, 左: 5, 右: 5, 東: 8, 西: 6, 南: 9, 北: 5,
+  大: 3, 小: 3, 高: 10, 安: 6, 長: 8, 新: 13, 古: 5, 白: 5, 多: 6, 少: 4,
+  見: 7, 行: 6, 来: 7, 食: 9, 飲: 12, 聞: 14, 読: 14, 書: 10, 話: 13, 言: 7,
+  買: 12, 休: 6, 立: 5, 入: 2, 出: 5, 口: 3, 目: 5, 耳: 6, 手: 4, 足: 7,
+  花: 7, 魚: 11, 空: 8,
+};
 
 // Format: 字|meaning|on|kun|example:reading:meaning
 const RAW = `日|day, sun|ニチ、ジツ|ひ、か|日本:にほん:Japan
@@ -114,5 +129,5 @@ const RAW = `日|day, sun|ニチ、ジツ|ひ、か|日本:にほん:Japan
 export const KANJI: Kanji[] = RAW.split('\n').map((line) => {
   const [k, meaning, on, kun, ex] = line.split('|');
   const [w, r, en] = ex.split(':');
-  return { k, meaning, on, kun, ex: { w, r, en } };
+  return { k, strokes: STROKES[k] ?? 5, meaning, on, kun, ex: { w, r, en } };
 });
