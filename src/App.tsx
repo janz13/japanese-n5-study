@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import DailyBento from './pages/DailyBento';
 import StampBook from './pages/StampBook';
@@ -18,7 +18,14 @@ import { GrammarLesson, GrammarList } from './pages/Grammar';
 import { SceneList, ScenePlayer } from './pages/Speaking';
 import { isDue, useStore } from './lib/store';
 
-const LINKS = [
+interface NavItem {
+  to: string;
+  icon: string;
+  label: string;
+  end?: boolean;
+}
+
+const LINKS: NavItem[] = [
   { to: '/', icon: '家', label: 'Home', end: true },
   { to: '/bento', icon: '弁', label: 'Bento' },
   { to: '/kana', icon: 'あ', label: 'Kana' },
@@ -36,6 +43,162 @@ const LINKS = [
   { to: '/exam', icon: '試', label: 'Exam' },
 ];
 
+const NAV_GROUPS: { id: string; label: string; icon: string; items: NavItem[] }[] = [
+  {
+    id: 'daily',
+    label: 'Daily',
+    icon: '🍱',
+    items: [
+      { to: '/bento', icon: '弁', label: 'Daily Bento' },
+      { to: '/review', icon: '復', label: 'FSRS Review' },
+      { to: '/stamps', icon: '印', label: 'Stamp Book' },
+    ],
+  },
+  {
+    id: 'drills',
+    label: 'Drills',
+    icon: '🥋',
+    items: [
+      { to: '/kana', icon: 'あ', label: 'Kana Dojo' },
+      { to: '/kanji', icon: '漢', label: 'Kanji Studio' },
+      { to: '/conjugate', icon: '活', label: 'Verb & Adj Dojo' },
+      { to: '/counters', icon: '数', label: 'Counter Dojo' },
+      { to: '/particles', icon: '助', label: 'Particle Dojo' },
+    ],
+  },
+  {
+    id: 'immersion',
+    label: 'Immersion',
+    icon: '🏮',
+    items: [
+      { to: '/grammar', icon: '文', label: 'Grammar' },
+      { to: '/stories', icon: '物', label: 'Graded Stories' },
+      { to: '/speaking', icon: '話', label: 'Speaking' },
+      { to: '/listening', icon: '聴', label: 'Listening' },
+      { to: '/signs', icon: '看', label: 'Sign Decoder' },
+    ],
+  },
+];
+
+function HeaderNav({
+  due,
+  theme,
+  toggleTheme,
+  drawerOpen,
+  setDrawerOpen,
+}: {
+  due: number;
+  theme: 'dark' | 'light';
+  toggleTheme: () => void;
+  drawerOpen: boolean;
+  setDrawerOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+  const location = useLocation();
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const navRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setOpenGroup(null);
+    setDrawerOpen(false);
+  }, [location.pathname, setDrawerOpen]);
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setOpenGroup(null);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const isRouteInItem = (to: string) =>
+    location.pathname === to || (to !== '/' && location.pathname.startsWith(to + '/'));
+
+  return (
+    <header className="nav" ref={navRef}>
+      <NavLink to="/" className="logo" onClick={() => setDrawerOpen(false)}>
+        日本語<span>N5</span>
+      </NavLink>
+
+      <nav className="top-links" aria-label="Main navigation">
+        {NAV_GROUPS.map((group) => {
+          const activeItem = group.items.find((i) => isRouteInItem(i.to));
+          const isOpen = openGroup === group.id;
+          const showDueBadge = group.id === 'daily' && due > 0;
+          return (
+            <div
+              key={group.id}
+              className={`nav-group ${isOpen ? 'open' : ''}`}
+              onMouseEnter={() => setOpenGroup(group.id)}
+              onMouseLeave={() => setOpenGroup((cur) => (cur === group.id ? null : cur))}
+            >
+              <button
+                type="button"
+                className={`nav-group-btn ${activeItem ? 'active' : ''}`}
+                aria-expanded={isOpen}
+                onClick={() => setOpenGroup((cur) => (cur === group.id ? null : group.id))}
+              >
+                <span>
+                  {group.icon} {group.label}
+                  {activeItem ? ` · ${activeItem.label.split(' ')[0]}` : ''}
+                </span>
+                {showDueBadge && <i className="badge">{due}</i>}
+                <span className="nav-caret">▾</span>
+              </button>
+
+              {isOpen && (
+                <div className="nav-dropdown" role="menu">
+                  {group.items.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) => `nav-dropdown-link ${isActive ? 'active' : ''}`}
+                      onClick={() => setOpenGroup(null)}
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem' }}>
+                        <span className="nav-dropdown-icon">{item.icon}</span>
+                        <span>{item.label}</span>
+                      </span>
+                      {item.to === '/review' && due > 0 && <i className="badge">{due}</i>}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <NavLink
+          to="/exam"
+          className={({ isActive }) => `nav-group-btn ${isActive ? 'active' : ''}`}
+          style={{ textDecoration: 'none' }}
+        >
+          💮 Exam
+        </NavLink>
+      </nav>
+
+      <div className="nav-actions">
+        <button
+          className="chip theme-btn"
+          aria-label="Toggle light/dark theme"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to Light theme' : 'Switch to Dark theme'}
+        >
+          {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+        </button>
+        <button
+          className="menu-btn"
+          aria-label="Toggle navigation menu"
+          onClick={() => setDrawerOpen((o) => !o)}
+        >
+          {drawerOpen ? '✕' : '☰'}
+        </button>
+      </div>
+    </header>
+  );
+}
+
 export default function App() {
   const due = useStore((s) => Object.values(s.srs).filter((i) => isDue(i)).length);
   const theme = useStore((s) => s.theme);
@@ -48,46 +211,39 @@ export default function App() {
 
   return (
     <HashRouter>
-      <header className="nav">
-        <NavLink to="/" className="logo" onClick={() => setDrawerOpen(false)}>
-          日本語<span>N5</span>
-        </NavLink>
-        <nav className="top-links">
-          {LINKS.slice(1).map((l) => (
-            <NavLink key={l.to} to={l.to}>
-              {l.label}
-              {l.to === '/review' && due > 0 && <i className="badge">{due}</i>}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="nav-actions">
-          <button
-            className="chip theme-btn"
-            aria-label="Toggle light/dark theme"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Switch to Light theme' : 'Switch to Dark theme'}
-          >
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
-          <button
-            className="menu-btn"
-            aria-label="Toggle navigation menu"
-            onClick={() => setDrawerOpen((o) => !o)}
-          >
-            {drawerOpen ? '✕' : '☰'}
-          </button>
-        </div>
-      </header>
+      <HeaderNav
+        due={due}
+        theme={theme}
+        toggleTheme={toggleTheme}
+        drawerOpen={drawerOpen}
+        setDrawerOpen={setDrawerOpen}
+      />
 
       {drawerOpen && (
         <nav className="mobile-drawer" onClick={() => setDrawerOpen(false)}>
-          {LINKS.map((l) => (
-            <NavLink key={l.to} to={l.to} end={l.end} className="drawer-link">
-              <span className="jp">{l.icon}</span>
-              <span>{l.label}</span>
-              {l.to === '/review' && due > 0 && <i className="badge">{due}</i>}
-            </NavLink>
+          <NavLink to="/" end className="drawer-link">
+            <span className="jp">家</span>
+            <span>Dashboard Home</span>
+          </NavLink>
+          {NAV_GROUPS.map((group) => (
+            <div key={group.id}>
+              <div className="drawer-section-title">
+                {group.icon} {group.label}
+              </div>
+              {group.items.map((l) => (
+                <NavLink key={l.to} to={l.to} className="drawer-link">
+                  <span className="jp">{l.icon}</span>
+                  <span>{l.label}</span>
+                  {l.to === '/review' && due > 0 && <i className="badge">{due}</i>}
+                </NavLink>
+              ))}
+            </div>
           ))}
+          <div className="drawer-section-title">💮 Official Exam</div>
+          <NavLink to="/exam" className="drawer-link">
+            <span className="jp">試</span>
+            <span>JLPT Mock Exam</span>
+          </NavLink>
         </nav>
       )}
 

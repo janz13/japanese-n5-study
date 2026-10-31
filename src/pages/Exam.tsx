@@ -6,7 +6,7 @@ import {
   generateFreshExam,
   type GeneratedExamQuestion,
 } from '../lib/jlptGenerator';
-import { useStore } from '../lib/store';
+import { useStore, type CardKind, type SrsItem } from '../lib/store';
 import { speak, stopSpeaking } from '../lib/tts';
 import { playDing, playFanfare } from '../lib/sfx';
 
@@ -18,8 +18,29 @@ function letterGrade(pct: number): 'A' | 'B' | 'C' {
   return 'C';
 }
 
+function examQuestionToSrsCard(q: GeneratedExamQuestion): Omit<SrsItem, 'card'> {
+  const bracketMatch = q.prompt.match(/【([^】]+)】/);
+  const firstLine = q.prompt.split('\n')[0].trim();
+  const winOpt = q.options[q.answer];
+  const kind: CardKind =
+    q.section === 'vocab'
+      ? q.mondaiId === 'V1' || q.mondaiId === 'V2'
+        ? 'kanji'
+        : 'word'
+      : 'grammar';
+
+  const front = bracketMatch ? bracketMatch[1] : firstLine;
+  return {
+    id: `exam:${q.id}`,
+    kind,
+    front,
+    reading: winOpt,
+    back: `${winOpt} — ${q.explain}`,
+  };
+}
+
 export default function Exam() {
-  const { examBest, completeExam, sfxEnabled } = useStore();
+  const { examBest, completeExam, sfxEnabled, srs, addCard } = useStore();
   const [level, setLevel] = useState<ExamLevel>('N5');
   const [mode, setMode] = useState<ExamMode>('full');
   const [activeSec, setActiveSec] = useState<ExamSection | 'all'>('all');
@@ -60,6 +81,14 @@ export default function Exam() {
   const flaggedCount = Object.values(flagged).filter(Boolean).length;
   const correctCount = questions.filter((q, i) => answers[i] === q.answer).length;
   const pctScore = Math.round((correctCount / total) * 100);
+
+  const missedQuestions = questions.filter((q, i) => answers[i] !== q.answer);
+  const unaddedMissedQuestions = missedQuestions.filter((q) => !srs[`exam:${q.id}`]);
+
+  const addAllMissedToSrs = () => {
+    unaddedMissedQuestions.forEach((q) => addCard(examQuestionToSrsCard(q)));
+    if (sfxEnabled) playDing();
+  };
 
   const secStats = (sec: ExamSection) => {
     const qs = questions.map((q, i) => ({ q, i })).filter((x) => x.q.section === sec);
@@ -273,14 +302,25 @@ export default function Exam() {
           </div>
 
           <div className="controls">
+            {missedQuestions.length > 0 && (
+              <button
+                className={unaddedMissedQuestions.length === 0 ? 'chip ok' : 'chip on'}
+                disabled={unaddedMissedQuestions.length === 0}
+                onClick={addAllMissedToSrs}
+              >
+                {unaddedMissedQuestions.length === 0
+                  ? `✓ All ${missedQuestions.length} Missed Items in SRS`
+                  : `+ Add ${unaddedMissedQuestions.length} Missed Items to SRS`}
+              </button>
+            )}
             <button className="chip on" onClick={() => generateNewTake(level, mode)}>
               🎲 Take Another Fresh {level} Exam (New Questions &amp; Audio)
             </button>
             <button className="chip" onClick={() => generateNewTake(level === 'N5' ? 'N4' : 'N5', mode)}>
               Switch to JLPT {level === 'N5' ? 'N4' : 'N5'} →
             </button>
-            <Link className="chip" to="/">
-              ← Back to Dashboard
+            <Link className="chip" to="/review">
+              Open FSRS Review →
             </Link>
           </div>
         </div>
@@ -387,10 +427,23 @@ export default function Exam() {
                       📜 <b>Script:</b> {q.transcript}
                     </p>
                   )}
-                  <p className={answers[i] === q.answer ? 'ok-text small nomargin' : 'bad-text small nomargin'}>
-                    {answers[i] === q.answer ? '✓ Correct — ' : `✗ Incorrect (Answer: ${q.answer + 1}. ${q.options[q.answer]}) — `}
-                    {q.explain}
-                  </p>
+                  <div className="row-between" style={{ gap: '0.6rem', marginTop: '0.25rem' }}>
+                    <p
+                      className={answers[i] === q.answer ? 'ok-text small nomargin' : 'bad-text small nomargin'}
+                      style={{ flex: 1 }}
+                    >
+                      {answers[i] === q.answer ? '✓ Correct — ' : `✗ Incorrect (Answer: ${q.answer + 1}. ${q.options[q.answer]}) — `}
+                      {q.explain}
+                    </p>
+                    <button
+                      className={srs[`exam:${q.id}`] ? 'chip ok' : 'chip'}
+                      style={{ padding: '0.22rem 0.65rem', fontSize: '0.76rem', flexShrink: 0 }}
+                      disabled={!!srs[`exam:${q.id}`]}
+                      onClick={() => addCard(examQuestionToSrsCard(q))}
+                    >
+                      {srs[`exam:${q.id}`] ? '✓ In SRS' : '+ Add to SRS'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

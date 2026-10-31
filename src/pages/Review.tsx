@@ -112,7 +112,12 @@ export default function Review() {
         onClick={() => !flipped && (setFlipped(true), speak(item.reading?.split(/[ /、]/)[0] || item.front))}
       >
         <span className="tag">{item.kind}</span>
-        <div className="card-front">{item.front}</div>
+        <div
+          className="card-front"
+          style={item.front.length > 6 ? { fontSize: 'clamp(1.35rem, 3.2vw, 2.1rem)', lineHeight: 1.45 } : undefined}
+        >
+          {item.front}
+        </div>
         {flipped ? (
           <div className="card-back">
             {item.reading && <div className="muted">{item.reading}</div>}
