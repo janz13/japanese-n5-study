@@ -1,263 +1,46 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PASS, useStore } from '../lib/store';
+import {
+  EXAM_QUESTIONS,
+  SECTION_META,
+  type ExamLevel,
+  type ExamQuestion,
+  type ExamSection,
+} from '../data/exam';
+import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
 import { playDing, playFanfare } from '../lib/sfx';
 
-type ExamLevel = 'N5' | 'N4';
+type ExamMode = 'full' | 'mini';
 
-interface ExamQuestion {
-  level: ExamLevel;
-  section: 'vocab' | 'grammar' | 'listening';
-  prompt: string;
-  audio?: string;
-  options: string[];
-  answer: number;
-  explain: string;
+function buildExamSet(level: ExamLevel, mode: ExamMode): ExamQuestion[] {
+  const pool = EXAM_QUESTIONS.filter((q) => q.level === level);
+  const pick = (sec: ExamSection) => {
+    const items = pool.filter((q) => q.section === sec);
+    const count = mode === 'full' ? SECTION_META[sec].fullCount : SECTION_META[sec].miniCount;
+    if (mode === 'full') return items.slice(0, count);
+    return [...items].sort(() => Math.random() - 0.5).slice(0, count);
+  };
+  return [...pick('vocab'), ...pick('grammar'), ...pick('listening')];
 }
 
-const QUESTION_BANK: ExamQuestion[] = [
-  // ==================== JLPT N5 ====================
-  // Vocab / Kanji
-  {
-    level: 'N5',
-    section: 'vocab',
-    prompt: '「新しい 車を 買いました。」 — What is the reading of 新しい?',
-    options: ['あたらしい', 'ふるい', 'たかい', 'やすい'],
-    answer: 0,
-    explain: '新しい is read あたらしい (new).',
-  },
-  {
-    level: 'N5',
-    section: 'vocab',
-    prompt: '「三百円です。」 — What is the reading of 三百円?',
-    options: ['さんひゃくえん', 'さんびゃくえん', 'さんぴゃくえん', 'みっつひゃくえん'],
-    answer: 1,
-    explain: '三百 has a rendaku sound change: さんびゃく + えん.',
-  },
-  {
-    level: 'N5',
-    section: 'vocab',
-    prompt: 'Which kanji means "station" (えき)?',
-    options: ['電', '車', '駅', '店'],
-    answer: 2,
-    explain: '駅 (えき) means station.',
-  },
-  {
-    level: 'N5',
-    section: 'vocab',
-    prompt: '「まいにち みずを（　）。」 — Choose the best verb.',
-    options: ['のみます', 'たべます', 'よみます', 'ききます'],
-    answer: 0,
-    explain: 'のみます (飲みます) means "to drink" (water).',
-  },
-  {
-    level: 'N5',
-    section: 'vocab',
-    prompt: '「八月 二十日に テストが あります。」 — What is the reading of 二十日?',
-    options: ['にじゅうにち', 'はつか', 'ふつか', 'ようか'],
-    answer: 1,
-    explain: '二十日 (20th day of the month) has the special reading はつか.',
-  },
-  {
-    level: 'N5',
-    section: 'vocab',
-    prompt: '「傘を 三本 買いました。」 — What is the reading of 三本?',
-    options: ['さんほん', 'さんぽん', 'さんぼん', 'みっつほん'],
-    answer: 2,
-    explain: '3 + 本 voices to b: さんぼん.',
-  },
-  // Grammar / Reading
-  {
-    level: 'N5',
-    section: 'grammar',
-    prompt: 'わたしは アメリカ（　）来ました。',
-    options: ['を', 'から', 'で', 'が'],
-    answer: 1,
-    explain: 'から indicates the starting point ("came from America").',
-  },
-  {
-    level: 'N5',
-    section: 'grammar',
-    prompt: 'この コーヒーは 高いです（　）、おいしいです。',
-    options: ['を', 'に', 'が', 'へ'],
-    answer: 2,
-    explain: 'が connects two contrasting clauses ("It is expensive, but delicious").',
-  },
-  {
-    level: 'N5',
-    section: 'grammar',
-    prompt: '新幹線（　）京都へ 行きたいです。',
-    options: ['で', 'を', 'に', 'は'],
-    answer: 0,
-    explain: 'で marks the means of transportation ("by bullet train").',
-  },
-  {
-    level: 'N5',
-    section: 'grammar',
-    prompt: '【メモ】「さくらさんへ。きょうは 3時に 駅の 前に います。いっしょに 喫茶店へ 行きましょう。— アナ」\nアナさんは どこで さくらさんを まちますか。',
-    options: ['喫茶店の 中', '駅の 前', '学校の 前', '新幹線の 中'],
-    answer: 1,
-    explain: 'The note says 「3時に 駅の 前に います」 (I will be in front of the station at 3 o’clock).',
-  },
-  {
-    level: 'N5',
-    section: 'grammar',
-    prompt: 'すみません、ここで 写真を（　）いいですか。',
-    options: ['撮っても', '撮りて', '撮るも', '撮った'],
-    answer: 0,
-    explain: 'V-ても いいですか asks permission ("May I take a photo here?").',
-  },
-  {
-    level: 'N5',
-    section: 'grammar',
-    prompt: '黒い カメラの（　）が 白い カメラより 軽いです。',
-    options: ['ほう', 'より', 'まで', 'から'],
-    answer: 0,
-    explain: 'A の ほうが B より〜 means "A is more ~ than B".',
-  },
-  // Listening (pure kana with multi-turn tags)
-  {
-    level: 'N5',
-    section: 'listening',
-    prompt: 'Listen to the dialogue and answer: How much will the customer pay?',
-    audio: 'みせで、おんなのひとと、てんいんが はなしています。……F:すみません、コーヒーを ふたつ ください。……M:はい、ろっぴゃくえんです。',
-    options: ['300円', '500円', '600円', '800円'],
-    answer: 2,
-    explain: 'The clerk says 「はい、ろっぴゃくえん（六百円）です」 (600 yen).',
-  },
-  {
-    level: 'N5',
-    section: 'listening',
-    prompt: 'Listen to the announcement: What will the speaker do on Sunday?',
-    audio: 'にちようびは、ともだちと、あさくさの おてらを みます。そのあと、おかしを たべます。',
-    options: ['Go to school', 'See a temple in Asakusa with a friend', 'Buy a train ticket tonight', 'Work at a café'],
-    answer: 1,
-    explain: 'The speaker says 「にちようびは、ともだちと、あさくさの おてらを みます」.',
-  },
-  {
-    level: 'N5',
-    section: 'listening',
-    prompt: 'Listen to the conversation: Which floor is the restroom on?',
-    audio: 'デパートで、おとこのひとと、てんいんが はなしています。……M:すみません、おてあらいは どこですか。……F:おてあらいは、さんがいの ひだりです。',
-    options: ['1st floor', '2nd floor', '3rd floor', '5th floor'],
-    answer: 2,
-    explain: 'The staff member says 「おてあらいは、さんがい（三階）の ひだりです」 (3rd floor, on the left).',
-  },
-
-  // ==================== JLPT N4 Bridge ====================
-  // Vocab / Kanji
-  {
-    level: 'N4',
-    section: 'vocab',
-    prompt: '「温泉に 入る 前に、体を 洗います。」 — What is the reading of 温泉?',
-    options: ['おんせん', 'おゆ', 'りょかん', 'おきなわ'],
-    answer: 0,
-    explain: '温泉 is read おんせん (hot spring).',
-  },
-  {
-    level: 'N4',
-    section: 'vocab',
-    prompt: '「きのうから 少し 熱が あります。」 — What does 熱 (ねつ) mean here?',
-    options: ['Fever', 'Medicine', 'Reservation', 'Towel'],
-    answer: 0,
-    explain: '熱が あります (ねつが あります) means "I have a fever".',
-  },
-  {
-    level: 'N4',
-    section: 'vocab',
-    prompt: '「今日から 一泊 おねがいします。」 — What is the reading of 一泊 (one night’s stay)?',
-    options: ['いちはく', 'いっぱく', 'ひとぱく', 'いっぴき'],
-    answer: 1,
-    explain: '一 + 泊 (はく) undergoes p-gemination: いっぱく.',
-  },
-  {
-    level: 'N4',
-    section: 'vocab',
-    prompt: '「サクラさんは アナに お守りを くれました。」 — What is an お守り (おまもり)?',
-    options: ['A protective amulet / good-luck charm', 'A bullet train ticket', 'A hot spring towel', 'A cold medicine'],
-    answer: 0,
-    explain: 'お守り (from 守る, to protect) is a Shinto/Buddhist amulet.',
-  },
-  // Grammar / Reading
-  {
-    level: 'N4',
-    section: 'grammar',
-    prompt: 'わたしは 日本の 温泉に（　）ことが あります。',
-    options: ['行った', '行く', '行って', '行こう'],
-    answer: 0,
-    explain: 'Plain past (V-た) + ことが あります expresses past life experience ("have been to").',
-  },
-  {
-    level: 'N4',
-    section: 'grammar',
-    prompt: '温泉に 入る 前に、体を（　）なりません。',
-    options: ['洗わなければ', '洗っては', '洗うつもり', '洗ったり'],
-    answer: 0,
-    explain: 'V-なければ なりません means "must V" (洗う → 洗わなければ なりません).',
-  },
-  {
-    level: 'N4',
-    section: 'grammar',
-    prompt: '日本に 来てから、日本語が（　）ように なりました。',
-    options: ['話せる', '話した', '話して', '話し'],
-    answer: 0,
-    explain: 'Potential form (話せる) + ように なりました means "became able to speak".',
-  },
-  {
-    level: 'N4',
-    section: 'grammar',
-    prompt: '【旅館の あんない】「温泉は 1階に あります。夜は 11時まで 入れます。タオルを お湯に 入れては いけません。」\nどれが 正しい（ただしい）ですか。',
-    options: [
-      '夜 10時に 温泉に 入る ことが できます。',
-      'タオルを お湯の 中に 入れても いいです。',
-      '温泉は 3階に あります。',
-      '夜は 温泉に 入れません。',
-    ],
-    answer: 0,
-    explain: 'Since the onsen is open until 11 PM (夜は 11時まで 入れます), you can enter at 10 PM.',
-  },
-  // Listening (multi-turn N4 dialogues)
-  {
-    level: 'N4',
-    section: 'listening',
-    prompt: 'Listen to the pharmacy consultation: When and how often should the patient take the medicine?',
-    audio: 'やっきょくで、おんなのひとと、やくざいしが はなしています。……F:この くすりは、いちにちに なんかい のめば いいですか。……M:ごはんを たべた あとで、いちにち さんかい のんで ください。',
-    options: [
-      '3 times a day, after meals',
-      '3 times a day, before meals',
-      'Once a day, before sleeping',
-      'Twice a day, in the morning and night',
-    ],
-    answer: 0,
-    explain: 'The pharmacist says 「ごはんを たべた あとで、いちにち さんかい のんで ください」 (after meals, 3 times a day).',
-  },
-  {
-    level: 'N4',
-    section: 'listening',
-    prompt: 'Listen to the two friends talking: Where do they plan to go this weekend?',
-    audio: 'おんなのひとと、おとこのひとが はなしています。……F:しゅうまつは、どこへ いく つもりですか。……M:はこねの おんせんに いく つもりです。まだ いった ことが ないんです。',
-    options: ['To a hot spring in Hakone', 'To an electronics store in Akihabara', 'To a café in Ginza', 'To Narita Airport'],
-    answer: 0,
-    explain: 'The man says 「はこねの おんせんに いく つもりです」 (I plan to go to a hot spring in Hakone).',
-  },
-];
-
-function buildExamSet(level: ExamLevel): ExamQuestion[] {
-  const pool = QUESTION_BANK.filter((q) => q.level === level);
-  const pick = (sec: ExamQuestion['section'], n: number) =>
-    [...pool.filter((q) => q.section === sec)].sort(() => Math.random() - 0.5).slice(0, n);
-  return [...pick('vocab', 4), ...pick('grammar', 4), ...pick('listening', 2)];
+function letterGrade(pct: number): 'A' | 'B' | 'C' {
+  if (pct >= 67) return 'A';
+  if (pct >= 34) return 'B';
+  return 'C';
 }
 
 export default function Exam() {
   const { examBest, completeExam, sfxEnabled } = useStore();
   const [level, setLevel] = useState<ExamLevel>('N5');
+  const [mode, setMode] = useState<ExamMode>('full');
+  const [activeSec, setActiveSec] = useState<ExamSection | 'all'>('all');
   const [seed, setSeed] = useState(0);
-  const questions = useMemo(() => buildExamSet(level), [level, seed]);
+  const questions = useMemo(() => buildExamSet(level, mode), [level, mode, seed]);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(10 * 60); // 10-minute mini mock
+  const durationMins = mode === 'full' ? 30 : 10;
+  const [secondsLeft, setSecondsLeft] = useState(durationMins * 60);
 
   useEffect(() => {
     if (submitted) return;
@@ -276,26 +59,49 @@ export default function Exam() {
   const total = questions.length;
   const answeredCount = Object.keys(answers).length;
   const correctCount = questions.filter((q, i) => answers[i] === q.answer).length;
-  const score = Math.round((correctCount / total) * 100);
+  const pctScore = Math.round((correctCount / total) * 100);
 
-  const sectionScore = (sec: ExamQuestion['section']) => {
+  // Official JLPT 180-point scoring breakdown:
+  // Language Knowledge (Vocab + Grammar/Reading) = 120 pts (min 38 to pass)
+  // Listening = 60 pts (min 19 to pass)
+  // Total = 180 pts (N5 pass >= 80, N4 pass >= 90)
+  const secStats = (sec: ExamSection) => {
     const qs = questions.map((q, i) => ({ q, i })).filter((x) => x.q.section === sec);
     const ok = qs.filter((x) => answers[x.i] === x.q.answer).length;
-    return `${ok}/${qs.length}`;
+    const pct = qs.length ? Math.round((ok / qs.length) * 100) : 0;
+    return { ok, total: qs.length, pct };
   };
+
+  const vocabStats = secStats('vocab');
+  const grammarStats = secStats('grammar');
+  const listenStats = secStats('listening');
+
+  const langReadingTotalQs = vocabStats.total + grammarStats.total;
+  const langReadingOk = vocabStats.ok + grammarStats.ok;
+  const langReadingPts = langReadingTotalQs ? Math.round((langReadingOk / langReadingTotalQs) * 120) : 0;
+  const listenPts = listenStats.total ? Math.round((listenStats.ok / listenStats.total) * 60) : 0;
+  const totalPts = langReadingPts + listenPts;
+
+  const passTotalThreshold = level === 'N5' ? 80 : 90;
+  const passedLangSection = langReadingPts >= 38;
+  const passedListenSection = listenPts >= 19;
+  const passedOverall = totalPts >= passTotalThreshold && passedLangSection && passedListenSection;
 
   const submit = () => {
     setSubmitted(true);
-    completeExam(score);
-    if (sfxEnabled) (score >= PASS ? playFanfare : playDing)();
+    completeExam(pctScore);
+    if (sfxEnabled) (passedOverall ? playFanfare : playDing)();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const reset = (nextLevel: ExamLevel = level) => {
+  const reset = (nextLevel: ExamLevel = level, nextMode: ExamMode = mode) => {
     setLevel(nextLevel);
+    setMode(nextMode);
+    setActiveSec('all');
     setSeed((s) => s + 1);
     setAnswers({});
     setSubmitted(false);
-    setSecondsLeft(10 * 60);
+    setSecondsLeft((nextMode === 'full' ? 30 : 10) * 60);
   };
 
   const mins = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
@@ -304,100 +110,252 @@ export default function Exam() {
   return (
     <div className="page">
       <div className="row-between">
-        <h1>模擬試験 <span className="muted">JLPT {level} Mock Exam</span></h1>
+        <h1>
+          模擬試験 <span className="muted">JLPT {level} {mode === 'full' ? 'Full Mock Exam' : 'Mini-Mock'}</span>
+        </h1>
         <div className="controls">
           {examBest !== null && <span className="chip">Best: {examBest}%</span>}
           <span className={`chip ${secondsLeft < 60 && !submitted ? 'bad' : 'on'}`}>⏱ {mins}:{secs}</span>
         </div>
       </div>
 
+      {/* Mode & Level Controls */}
       <div className="controls">
-        <button className={level === 'N5' ? 'chip on' : 'chip'} onClick={() => reset('N5')}>
-          JLPT N5 Exam
+        <button className={mode === 'full' ? 'chip on' : 'chip'} onClick={() => reset(level, 'full')}>
+          🏛️ Full JLPT Exam (30 Qs · 180 pts)
         </button>
-        <button className={level === 'N4' ? 'chip on' : 'chip'} onClick={() => reset('N4')}>
-          JLPT N4 Bridge Exam
+        <button className={mode === 'mini' ? 'chip on' : 'chip'} onClick={() => reset(level, 'mini')}>
+          ⚡ Quick Mini-Mock (10 Qs)
         </button>
-        <button className="chip" onClick={() => reset(level)}>
-          🔀 New Question Set
+        <span className="muted small" style={{ alignSelf: 'center', marginLeft: '0.3rem' }}>Level:</span>
+        <button className={level === 'N5' ? 'chip on' : 'chip'} onClick={() => reset('N5', mode)}>
+          JLPT N5
         </button>
+        <button className={level === 'N4' ? 'chip on' : 'chip'} onClick={() => reset('N4', mode)}>
+          JLPT N4 Bridge
+        </button>
+        {mode === 'mini' && (
+          <button className="chip" onClick={() => reset(level, mode)}>
+            🔀 Shuffle Set
+          </button>
+        )}
       </div>
 
-      <p className="muted">
-        Covers Vocabulary/Kanji (文字・語彙), Grammar/Reading (文法・読解), and Multi-Voice Listening (聴解). Pass mark: {PASS}%.
-      </p>
+      {/* Section Tabs */}
+      <div className="controls">
+        <button className={activeSec === 'all' ? 'chip on' : 'chip'} onClick={() => setActiveSec('all')}>
+          All Parts ({questions.length})
+        </button>
+        {(['vocab', 'grammar', 'listening'] as ExamSection[]).map((sec) => {
+          const cnt = questions.filter((q) => q.section === sec).length;
+          return (
+            <button key={sec} className={activeSec === sec ? 'chip on' : 'chip'} onClick={() => setActiveSec(sec)}>
+              {sec === 'vocab' ? '第1部・文字語彙' : sec === 'grammar' ? '第2部・文法読解' : '第3部・聴解'} ({cnt})
+            </button>
+          );
+        })}
+      </div>
 
-      {questions.map((q, i) => (
-        <div key={`${level}-${seed}-${i}`} className="question">
-          <div className="row-between">
-            <span className="tag">
-              Q{i + 1} · {q.level} · {q.section === 'vocab' ? '文字・語彙' : q.section === 'grammar' ? '文法・読解' : '聴解 Listening'}
-            </span>
-            {q.audio && (
-              <button className="chip on" onClick={() => speak(q.audio!, 0.88)}>
-                🔊 Play Audio
-              </button>
-            )}
-          </div>
-          <p className="jp" style={{ whiteSpace: 'pre-line' }}>{q.prompt}</p>
-          <div className="controls">
-            {q.options.map((opt, j) => {
-              const chosen = answers[i] === j;
-              const cls = !submitted
-                ? chosen
-                  ? 'chip on'
-                  : 'chip'
-                : j === q.answer
-                  ? 'chip ok'
-                  : chosen
-                    ? 'chip bad'
-                    : 'chip';
-              return (
-                <button
-                  key={j}
-                  className={cls}
-                  disabled={submitted}
-                  onClick={() => setAnswers((a) => ({ ...a, [i]: j }))}
-                >
-                  {opt}
-                </button>
-              );
-            })}
-          </div>
-          {submitted && (
-            <p className={answers[i] === q.answer ? 'ok-text small' : 'bad-text small'}>
-              {answers[i] === q.answer ? '✓ Correct — ' : '✗ Incorrect — '}
-              {q.explain}
-            </p>
+      {/* Question Navigator Grid */}
+      <div className="gp" style={{ padding: '0.75rem 1rem' }}>
+        <div className="row-between" style={{ marginBottom: '0.45rem' }}>
+          <span className="small muted">
+            Question Navigator ({answeredCount}/{total} answered · Official Scale: 180 pts, Pass ≥ {passTotalThreshold} pts)
+          </span>
+          {!submitted && answeredCount > 0 && (
+            <button className="chip on" style={{ padding: '0.25rem 0.8rem', fontSize: '0.8rem' }} onClick={submit}>
+              Submit Exam Now →
+            </button>
           )}
         </div>
-      ))}
-
-      {!submitted ? (
-        <div className="result">
-          <span className="muted">{answeredCount}/{total} answered</span>
-          <button className="chip on" onClick={submit}>
-            Submit Exam ({answeredCount}/{total})
-          </button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+          {questions.map((q, i) => {
+            const isAnswered = answers[i] !== undefined;
+            const isCorrect = answers[i] === q.answer;
+            const pillCls = !submitted
+              ? isAnswered
+                ? 'chip on'
+                : 'chip'
+              : isCorrect
+                ? 'chip ok'
+                : 'chip bad';
+            return (
+              <button
+                key={q.id}
+                className={pillCls}
+                style={{ padding: '0.22rem 0.55rem', fontSize: '0.78rem', minWidth: '2.1rem' }}
+                onClick={() => {
+                  setActiveSec('all');
+                  setTimeout(() => {
+                    document.getElementById(`exam-q-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }, 30);
+                }}
+              >
+                {i + 1}
+              </button>
+            );
+          })}
         </div>
-      ) : (
-        <div className="gp">
-          <h2>
-            Result: {score}% ({correctCount}/{total}) —{' '}
-            <span className={score >= PASS ? 'ok-text' : 'bad-text'}>
-              {score >= PASS ? '合格 PASSED 🎉' : '不合格 Keep Studying'}
-            </span>
-          </h2>
-          <p className="muted">
-            文字・語彙: {sectionScore('vocab')} · 文法・読解: {sectionScore('grammar')} · 聴解: {sectionScore('listening')}
-          </p>
-          <div className="controls">
-            <button className="chip on" onClick={() => reset(level)}>↻ Retake {level} Exam</button>
-            <button className="chip" onClick={() => reset(level === 'N5' ? 'N4' : 'N5')}>
-              Switch to {level === 'N5' ? 'N4 Bridge' : 'N5'} Exam →
-            </button>
-            <Link className="chip" to="/">← Back to Dashboard</Link>
+      </div>
+
+      {/* Official JLPT Certificate Report Card when submitted */}
+      {submitted && (
+        <div className="bento-banner" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.9rem' }}>
+          <div className="row-between">
+            <div>
+              <span className="tag">日本語能力試験 合否結果通知書 · OFFICIAL SCORE REPORT</span>
+              <h2 className="nomargin" style={{ fontSize: '1.55rem', marginTop: '0.2rem' }}>
+                JLPT {level} Result:{' '}
+                <span className={passedOverall ? 'ok-text' : 'bad-text'}>
+                  {passedOverall ? '合格 PASSED 🎉' : '不合格 NOT PASSED'}
+                </span>
+              </h2>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '2rem', fontWeight: 700 }}>
+                {totalPts} <span className="muted" style={{ fontSize: '1rem' }}>/ 180 pts</span>
+              </div>
+              <span className="muted small">
+                Raw: {correctCount}/{total} ({pctScore}%) · Pass Mark: {passTotalThreshold}/180
+              </span>
+            </div>
           </div>
+
+          <div className="stats" style={{ margin: '0.2rem 0' }}>
+            <div className="stat">
+              <b>
+                {langReadingPts} <span className="muted small">/ 120</span>
+              </b>
+              <span>
+                言語知識・読解 (Min 38) {passedLangSection ? '✓' : '✗'}
+              </span>
+            </div>
+            <div className="stat">
+              <b>
+                {listenPts} <span className="muted small">/ 60</span>
+              </b>
+              <span>
+                聴解 Listening (Min 19) {passedListenSection ? '✓' : '✗'}
+              </span>
+            </div>
+            <div className="stat">
+              <b>Grade {letterGrade(vocabStats.pct)}</b>
+              <span>文字・語彙 ({vocabStats.ok}/{vocabStats.total})</span>
+            </div>
+            <div className="stat">
+              <b>Grade {letterGrade(grammarStats.pct)}</b>
+              <span>文法・読解 ({grammarStats.ok}/{grammarStats.total})</span>
+            </div>
+          </div>
+
+          <div className="controls">
+            <button className="chip on" onClick={() => reset(level, mode)}>
+              ↻ Retake {level} {mode === 'full' ? 'Full Exam' : 'Mini-Mock'}
+            </button>
+            <button className="chip" onClick={() => reset(level === 'N5' ? 'N4' : 'N5', mode)}>
+              Switch to JLPT {level === 'N5' ? 'N4 Bridge' : 'N5'} →
+            </button>
+            <Link className="chip" to="/">
+              ← Back to Dashboard
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Questions List */}
+      {questions.map((q, i) => {
+        if (activeSec !== 'all' && q.section !== activeSec) return null;
+        const prevSec = i > 0 ? questions[i - 1].section : null;
+        const showSecHeader = activeSec === 'all' && q.section !== prevSec;
+
+        return (
+          <div key={q.id} id={`exam-q-${i}`}>
+            {showSecHeader && (
+              <h2 style={{ marginTop: '1.6rem', marginBottom: '0.4rem' }}>
+                {SECTION_META[q.section].jp}{' '}
+                <span className="muted small">— {SECTION_META[q.section].en}</span>
+              </h2>
+            )}
+            <div className="question">
+              <div className="row-between">
+                <span className="tag">
+                  Q{i + 1} · {q.level} · {q.mondai}
+                </span>
+                {q.audio && (
+                  <div className="controls nomargin">
+                    <button className="chip on" onClick={() => speak(q.audio!, 0.9)}>
+                      🔊 Play Audio
+                    </button>
+                    <button className="chip" onClick={() => speak(q.audio!, 0.72)}>
+                      🐢 Slow
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {q.passage && (
+                <div
+                  className="gp jp"
+                  style={{
+                    background: 'var(--surface2)',
+                    whiteSpace: 'pre-line',
+                    fontSize: '1.05rem',
+                    margin: '0.6rem 0',
+                    borderLeft: '3px solid var(--accent)',
+                  }}
+                >
+                  {q.passage}
+                </div>
+              )}
+
+              <p className="jp" style={{ whiteSpace: 'pre-line' }}>
+                {q.prompt}
+              </p>
+
+              <div className="controls">
+                {q.options.map((opt, j) => {
+                  const chosen = answers[i] === j;
+                  const cls = !submitted
+                    ? chosen
+                      ? 'chip on'
+                      : 'chip'
+                    : j === q.answer
+                      ? 'chip ok'
+                      : chosen
+                        ? 'chip bad'
+                        : 'chip';
+                  return (
+                    <button
+                      key={j}
+                      className={cls}
+                      disabled={submitted}
+                      onClick={() => setAnswers((a) => ({ ...a, [i]: j }))}
+                    >
+                      {j + 1}. {opt}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {submitted && (
+                <p className={answers[i] === q.answer ? 'ok-text small' : 'bad-text small'}>
+                  {answers[i] === q.answer ? '✓ Correct — ' : '✗ Incorrect — '}
+                  {q.explain}
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {!submitted && (
+        <div className="result">
+          <span className="muted">
+            {answeredCount}/{total} answered
+          </span>
+          <button className="chip on" onClick={submit}>
+            💮 Submit JLPT {level} Exam ({answeredCount}/{total})
+          </button>
         </div>
       )}
     </div>
