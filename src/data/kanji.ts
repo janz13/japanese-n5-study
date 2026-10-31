@@ -1,5 +1,6 @@
 export interface Kanji {
   k: string;
+  level: 'N5' | 'N4';
   strokes: number;
   meaning: string;
   on: string;
@@ -19,6 +20,12 @@ const STROKES: Record<string, number> = {
   見: 7, 行: 6, 来: 7, 食: 9, 飲: 12, 聞: 14, 読: 14, 書: 10, 話: 13, 言: 7,
   買: 12, 休: 6, 立: 5, 入: 2, 出: 5, 口: 3, 目: 5, 耳: 6, 手: 4, 足: 7,
   花: 7, 魚: 11, 空: 8,
+  // N4 Bridge Kanji
+  家: 10, 族: 11, 兄: 5, 姉: 8, 弟: 7, 妹: 8, 私: 7, 室: 9, 屋: 9, 場: 12,
+  所: 8, 院: 10, 病: 10, 薬: 16, 医: 7, 者: 8, 体: 7, 頭: 16, 顔: 18, 心: 4,
+  思: 9, 知: 8, 考: 6, 教: 11, 習: 11, 勉: 10, 強: 11, 働: 13, 仕: 5, 事: 8,
+  作: 7, 使: 8, 持: 9, 待: 9, 歩: 8, 走: 7, 起: 10, 寝: 13, 帰: 10, 住: 7,
+  開: 12, 閉: 11, 始: 8, 終: 11, 旅: 10, 館: 16, 温: 12,
 };
 
 // Format: 字|meaning|on|kun|example:reading:meaning
@@ -126,8 +133,59 @@ const RAW = `日|day, sun|ニチ、ジツ|ひ、か|日本:にほん:Japan
 魚|fish|ギョ|さかな|魚:さかな:fish
 空|sky|クウ|そら|空港:くうこう:airport`;
 
-export const KANJI: Kanji[] = RAW.split('\n').map((line) => {
-  const [k, meaning, on, kun, ex] = line.split('|');
-  const [w, r, en] = ex.split(':');
-  return { k, strokes: STROKES[k] ?? 5, meaning, on, kun, ex: { w, r, en } };
-});
+const RAW_N4 = `家|house, family|カ、ケ|いえ、うち|家族:かぞく:family
+族|tribe, family|ゾク|—|家族:かぞく:family
+兄|older brother|ケイ、キョウ|あに|お兄さん:おにいさん:older brother
+姉|older sister|シ|あね|お姉さん:おねえさん:older sister
+弟|younger brother|テイ、ダイ|おとうと|弟:おとうと:younger brother
+妹|younger sister|マイ|いもうと|妹:いもうと:younger sister
+私|I, private|シ|わたし|私:わたし:I, me
+室|room|シツ|むろ|教室:きょうしつ:classroom
+屋|roof, shop|オク|や|部屋:へや:room
+場|place|ジョウ|ば|場所:ばしょ:place
+所|place|ショ|ところ|台所:だいどころ:kitchen
+院|institution|イン|—|病院:びょういん:hospital
+病|illness|ビョウ|やまい|病気:びょうき:illness
+薬|medicine|ヤク|くすり|薬局:やっきょく:pharmacy
+医|medicine, doctor|イ|—|医者:いしゃ:doctor
+者|person|シャ|もの|医者:いしゃ:doctor
+体|body|タイ|からだ|体:からだ:body
+頭|head|トウ、ズ|あたま|頭:あたま:head
+顔|face|ガン|かお|顔:かお:face
+心|heart, mind|シン|こころ|安心:あんしん:relief
+思|think|シ|おも(う)|思う:おもう:think
+知|know|チ|し(る)|知る:しる:know
+考|think, consider|コウ|かんが(える)|考える:かんがえる:think, consider
+教|teach|キョウ|おし(える)|教える:おしえる:teach, tell
+習|learn|シュウ|なら(う)|習う:ならう:learn
+勉|exertion|ベン|—|勉強:べんきょう:study
+強|strong|キョウ|つよ(い)|強い:つよい:strong
+働|work|ドウ|はたら(く)|働く:はたらく:work
+仕|serve, do|シ|つか(える)|仕事:しごと:work, job
+事|thing, matter|ジ|こと|仕事:しごと:work, job
+作|make|サク|つく(る)|作る:つくる:make
+使|use|シ|つか(う)|使う:つかう:use
+持|hold, have|ジ|も(つ)|持つ:もつ:hold, have
+待|wait|タイ|ま(つ)|待つ:まつ:wait
+歩|walk|ホ|ある(く)|歩く:あるく:walk
+走|run|ソウ|はし(る)|走る:はしる:run
+起|wake up|キ|お(きる)|起きる:おきる:wake up
+寝|sleep, lie down|シン|ね(る)|寝る:ねる:sleep
+帰|return home|キ|かえ(る)|帰る:かえる:return
+住|live, reside|ジュウ|す(む)|住む:すむ:live, reside
+開|open|カイ|あ(ける)、ひら(く)|開ける:あける:open
+閉|close|ヘイ|し(める)、と(じる)|閉める:しめる:close
+始|begin|シ|はじ(める)|始まる:はじまる:begin
+終|end|シュウ|お(わる)|終わる:おわる:end
+旅|trip, travel|リョ|たび|旅館:りょかん:Japanese inn
+館|building, hall|カン|やかた|図書館:としょかん:library
+温|warm|オン|あたた(かい)|温泉:おんせん:hot spring`;
+
+const parseRaw = (raw: string, level: 'N5' | 'N4'): Kanji[] =>
+  raw.split('\n').map((line) => {
+    const [k, meaning, on, kun, ex] = line.split('|');
+    const [w, r, en] = ex.split(':');
+    return { k, level, strokes: STROKES[k] ?? 8, meaning, on, kun, ex: { w, r, en } };
+  });
+
+export const KANJI: Kanji[] = [...parseRaw(RAW, 'N5'), ...parseRaw(RAW_N4, 'N4')];

@@ -1,0 +1,238 @@
+export type ParticleCategory = 'wa-ga' | 'ni-de-e' | 'action-compare';
+
+export interface ParticlePrompt {
+  id: string;
+  category: ParticleCategory;
+  before: string;
+  after: string;
+  answer: string;
+  options: string[];
+  en: string;
+  /** Pure-kana string for TTS so readings and pauses are 100% accurate. */
+  audio: string;
+  why: string;
+}
+
+export const PARTICLE_CATEGORIES: Record<ParticleCategory, string> = {
+  'wa-ga': '⚖️ は vs が (Topic & Subject)',
+  'ni-de-e': '📍 に vs で vs へ (Place, Time & Means)',
+  'action-compare': '🔗 を・と・から・より (Objects & Relations)',
+};
+
+export const PARTICLE_GUIDE: { p: string; role: string; tip: string; exJp: string; exKana: string; exEn: string }[] = [
+  { p: 'は', role: 'Topic marker ("as for…")', tip: 'Sets the stage or contrasts two topics (Pronounced "wa").', exJp: '私は 学生です。', exKana: 'わたしは、がくせいです。', exEn: 'I am a student.' },
+  { p: 'が', role: 'Subject / Identifier', tip: 'Used with あります/います (existence), 好き/上手/わかる, abilities (話せる), and natural phenomena.', exJp: '日本語が わかります。', exKana: 'にほんごが、わかります。', exEn: 'I understand Japanese.' },
+  { p: 'を', role: 'Direct object / Point of departure', tip: 'Marks what is eaten/read/seen, or the place you exit/walk through (駅を 出る, 公園を 散歩する).', exJp: 'コーヒーを 飲みます。', exKana: 'コーヒーを、のみます。', exEn: 'I drink coffee.' },
+  { p: 'に', role: 'Specific time / Static location / Goal', tip: 'Clock times (七時に), where things exist (机の上に あります), or recipient of an action.', exJp: '七時に 起きます。', exKana: 'しちじに、おきます。', exEn: 'I wake up at 7:00.' },
+  { p: 'で', role: 'Action location / Means / Tool', tip: 'Where an active event happens (カフェで 勉強する) or how/by what transport (電車で 行く).', exJp: '新幹線で 京都へ 行きます。', exKana: 'しんかんせんで、きょうとへ いきます。', exEn: 'I go to Kyoto by bullet train.' },
+  { p: 'へ', role: 'Direction ("toward")', tip: 'Marks travel direction with 行く/来る/帰る (Pronounced "e").', exJp: '東京へ 来ました。', exKana: 'とうきょうへ、きました。', exEn: 'I came to Tokyo.' },
+  { p: 'と', role: 'Companion ("with") / "And" / Quote', tip: 'Complete list of nouns (AとB), doing something with someone (友だちと), or quoting (「…」と 言う).', exJp: '友だちと 映画を 見ます。', exKana: 'ともだちと、えいがを みます。', exEn: 'I watch a movie with a friend.' },
+  { p: 'から / まで', role: 'From / Until (time or place)', tip: 'Marks starting point (から) and ending point (まで).', exJp: '九時から 五時まで 働きます。', exKana: 'くじから ごじまで、はたらきます。', exEn: 'I work from 9 to 5.' },
+  { p: 'より', role: 'Comparison ("than")', tip: 'Pairs with のほうが to show what something is compared against.', exJp: '電車の ほうが バスより 速いです。', exKana: 'でんしゃの ほうが、バスより はやいです。', exEn: 'Trains are faster than buses.' },
+];
+
+export const PARTICLES: ParticlePrompt[] = [
+  // ==================== は vs が ====================
+  {
+    id: 'p1',
+    category: 'wa-ga',
+    before: 'あそこに コンビニ',
+    after: 'あります。',
+    answer: 'が',
+    options: ['が', 'は', 'を', 'で'],
+    en: 'There is a convenience store over there.',
+    audio: 'あそこに、コンビニが あります。',
+    why: 'Existence verbs (あります / います) take が to introduce the thing that exists.',
+  },
+  {
+    id: 'p2',
+    category: 'wa-ga',
+    before: '私は 抹茶',
+    after: '好きです。',
+    answer: 'が',
+    options: ['が', 'を', 'は', 'に'],
+    en: 'I like matcha.',
+    audio: 'わたしは、まっちゃが すきです。',
+    why: '好き (liked), 嫌い (disliked), 上手 (skilled), and 下手 (unskilled) are adjectives in Japanese and always mark their target with が, never を!',
+  },
+  {
+    id: 'p3',
+    category: 'wa-ga',
+    before: 'アナさんは 日本語',
+    after: '話せます。',
+    answer: 'が',
+    options: ['が', 'を', 'に', 'で'],
+    en: 'Ana can speak Japanese.',
+    audio: 'アナさんは、にほんごが はなせます。',
+    why: 'Potential verbs (話せる, 食べられる, わかる, できる) take が to mark the thing you can do.',
+  },
+  {
+    id: 'p4',
+    category: 'wa-ga',
+    before: '窓から 富士山',
+    after: '見えました。',
+    answer: 'が',
+    options: ['が', 'を', 'で', 'へ'],
+    en: 'Mt. Fuji could be seen from the window.',
+    audio: 'まどから、ふじさんが みえました。',
+    why: '見える (can be seen) and 聞こえる (can be heard) describe spontaneous perception and take が, not を.',
+  },
+  {
+    id: 'p5',
+    category: 'wa-ga',
+    before: 'きのうから 頭',
+    after: '痛いです。',
+    answer: 'が',
+    options: ['が', 'を', 'に', 'で'],
+    en: 'My head has been hurting since yesterday.',
+    audio: 'きのうから、あたまが いたいです。',
+    why: 'Body parts experiencing a physical sensation or symptom (頭が痛い, おなかがすいた, のどがかわいた) take が.',
+  },
+  {
+    id: 'p6',
+    category: 'wa-ga',
+    before: 'コーヒーは 飲みますが、紅茶',
+    after: '飲みません。',
+    answer: 'は',
+    options: ['は', 'が', 'に', 'で'],
+    en: 'I drink coffee, but I don’t drink black tea.',
+    audio: 'コーヒーは のみますが、こうちゃは のみません。',
+    why: 'When contrasting two items (Aは… Bは…), は replaces を to highlight the contrast.',
+  },
+
+  // ==================== に vs で vs へ ====================
+  {
+    id: 'p7',
+    category: 'ni-de-e',
+    before: '毎朝 七時半',
+    after: '起きます。',
+    answer: 'に',
+    options: ['に', 'で', 'を', 'は'],
+    en: 'I wake up at 7:30 every morning.',
+    audio: 'まいあさ、しちじはんに おきます。',
+    why: 'Specific clock times and calendar dates take に (whereas relative words like 今日, 明日, 毎朝 take no particle).',
+  },
+  {
+    id: 'p8',
+    category: 'ni-de-e',
+    before: '駅の 近くの カフェ',
+    after: 'コーヒーを 飲みました。',
+    answer: 'で',
+    options: ['で', 'に', 'へ', 'を'],
+    en: 'I drank coffee at a café near the station.',
+    audio: 'えきの ちかくの カフェで、コーヒーを のみました。',
+    why: 'で marks the place where an active action (drinking, eating, studying, buying) happens.',
+  },
+  {
+    id: 'p9',
+    category: 'ni-de-e',
+    before: '駅の 前',
+    after: '赤い 門が あります。',
+    answer: 'に',
+    options: ['に', 'で', 'を', 'から'],
+    en: 'There is a red gate in front of the station.',
+    audio: 'えきの まえに、あかい もんが あります。',
+    why: 'Static location with あります / います / 住んでいます takes に, not で.',
+  },
+  {
+    id: 'p10',
+    category: 'ni-de-e',
+    before: '新幹線',
+    after: '京都へ 行きます。',
+    answer: 'で',
+    options: ['で', 'に', 'を', 'と'],
+    en: 'I go to Kyoto by bullet train.',
+    audio: 'しんかんせんで、きょうとへ いきます。',
+    why: 'で marks the means of transport or tool used (電車で, バスで, はしで).Exception: 歩いて (on foot).',
+  },
+  {
+    id: 'p11',
+    category: 'ni-de-e',
+    before: '東京駅で 山手線',
+    after: '乗りました。',
+    answer: 'に',
+    options: ['に', 'で', 'を', 'へ'],
+    en: 'At Tokyo Station I got on the Yamanote Line.',
+    audio: 'とうきょうえきで、やまのてせんに のりました。',
+    why: '乗る (to board/ride) and 入る (to enter) treat the vehicle/room as the destination point, so they always take に!',
+  },
+  {
+    id: 'p12',
+    category: 'ni-de-e',
+    before: '温泉に 入る 前',
+    after: '体を 洗って ください。',
+    answer: 'に',
+    options: ['に', 'で', 'を', 'と'],
+    en: 'Please wash your body before entering the hot spring.',
+    audio: 'おんせんに はいる まえに、からだを あらって ください。',
+    why: '前に (まえに = before) always uses に, whereas 後で (あとで = after) uses で!',
+  },
+  {
+    id: 'p13',
+    category: 'ni-de-e',
+    before: 'ご飯を 食べた 後',
+    after: '薬を 飲んで ください。',
+    answer: 'で',
+    options: ['で', 'に', 'を', 'へ'],
+    en: 'Please take the medicine after eating your meal.',
+    audio: 'ごはんを たべた あとで、くすりを のんで ください。',
+    why: '後で (あとで = after doing V) takes で (contrast with 前に).',
+  },
+
+  // ==================== を・と・から・より ====================
+  {
+    id: 'p14',
+    category: 'action-compare',
+    before: '週末、友だち',
+    after: '箱根へ 行く つもりです。',
+    answer: 'と',
+    options: ['と', 'に', 'で', 'を'],
+    en: 'This weekend I plan to go to Hakone with my friend.',
+    audio: 'しゅうまつ、ともだちと はこねへ いく つもりです。',
+    why: 'と marks the companion you do an activity together with.',
+  },
+  {
+    id: 'p15',
+    category: 'action-compare',
+    before: '黒い カメラの ほうが 白い カメラ',
+    after: '軽いです。',
+    answer: 'より',
+    options: ['より', 'ほう', 'まで', 'から'],
+    en: 'The black camera is lighter than the white camera.',
+    audio: 'くろい カメラの ほうが、しろい カメラより かるいです。',
+    why: 'より means "than" and attaches to the item being compared against.',
+  },
+  {
+    id: 'p16',
+    category: 'action-compare',
+    before: '車掌さんに「この 席は どこですか」',
+    after: '聞きました。',
+    answer: 'と',
+    options: ['と', 'を', 'に', 'で'],
+    en: 'I asked the conductor, "Where is this seat?"',
+    audio: 'しゃしょうさんに、この せきは どこですか、と ききました。',
+    why: 'と is the quotation particle used before 言う (say), 聞く (ask), and 思う (think).',
+  },
+  {
+    id: 'p17',
+    category: 'action-compare',
+    before: '毎朝、八時に 家',
+    after: '出ます。',
+    answer: 'を',
+    options: ['を', 'に', 'で', 'から'],
+    en: 'Every morning I leave the house at 8 o’clock.',
+    audio: 'まいあさ、はちじに いえを でます。',
+    why: '出る (to leave/exit) and 降りる (電車を降りる = get off a train) take を to mark the place you exit from!',
+  },
+  {
+    id: 'p18',
+    category: 'action-compare',
+    before: '会議は 九時',
+    after: '十一時までです。',
+    answer: 'から',
+    options: ['から', 'に', 'で', 'より'],
+    en: 'The meeting is from 9:00 until 11:00.',
+    audio: 'かいぎは、くじから じゅういちじまでです。',
+    why: 'から marks the starting time or place ("from 9:00").',
+  },
+];

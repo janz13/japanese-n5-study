@@ -8,15 +8,22 @@ import { StrokeOrder, TraceCanvas } from '../components/Strokes';
 
 type DeckFilter = 'all' | 'in' | 'out';
 type StrokeFilter = 'all' | '1-4' | '5-7' | '8+';
+type LevelFilter = 'all' | 'N5' | 'N4';
 
 export function KanjiList() {
   const { srs, addCard } = useStore();
   const [query, setQuery] = useState('');
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>('all');
   const [filter, setFilter] = useState<DeckFilter>('all');
   const [strokeFilter, setStrokeFilter] = useState<StrokeFilter>('all');
 
+  const n5Count = KANJI.filter((k) => k.level === 'N5').length;
+  const n4Count = KANJI.filter((k) => k.level === 'N4').length;
+
   const addAll = () =>
-    KANJI.forEach((k) => addCard({ id: `k:${k.k}`, kind: 'kanji', front: k.k, reading: `${k.on} / ${k.kun}`, back: k.meaning }));
+    KANJI.filter((k) => levelFilter === 'all' || k.level === levelFilter).forEach((k) =>
+      addCard({ id: `k:${k.k}`, kind: 'kanji', front: k.k, reading: `${k.on} / ${k.kun}`, back: k.meaning }),
+    );
   const inDeck = KANJI.filter((k) => srs[`k:${k.k}`]).length;
 
   const filtered = useMemo(() => {
@@ -24,6 +31,7 @@ export function KanjiList() {
     const hira = q ? toHiragana(q) : '';
     const kata = q ? toKatakana(q) : '';
     return KANJI.filter((k) => {
+      if (levelFilter !== 'all' && k.level !== levelFilter) return false;
       const isIn = !!srs[`k:${k.k}`];
       if (filter === 'in' && !isIn) return false;
       if (filter === 'out' && isIn) return false;
@@ -44,11 +52,11 @@ export function KanjiList() {
         k.ex.en.toLowerCase().includes(q)
       );
     });
-  }, [query, filter, strokeFilter, srs]);
+  }, [query, levelFilter, filter, strokeFilter, srs]);
 
   return (
     <div className="page">
-      <h1>漢字 <span className="muted">N5 Kanji</span></h1>
+      <h1>漢字 <span className="muted">N5 &amp; N4 Kanji Library</span></h1>
       <div className="controls">
         <input
           value={query}
@@ -61,8 +69,18 @@ export function KanjiList() {
         )}
       </div>
       <div className="controls">
+        <button className={levelFilter === 'all' ? 'chip on' : 'chip'} onClick={() => setLevelFilter('all')}>
+          All Levels ({KANJI.length})
+        </button>
+        <button className={levelFilter === 'N5' ? 'chip on' : 'chip'} onClick={() => setLevelFilter('N5')}>
+          JLPT N5 ({n5Count})
+        </button>
+        <button className={levelFilter === 'N4' ? 'chip on' : 'chip'} onClick={() => setLevelFilter('N4')}>
+          JLPT N4 ({n4Count})
+        </button>
+        <span className="muted small" style={{ alignSelf: 'center', marginLeft: '0.4rem' }}>Deck:</span>
         <button className={filter === 'all' ? 'chip on' : 'chip'} onClick={() => setFilter('all')}>
-          All ({KANJI.length})
+          Any
         </button>
         <button className={filter === 'in' ? 'chip on' : 'chip'} onClick={() => setFilter('in')}>
           In Deck ({inDeck})
@@ -77,7 +95,7 @@ export function KanjiList() {
           </button>
         ))}
         {inDeck < KANJI.length && (
-          <button className="chip on" onClick={addAll}>+ Add all to review</button>
+          <button className="chip on" onClick={addAll}>+ Add to review</button>
         )}
       </div>
       <div className="kanji-grid">
@@ -85,7 +103,7 @@ export function KanjiList() {
           <Link key={k.k} to={`/kanji/${k.k}`} className={`kanji-cell${srs[`k:${k.k}`] ? ' in' : ''}`}>
             <span>{k.k}</span>
             <small>{k.meaning.split(',')[0]}</small>
-            <small style={{ fontSize: '0.62rem', opacity: 0.7 }}>{k.strokes}画</small>
+            <small style={{ fontSize: '0.62rem', opacity: 0.7 }}>{k.level} · {k.strokes}画</small>
           </Link>
         ))}
       </div>
@@ -115,7 +133,9 @@ export function KanjiDetail() {
       <div className="kanji-head">
         <span className="kanji-big">{kj.k}</span>
         <div>
-          <h2 className="nomargin">{kj.meaning} <span className="muted small">({kj.strokes} strokes)</span></h2>
+          <h2 className="nomargin">
+            {kj.meaning} <span className="muted small">({kj.level} · {kj.strokes} strokes)</span>
+          </h2>
           <p><span className="muted">音</span> {kj.on}<br /><span className="muted">訓</span> {kj.kun}</p>
           <p className="example" onClick={() => speak(kj.ex.r)}>
             🔊{' '}

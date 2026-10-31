@@ -139,9 +139,10 @@ export default function Dashboard() {
       <div className="grid">
         <Link to="/bento" className="tile"><span className="big">弁</span>Daily Bento<small>5-min guided loop</small></Link>
         <Link to="/kana" className="tile"><span className="big">あ</span>Kana Dojo<small>Typing &amp; Yōon drills</small></Link>
-        <Link to="/kanji" className="tile"><span className="big">漢</span>Kanji<small>103 N5 · Search &amp; write</small></Link>
+        <Link to="/kanji" className="tile"><span className="big">漢</span>Kanji<small>150 N5/N4 · Search &amp; write</small></Link>
         <Link to="/conjugate" className="tile"><span className="big">活</span>Conjugation<small>Verbs &amp; adjectives</small></Link>
         <Link to="/counters" className="tile"><span className="big">数</span>Counters<small>助数詞 · Dates &amp; numbers</small></Link>
+        <Link to="/particles" className="tile"><span className="big">助</span>Particles<small>は vs が · に vs で</small></Link>
         <Link to="/review" className="tile"><span className="big">復</span>Review<small>{due} due · {Object.keys(srs).length} total</small></Link>
         <Link to="/grammar" className="tile"><span className="big">文</span>Grammar<small>Unlock chapters</small></Link>
         <Link to="/stories" className="tile"><span className="big">物語</span>Stories<small>Read &amp; listen</small></Link>
