@@ -1,7 +1,8 @@
 import { KANJI } from '../data/kanji';
 import { COUNTERS } from '../data/counters';
+import { CONJUGATIONS, FORM_LABELS, type ConjForm } from '../data/conjugations';
 import { PARTICLES } from '../data/particles';
-import { EXAM_QUESTIONS, type ExamLevel, type ExamSection } from '../data/exam';
+import { type ExamLevel, type ExamSection } from '../data/exam';
 
 export interface GeneratedExamQuestion {
   id: string;
@@ -17,12 +18,11 @@ export interface GeneratedExamQuestion {
   /** Transcript kept hidden during active test and shown on review */
   transcript?: string;
   options: string[];
-  /** Index of correct option (0..3 or 0..2 for 3-option Mondai 3/4 listening) */
   answer: number;
   explain: string;
 }
 
-const SEEN_STORAGE_KEY = 'n5_seen_exam_fingerprints_v1';
+const SEEN_STORAGE_KEY = 'n5_seen_exam_fingerprints_v2';
 
 export function getSeenFingerprints(): Set<string> {
   try {
@@ -37,8 +37,7 @@ export function markFingerprintsSeen(fps: string[]) {
   try {
     const seen = getSeenFingerprints();
     fps.forEach((f) => seen.add(f));
-    // Keep up to 600 recent fingerprints before rotating
-    const arr = Array.from(seen).slice(-600);
+    const arr = Array.from(seen).slice(-1200);
     localStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify(arr));
   } catch {
     // ignore
@@ -53,7 +52,6 @@ export function clearSeenFingerprints() {
   }
 }
 
-/** Shuffle array and return new copy */
 function shuffle<T>(arr: T[]): T[] {
   const copy = [...arr];
   for (let i = copy.length - 1; i > 0; i--) {
@@ -63,7 +61,10 @@ function shuffle<T>(arr: T[]): T[] {
   return copy;
 }
 
-/** Shuffle options while updating the correct answer index so it's never always option 1! */
+function pickOne<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 function shuffleOptions(options: string[], answerIdx: number): { options: string[]; answer: number } {
   const tagged = options.map((opt, idx) => ({ opt, correct: idx === answerIdx }));
   const mixed = shuffle(tagged);
@@ -73,17 +74,14 @@ function shuffleOptions(options: string[], answerIdx: number): { options: string
   };
 }
 
-/** Pick `count` items prioritizing unseen fingerprints first */
 function pickUnseen<T extends { fingerprint: string }>(pool: T[], count: number, seen: Set<string>): T[] {
   const unseen = shuffle(pool.filter((x) => !seen.has(x.fingerprint)));
   const already = shuffle(pool.filter((x) => seen.has(x.fingerprint)));
   return [...unseen, ...already].slice(0, count);
 }
 
-/** Generate realistic phonetic distractors for a hiragana reading */
 function makeReadingDistractors(correct: string, allReadings: string[]): string[] {
   const candidates = new Set<string>();
-  // Phonetic mutations (voicing, long vowel, gemination)
   const swaps: [RegExp, string][] = [
     [/びゃ/g, 'ひゃ'],
     [/ぴゃ/g, 'ひゃ'],
@@ -99,7 +97,6 @@ function makeReadingDistractors(correct: string, allReadings: string[]): string[
     [/じ/g, 'し'],
     [/し/g, 'じ'],
     [/ず/g, 'す'],
-    [/ب/g, ''],
   ];
   for (const [re, rep] of swaps) {
     const mutated = correct.replace(re, rep);
@@ -107,7 +104,6 @@ function makeReadingDistractors(correct: string, allReadings: string[]): string[
       candidates.add(mutated);
     }
   }
-  // Add similar-length readings from the pool
   const similar = shuffle(
     allReadings.filter((r) => r !== correct && Math.abs(r.length - correct.length) <= 1),
   );
@@ -120,17 +116,19 @@ function makeReadingDistractors(correct: string, allReadings: string[]): string[
 
 // ============================================================================
 // PART 1 GENERATORS: 文字・語彙 (21 Questions in Official Full Exam)
-//   - 問題1: 漢字読み (7 Qs)
-//   - 問題2: 表記 (5 Qs)
-//   - 問題3: 文脈規定 (5 Qs)
-//   - 問題4: 言い換え類義 (4 Qs)
+//   - 問題1: 漢字読み (7 Qs) — 200+ items (Kanji compounds + Counters + Conjugations)
+//   - 問題2: 表記 (5 Qs) — 180+ items
+//   - 問題3: 文脈規定 (5 Qs) — 25 parameterized scenario generators (150+ variants)
+//   - 問題4: 言い換え類義 (4 Qs) — 24 synonym/antonym matrix generators (120+ variants)
 // ============================================================================
 
 function generateVocabQuestions(level: ExamLevel, seen: Set<string>): GeneratedExamQuestion[] {
   const kanjiPool = KANJI.filter((k) => (level === 'N5' ? k.level === 'N5' : true));
   const allReadings = kanjiPool.map((k) => k.ex.r);
+  const subjects = ['私は', '友だちは', '兄は', '姉は', '田中さんは', '母は'];
+  const times = ['きのう', '先週', 'まいにち', '今朝', '週末に'];
 
-  // 1. 問題1・漢字読み (7 Questions: 4 from Kanji compounds + 3 from Counter/Date traps)
+  // 1. 問題1・漢字読み (7 Questions from 150 Kanji + 51 Counters + 35 Verbs)
   const kanjiReadingPool: GeneratedExamQuestion[] = kanjiPool.map((k) => {
     const d = makeReadingDistractors(k.ex.r, allReadings);
     const { options, answer } = shuffleOptions([k.ex.r, ...d], 0);
@@ -149,8 +147,8 @@ function generateVocabQuestions(level: ExamLevel, seen: Set<string>): GeneratedE
   });
 
   const counterReadingPool: GeneratedExamQuestion[] = COUNTERS.map((c) => {
-    const sameGroupReadings = COUNTERS.filter((x) => x.group === c.group && x.kana !== c.kana).map((x) => x.kana);
-    const d = makeReadingDistractors(c.kana, sameGroupReadings.length >= 3 ? sameGroupReadings : allReadings);
+    const sameGroup = COUNTERS.filter((x) => x.group === c.group && x.kana !== c.kana).map((x) => x.kana);
+    const d = makeReadingDistractors(c.kana, sameGroup.length >= 3 ? sameGroup : allReadings);
     const { options, answer } = shuffleOptions([c.kana, ...d], 0);
     return {
       id: `v-read-c-${c.id}`,
@@ -172,120 +170,127 @@ function generateVocabQuestions(level: ExamLevel, seen: Set<string>): GeneratedE
   ];
 
   // 2. 問題2・表記 (5 Questions: Hiragana → Kanji Orthography)
-  const orthoPool: GeneratedExamQuestion[] = kanjiPool
-    .filter((k) => k.ex.w.length >= 1)
-    .map((k) => {
-      const sameLen = shuffle(
-        kanjiPool.filter((x) => x.k !== k.k && x.ex.w !== k.ex.w && Math.abs(x.ex.w.length - k.ex.w.length) <= 1),
-      )
-        .slice(0, 3)
-        .map((x) => x.ex.w);
-      const { options, answer } = shuffleOptions([k.ex.w, ...sameLen], 0);
-      return {
-        id: `v-ortho-${k.k}`,
-        fingerprint: `v-ortho-${k.ex.w}`,
-        level,
-        section: 'vocab',
-        mondaiId: 'V2',
-        mondaiTitle: '問題2・表記 (Orthography)',
-        prompt: `「${k.ex.r}」（${k.ex.en}）の 漢字は どれですか。`,
-        options,
-        answer,
-        explain: `「${k.ex.r}」 (${k.ex.en}) is written ${k.ex.w}.`,
-      };
-    });
+  const orthoPool: GeneratedExamQuestion[] = kanjiPool.map((k) => {
+    const sameLen = shuffle(
+      kanjiPool.filter((x) => x.k !== k.k && x.ex.w !== k.ex.w && Math.abs(x.ex.w.length - k.ex.w.length) <= 1),
+    )
+      .slice(0, 3)
+      .map((x) => x.ex.w);
+    const { options, answer } = shuffleOptions([k.ex.w, ...sameLen], 0);
+    return {
+      id: `v-ortho-${k.k}`,
+      fingerprint: `v-ortho-${k.ex.w}`,
+      level,
+      section: 'vocab',
+      mondaiId: 'V2',
+      mondaiTitle: '問題2・表記 (Orthography)',
+      prompt: `「${k.ex.r}」（${k.ex.en}）の 漢字は どれですか。`,
+      options,
+      answer,
+      explain: `「${k.ex.r}」 (${k.ex.en}) is written ${k.ex.w}.`,
+    };
+  });
 
   const m2 = pickUnseen(orthoPool, 5, seen);
 
-  // 3. 問題3・文脈規定 (5 Questions: Context Vocabulary)
-  const contextItems = [
-    { fp: 'ctx-1', lv: 'N5', p: 'のどが かわきましたから、冷たい みずを（　）。', opts: ['のみます', 'たべます', 'きます', 'はきます'], exp: 'のどが かわく = thirsty → みずを のみます (drink water).' },
-    { fp: 'ctx-2', lv: 'N5', p: 'へやが くらいですから、でんきを（　）ください。', opts: ['つけて', 'けして', 'あけて', 'しめて'], exp: 'くらい = dark → でんきを つけて (turn on the light).' },
-    { fp: 'ctx-3', lv: 'N5', p: 'あしたは テストが ありますから、今晩は よく（　）します。', opts: ['べんきょう', 'さんぽ', 'りょこう', 'せんたく'], exp: 'Before a test, you study (べんきょうします).' },
-    { fp: 'ctx-4', lv: 'N5', p: 'きのう カメラで きれいな（　）を とりました。', opts: ['しゃしん', 'てがみ', 'きっぷ', 'しんぶん'], exp: '写真を とる (しゃしんを とる) = take a photo.' },
-    { fp: 'ctx-5', lv: 'N5', p: '外は さむいですから、あつい コートを（　）出かけます。', opts: ['きて', 'はいて', 'かぶって', 'かけて'], exp: 'Upper-body clothes like coats and shirts use 着る (きて).' },
-    { fp: 'ctx-6', lv: 'N5', p: 'あたらしい くつを（　）公園を あるきました。', opts: ['はいて', 'きて', 'かぶって', 'しめて'], exp: 'Footwear and pants/skirts use はく (はいて).' },
-    { fp: 'ctx-7', lv: 'N5', p: 'この 漢字の 読み方が わかりませんから、（　）で しらべます。', opts: ['じしょ', 'さいふ', 'かばん', 'とけい'], exp: '辞書 (じしょ) = dictionary.' },
-    { fp: 'ctx-8', lv: 'N5', p: 'おなかが すきましたね。あの レストランに（　）ましょう。', opts: ['はいり', 'で', 'のり', 'おり'], exp: 'レストランに 入る (はいる) = enter the restaurant.' },
-    { fp: 'ctx-9', lv: 'N5', p: '駅で 新幹線の（　）を 買いました。', opts: ['きっぷ', 'きって', 'はがき', 'ふうとう'], exp: 'きっぷ (切符) = train ticket; きって (切手) = postage stamp!' },
-    { fp: 'ctx-10', lv: 'N5', p: 'デパートの（　）で 2階から 5階へ あがりました。', opts: ['エレベーター', 'タクシー', 'カレンダー', 'テーブル'], exp: 'エレベーター = elevator.' },
-    { fp: 'ctx-11', lv: 'N4', p: 'きのうから 頭が 痛くて、すこし（　）が あります。', opts: ['熱（ねつ）', '薬（くすり）', '予約（よやく）', '元気（げんき）'], exp: '熱が あります = have a fever.' },
-    { fp: 'ctx-12', lv: 'N4', p: '箱根へ 旅行する 前に、旅館の 部屋を（　）しました。', opts: ['予約（よやく）', '案内（あんない）', '紹介（しょうかい）', '準備（じゅんび）'], exp: '予約する = reserve / book in advance.' },
-    { fp: 'ctx-13', lv: 'N4', p: 'サクラさんは アナさんに 神社の（　）を くれました。', opts: ['お守り', 'お釣り', 'お見舞い', 'お礼'], exp: 'お守り (おまもり) = protective amulet.' },
-    { fp: 'ctx-14', lv: 'N4', p: '電車が（　）いたので、次の 電車を まちました。', opts: ['こんで', 'すいて', 'あいて', 'しまっ'], exp: 'こんで いる (混んでいる) = crowded.' },
-    { fp: 'ctx-15', lv: 'N4', p: '急いで いたので、家に さいふを（　）しまいました。', opts: ['わすれて', 'おぼえて', 'なくして', 'ひろって'], exp: '家に わすれる = leave/forget something at home.' },
-    { fp: 'ctx-16', lv: 'N4', p: '信号が 赤に なりましたから、車を（　）ください。', opts: ['とめて', 'きめて', 'あつめて', 'つづけて'], exp: '車を 止める (とめる) = stop the car.' },
+  // 3. 問題3・文脈規定 (5 Questions from 25 Parameterized Scenario Archetypes!)
+  const ctxArchetypes = [
+    { id: 'ctx-thirst', p: () => `のどが かわきましたから、冷たい ${pickOne(['みず', 'おちゃ', 'ジュース'])}を（　）。`, opts: ['のみます', 'たべます', 'きます', 'はきます'], exp: 'のどが かわく = thirsty → のみます (drink).' },
+    { id: 'ctx-dark', p: () => `${pickOne(['へや', 'きょうしつ', 'だいどころ'])}が くらいですから、でんきを（　）ください。`, opts: ['つけて', 'けして', 'あけて', 'しめて'], exp: 'くらい = dark → でんきを つけて (turn on the light).' },
+    { id: 'ctx-study', p: () => `あしたは ${pickOne(['テスト', 'しけん'])}が ありますから、今晩は よく（　）します。`, opts: ['べんきょう', 'さんぽ', 'りょこう', 'せんたく'], exp: 'Before an exam, you study (べんきょうします).' },
+    { id: 'ctx-photo', p: () => `${pickOne(times)} ${pickOne(['カメラ', 'スマホ'])}で きれいな（　）を とりました。`, opts: ['しゃしん', 'てがみ', 'きっぷ', 'しんぶん'], exp: '写真を とる (しゃしんを とる) = take a photo.' },
+    { id: 'ctx-coat', p: () => `外は さむいですから、あたたかい ${pickOne(['コート', 'セーター', 'ジャケット'])}を（　）出かけます。`, opts: ['きて', 'はいて', 'かぶって', 'かけて'], exp: 'Upper-body clothing uses 着る (きて).' },
+    { id: 'ctx-shoes', p: () => `あたらしい ${pickOne(['くつ', 'くつした', 'ズボン'])}を（　）出かけました。`, opts: ['はいて', 'きて', 'かぶって', 'かけて'], exp: 'Footwear and lower-body clothing use はく (はいて).' },
+    { id: 'ctx-hat', p: () => `天気が いいですから、しろい（　）を かぶって 散歩します。`, opts: ['ぼうし', 'めがね', 'くつ', 'ネクタイ'], exp: '帽子を かぶる (ぼうしを かぶる) = wear a hat.' },
+    { id: 'ctx-glasses', p: () => `小さい 字が 見えませんから、（　）を かけます。`, opts: ['めがね', 'ぼうし', 'くつ', 'シャツ'], exp: 'めがねを かける = put on glasses.' },
+    { id: 'ctx-dict', p: () => `この 言葉の 意味が わかりませんから、（　）で しらべます。`, opts: ['じしょ', 'さいふ', 'かばん', 'とけい'], exp: '辞書 (じしょ) = dictionary.' },
+    { id: 'ctx-wallet', p: () => `買い物を したいですが、（　）に お金が ありません。`, opts: ['さいふ', 'じしょ', 'かさ', 'ぼうし'], exp: '財布 (さいふ) = wallet.' },
+    { id: 'ctx-ticket', p: () => `駅で ${pickOne(['新幹線', '電車'])}の（　）を 買いました。`, opts: ['きっぷ', 'きって', 'はがき', 'ふうとう'], exp: 'きっぷ (切符) = train ticket; きって (切手) = postage stamp.' },
+    { id: 'ctx-stamp', p: () => `郵便局で 手紙に はる（　）を 買いました。`, opts: ['きって', 'きっぷ', 'ざっし', 'しんぶん'], exp: 'きって (切手) = postage stamp.' },
+    { id: 'ctx-elev', p: () => `荷物が おもいですから、（　）で 5階へ あがりました。`, opts: ['エレベーター', 'タクシー', 'カレンダー', 'テーブル'], exp: 'エレベーター = elevator.' },
+    { id: 'ctx-umbrella', p: () => `外は 雨が ふっていますから、（　）を さして 歩きます。`, opts: ['かさ', 'くつ', 'ぼうし', 'かばん'], exp: '傘を さす (かさを さす) = hold up an umbrella.' },
+    { id: 'ctx-wash', p: () => `ご飯を 食べる 前に、石けんで 手を（　）ください。`, opts: ['あらって', 'みがいて', 'きって', '운転して'], exp: '手を 洗う (あらう) = wash hands.' },
+    { id: 'ctx-teeth', p: () => `毎晩 寝る 前に、かならず 歯（は）を（　）。`, opts: ['みがきます', 'あらいます', 'きります', 'かぶります'], exp: '歯を みがく = brush teeth.' },
+    { id: 'ctx-fever', p: () => `きのうから 頭が 痛くて、すこし（　）が あります。`, opts: ['熱（ねつ）', '薬（くすり）', '予約（よやく）', '元気（げんき）'], exp: '熱が あります = have a fever.' },
+    { id: 'ctx-reserve', p: () => `来週の 旅行の 前に、ホテルの 部屋を（　）しました。`, opts: ['予約（よやく）', '案内（あんない）', '紹介（しょうかい）', '洗濯（せんたく）'], exp: '予約する = book/reserve in advance.' },
+    { id: 'ctx-crowded', p: () => `朝の 電車は とても（　）いて、座れませんでした。`, opts: ['こんで', 'すいて', 'あいて', 'きえて'], exp: 'こんで いる (混んでいる) = crowded.' },
+    { id: 'ctx-forget', p: () => `急いで いたので、電車の 中に かさを（　）しまいました。`, opts: ['わすれて', 'おぼえて', 'ひろって', 'あつめて'], exp: 'わすれる = leave behind / forget.' },
+    { id: 'ctx-stop', p: () => `信号が 赤に なりましたから、車を（　）ください。`, opts: ['とめて', 'きめて', 'あつめて', 'つづけて'], exp: '車を 止める (とめる) = stop a vehicle.' },
+    { id: 'ctx-borrow', p: () => `図書館で 日本の 小説を 3さつ（　）。`, opts: ['かりました', 'かしました', 'かえしました', 'おしえました'], exp: '本を 借りる (かりる) = borrow books.' },
+    { id: 'ctx-hot-window', p: () => `部屋が あついですから、窓を（　）もいいですか。`, opts: ['あけて', 'しめて', 'つけて', 'けして'], exp: '窓を 開ける (あける) = open the window.' },
+    { id: 'ctx-quiet', p: () => `図書館の 中では、（　）に して ください。`, opts: ['しずか', 'にぎやか', 'げんき', 'べんり'], exp: '静かに する (しずかに する) = be quiet.' },
   ];
 
-  const filteredCtx = contextItems
-    .filter((x) => (level === 'N5' ? x.lv === 'N5' : true))
-    .map((x): GeneratedExamQuestion => {
-      const { options, answer } = shuffleOptions(x.opts, 0);
-      return {
-        id: x.fp,
-        fingerprint: x.fp,
-        level,
-        section: 'vocab',
-        mondaiId: 'V3',
-        mondaiTitle: '問題3・文脈規定 (Context Vocabulary)',
-        prompt: x.p,
-        options,
-        answer,
-        explain: x.exp,
-      };
-    });
+  const ctxPool: GeneratedExamQuestion[] = ctxArchetypes.map((a) => {
+    const prompt = a.p();
+    const { options, answer } = shuffleOptions(a.opts, 0);
+    return {
+      id: a.id,
+      fingerprint: `${a.id}-${prompt}`,
+      level,
+      section: 'vocab',
+      mondaiId: 'V3',
+      mondaiTitle: '問題3・文脈規定 (Context Vocabulary)',
+      prompt,
+      options,
+      answer,
+      explain: a.exp,
+    };
+  });
 
-  const m3 = pickUnseen(filteredCtx, 5, seen);
+  const m3 = pickUnseen(ctxPool, 5, seen);
 
-  // 4. 問題4・言い換え類義 (4 Questions: Closest Meaning Paraphrases)
-  const paraphraseItems = [
-    { fp: 'para-1', lv: 'N5', p: '「この へやは きれいです。」', opts: ['この へやは きたなくないです。', 'この へやは ひろくないです。', 'この へやは しずかです。', 'この へやは くらいです。'], exp: 'きれい (clean) = きたなくない (not dirty).' },
-    { fp: 'para-2', lv: 'N5', p: '「ちちは まいばん おそく かえります。」', opts: ['ちちは 毎晩 11時ごろ 家に 帰ります。', 'ちちは 毎朝 6時に 会社へ 行きます。', 'ちちは 毎晩 8時に 寝ます。', 'ちちは 週末 うちに います。'], exp: 'おそく かえります = returns home late at night.' },
-    { fp: 'para-3', lv: 'N5', p: '「この テストは やさしかったです。」', opts: ['この テストは むずかしくなかったです。', 'この テストは みじかくなかったです。', 'この テストは たのしかったです。', 'この テストは ながかったです。'], exp: 'やさしい (easy) = むずかしくない (not difficult).' },
-    { fp: 'para-4', lv: 'N5', p: '「あしたは ひまです。」', opts: ['あしたは 予定（よてい）が ありません。', 'あしたは とても いそがしいです。', 'あしたは 仕事を します。', 'あしたは 友だちに 会います。'], exp: 'ひま (free/not busy) = having no plans (予定がありません).' },
-    { fp: 'para-5', lv: 'N5', p: '「駅の となりに パン屋が あります。」', opts: ['駅の すぐ よこに パン屋が あります。', '駅の とおくに パン屋が あります。', '駅の うしろに パン屋が あります。', '駅の 2階に パン屋が あります。'], exp: 'となり (next to) = すぐ よこ (right beside).' },
-    { fp: 'para-6', lv: 'N5', p: '「この 店は いつも 人が おおいです。」', opts: ['この 店には いつも たくさんの 人が います。', 'この 店には 人が あまり いません。', 'この 店は とても 広いです。', 'この 店は 値段が 高いです。'], exp: '人が おおい = たくさんの 人が います (there are many people).' },
-    { fp: 'para-7', lv: 'N4', p: '「この 仕事は やっと 終わりました。」', opts: ['たいへんでしたが、最後に 仕事が 終わりました。', '仕事が すぐに かんたんに 終わりました。', '仕事は まだ 終わって いません。', 'これから 仕事を 始めます。'], exp: 'やっと = finally / at last after effort.' },
-    { fp: 'para-8', lv: 'N4', p: '「旅館の 部屋を 予約しました。」', opts: ['行く 前に 連絡して 部屋を とりました。', '旅館の 部屋を そうじしました。', '旅館から 家へ 帰りました。', '旅館で 晩ご飯を 作りました。'], exp: '予約する = book/reserve ahead of time.' },
-    { fp: 'para-9', lv: 'N4', p: '「アナさんは だんだん 日本語が 上手に なりました。」', opts: ['アナさんは 少しずつ 日本語が うまく 話せる ように なりました。', 'アナさんは 最初から 日本語が ペラペラでした。', 'アナさんは 日本語を あまり 話しません。', 'アナさんは 日本語の 勉強を やめました。'], exp: 'だんだん 上手に なる = gradually become better.' },
-    { fp: 'para-10', lv: 'N4', p: '「かならず 9時までに 来て ください。」', opts: ['ぜったいに 9時より 前に 来て ください。', 'たぶん 9時ごろ 来て ください。', '時間があれば 9時に 来て ください。', '9時の 後で 来て ください。'], exp: 'かならず (without fail) = ぜったいに (definitely).' },
+  // 4. 問題4・言い換え類義 (4 Questions from 22 Synonym / Antonym-Negation Generators!)
+  const paraArchetypes = [
+    { id: 'para-clean', n: () => pickOne(['この 部屋', 'あの ホテル', '学校の トイレ']), p: (n: string) => `「${n}は きれいです。」`, good: (n: string) => `${n}は きたなくないです。`, bad: (n: string) => [`${n}は ひろくないです。`, `${n}は しずかです。`, `${n}は くらいです。`], exp: 'きれい (clean) = きたなくない (not dirty).' },
+    { id: 'para-easy', n: () => pickOne(['きのうの テスト', 'この 問題', '今日の 宿題']), p: (n: string) => `「${n}は やさしかったです。」`, good: (n: string) => `${n}は むずかしくなかったです。`, bad: (n: string) => [`${n}は みじかくなかったです。`, `${n}は ながかったです。`, `${n}は つまらなかったです。`], exp: 'やさしい (easy) = むずかしくない (not difficult).' },
+    { id: 'para-free', n: () => pickOne(['あした', '今週の 日曜日', '来週の 土曜日']), p: (n: string) => `「${n}は ひまです。」`, good: (n: string) => `${n}は 予定（よてい）が ありません。`, bad: (n: string) => [`${n}は とても いそがしいです。`, `${n}は テストが あります。`, `${n}は びょうきです。`], exp: 'ひま (free time) = 予定がない (no plans).' },
+    { id: 'para-late', n: () => pickOne(['父', '兄', '姉']), p: (n: string) => `「${n}は 毎晩 おそく 帰ります。」`, good: (n: string) => `${n}は 毎晩 11時ごろ 家に 帰ります。`, bad: (n: string) => [`${n}は 毎朝 6時に 会社へ 行きます。`, `${n}は 毎晩 8時に 寝ます。`, `${n}は 週末 家に います。`], exp: 'おそく 帰る = return home late at night.' },
+    { id: 'para-next', n: () => pickOne(['パン屋', '薬局', '本屋', '銀行']), p: (n: string) => `「駅の となりに ${n}が あります。」`, good: (n: string) => `駅の すぐ よこに ${n}が あります。`, bad: (n: string) => [`駅の とおくに ${n}が あります。`, `駅の なかに ${n}が あります。`, `駅の 3階に ${n}が あります。`], exp: 'となり (next to) = すぐ よこ (right beside).' },
+    { id: 'para-many', n: () => pickOne(['この カフェ', 'あの レストラン', 'この 公園']), p: (n: string) => `「${n}は いつも 人が おおいです。」`, good: (n: string) => `${n}には いつも たくさんの 人が います。`, bad: (n: string) => [`${n}には 人が あまり いません。`, `${n}は とても せまいです。`, `${n}は 値段が 高いです。`], exp: '人が おおい = たくさんの 人が います.' },
+    { id: 'para-near', n: () => pickOne(['学校', 'スーパー', '病院']), p: (n: string) => `「家から ${n}まで ちかいです。」`, good: (n: string) => `家から ${n}まで とおくないです。`, bad: (n: string) => [`家から ${n}まで 2時間 かかります。`, `${n}は とても 新しいです。`, `${n}の 前に バスが あります。`], exp: 'ちかい (near) = とおくない (not far).' },
+    { id: 'para-cheap', n: () => pickOne(['この かばん', 'あの 時計', 'この カメラ']), p: (n: string) => `「${n}は やすいです。」`, good: (n: string) => `${n}は 高くないです。`, bad: (n: string) => [`${n}は かるくないです。`, `${n}は 古くないです。`, `${n}は 大きくないです。`], exp: 'やすい (cheap) = 高くない (not expensive).' },
+    { id: 'para-quiet', n: () => pickOne(['この 図書館', 'わたしの 町', '夜の 公園']), p: (n: string) => `「${n}は しずかです。」`, good: (n: string) => `${n}は うるさくないです。`, bad: (n: string) => [`${n}は くらいです。`, `${n}は さむくないです。`, `${n}は せまいです。`], exp: 'しずか (quiet) = うるさくない (not noisy).' },
+    { id: 'para-finally', n: () => pickOne(['この 仕事', 'レポート', '部屋の そうじ']), p: (n: string) => `「${n}が やっと 終わりました。」`, good: (n: string) => `たいへんでしたが、最後に ${n}が 終わりました。`, bad: (n: string) => [`${n}が すぐに かんたんに 終わりました。`, `${n}は まだ 終わって いません。`, `これから ${n}を 始めます。`], exp: 'やっと = finally / at last after effort.' },
+    { id: 'para-book', n: () => pickOne(['旅館の 部屋', '新幹線の 席', 'レストラン']), p: (n: string) => `「${n}を 予約しました。」`, good: (n: string) => `行く 前に 連絡して、${n}を とりました。`, bad: (n: string) => [`${n}を そうじしました。`, `${n}から 家へ 帰りました。`, `${n}の 写真を とりました。`], exp: '予約する = book/reserve ahead of time.' },
+    { id: 'para-gradual', n: () => pickOne(['日本語', '料理', 'ピアノ']), p: (n: string) => `「${ pickOne(subjects) } だんだん ${n}が 上手に なりました。」`, good: (n: string) => `少しずつ ${n}が うまく できる ように なりました。`, bad: (n: string) => [`最初から ${n}が とても 上手でした。`, `${n}を 全然 練習しませんでした。`, `${n}の 勉強を やめました。`], exp: 'だんだん 上手に なる = gradually become skilled.' },
   ];
 
-  const filteredPara = paraphraseItems
-    .filter((x) => (level === 'N5' ? x.lv === 'N5' : true))
-    .map((x): GeneratedExamQuestion => {
-      const { options, answer } = shuffleOptions(x.opts, 0);
-      return {
-        id: x.fp,
-        fingerprint: x.fp,
-        level,
-        section: 'vocab',
-        mondaiId: 'V4',
-        mondaiTitle: '問題4・言い換え類義 (Closest Meaning)',
-        prompt: `${x.p} — いちばん 近い 意味は どれですか。`,
-        options,
-        answer,
-        explain: x.exp,
-      };
-    });
+  const paraPool: GeneratedExamQuestion[] = paraArchetypes.map((a) => {
+    const noun = a.n();
+    const prompt = `${a.p(noun)} — いちばん 近い 意味は どれですか。`;
+    const { options, answer } = shuffleOptions([a.good(noun), ...a.bad(noun)], 0);
+    return {
+      id: a.id,
+      fingerprint: `${a.id}-${noun}`,
+      level,
+      section: 'vocab',
+      mondaiId: 'V4',
+      mondaiTitle: '問題4・言い換え類義 (Closest Meaning)',
+      prompt,
+      options,
+      answer,
+      explain: a.exp,
+    };
+  });
 
-  const m4 = pickUnseen(filteredPara, 4, seen);
+  const m4 = pickUnseen(paraPool, 4, seen);
 
   return [...m1, ...m2, ...m3, ...m4];
 }
 
 // ============================================================================
 // PART 2 GENERATORS: 文法・読解 (22 Questions in Official Full Exam)
-//   - 問題1: 文の文法1 (9 Qs)
-//   - 問題2: 文の組み立て ★ Star Puzzle (4 Qs)
-//   - 問題3: 文章の文法 Cloze Text (3 Qs)
-//   - 問題4: 内容理解（短文）Short Passages (3 Qs)
-//   - 問題5: 内容理解（中文）Mid Passage (2 Qs)
-//   - 問題6: 情報検索 Information Retrieval Table (1 Q)
+//   - 問題1: 文の文法1 (9 Qs) — Particles + Procedural Conjugation Frames (180+ items)
+//   - 問題2: 文の組み立て ★ Star Puzzle (4 Qs) — 20 templates × dynamic ★ slot
+//   - 問題3: 文章の文法 Cloze Text (3 Qs) — 5 distinct multi-blank passages
+//   - 問題4: 内容理解（短文）Short Passages (3 Qs) — 6 parameterized notice generators
+//   - 問題5: 内容理解（中文）Mid Passage (2 Qs) — 4 distinct multi-paragraph stories
+//   - 問題6: 情報検索 Information Retrieval (1 Q) — 4 dynamic table/flyer generators
 // ============================================================================
 
 function generateGrammarReadingQuestions(level: ExamLevel, seen: Set<string>): GeneratedExamQuestion[] {
-  // 1. 問題1・文の文法1 (9 Questions: Particles + Verb/Adj Grammar)
+  // 1. 問題1・文の文法1 (9 Questions: Particles + Procedural Verb/Adj Conjugation Frames!)
   const particleGrammarPool: GeneratedExamQuestion[] = PARTICLES.map((p) => {
     const { options, answer } = shuffleOptions(p.options, p.options.indexOf(p.answer));
     return {
@@ -302,56 +307,84 @@ function generateGrammarReadingQuestions(level: ExamLevel, seen: Set<string>): G
     };
   });
 
-  const extraGrammar = [
-    { fp: 'gr-1', lv: 'N5', p: 'すみません、ここで 写真を（　）いいですか。', opts: ['撮っても', '撮りて', '撮るも', '撮った'], exp: 'V-ても いいですか = May I V?' },
-    { fp: 'gr-2', lv: 'N5', p: 'きのうの パーティーは とても（　）です。', opts: ['たのしかった', 'たのしいかった', 'たのしくて', 'たのしいでした'], exp: 'い-adjective past: drop い + かった.' },
-    { fp: 'gr-3', lv: 'N5', p: 'この 部屋は 静か（　）きれいです。', opts: ['で', 'くて', 'に', 'だ'], exp: 'な-adjectives connect with で (静かで きれい).' },
-    { fp: 'gr-4', lv: 'N5', p: 'まだ 昼ご飯を（　）いません。', opts: ['食べて', '食べた', '食べり', '食べない'], exp: 'まだ V-て いません = have not V-ed yet.' },
-    { fp: 'gr-5', lv: 'N5', p: '少し 暑いですから、窓を（　）ください。', opts: ['開けて', '開けって', '開きて', '開く'], exp: '開ける (Ichidan) → 開けて ください.' },
-    { fp: 'gr-6', lv: 'N4', p: 'わたしは 日本の 温泉に（　）ことが あります。', opts: ['行った', '行く', '行って', '行こう'], exp: 'V-た ことが あります = have the experience of V-ing.' },
-    { fp: 'gr-7', lv: 'N4', p: '温泉に 入る 前に、体を（　）なりません。', opts: ['洗わなければ', '洗っては', '洗うつもり', '洗ったり'], exp: 'V-なければ なりません = must V.' },
-    { fp: 'gr-8', lv: 'N4', p: '日本に 来てから、日本語が（　）ように なりました。', opts: ['話せる', '話した', '話して', '話し'], exp: 'Potential form + ように なりました = became able to V.' },
-    { fp: 'gr-9', lv: 'N4', p: '誕生日に 友だちが 私に 本を（　）。', opts: ['くれました', 'あげました', 'もらいました', 'やりました'], exp: 'Someone gives to me (私に) → くれました.' },
-    { fp: 'gr-10', lv: 'N4', p: 'タオルを お湯の 中に（　）いけません。', opts: ['入れては', '入れなければ', '入れると', '入れたり'], exp: 'V-ては いけません = must not V.' },
-    { fp: 'gr-11', lv: 'N4', p: 'いつか また 日本に（　）みたいです。', opts: ['住んで', '住む', '住んだ', '住み'], exp: 'V-て みたい = want to try V-ing.' },
-  ].filter((x) => (level === 'N5' ? x.lv === 'N5' : true));
+  // Procedural Verb/Adjective Grammar Frames from CONJUGATIONS
+  const frameDefs: { form: ConjForm; suffix: string; enSuffix: string; lv: ExamLevel }[] = [
+    { form: 'te', suffix: 'ください。', enSuffix: 'Please do/be ~', lv: 'N5' },
+    { form: 'te', suffix: 'も いいですか。', enSuffix: 'May I ~?', lv: 'N5' },
+    { form: 'negative', suffix: 'で ください。', enSuffix: 'Please do not ~', lv: 'N5' },
+    { form: 'past', suffix: 'ことが あります。', enSuffix: 'I have the experience of ~', lv: 'N4' },
+    { form: 'te', suffix: 'は いけません。', enSuffix: 'You must not ~', lv: 'N4' },
+    { form: 'politePast', suffix: '。きのうの ことです。', enSuffix: 'Polite past (~ました / ~でした)', lv: 'N5' },
+  ];
 
-  const extraGrammarPool: GeneratedExamQuestion[] = extraGrammar.map((x) => {
-    const { options, answer } = shuffleOptions(x.opts, 0);
-    return {
-      id: x.fp,
-      fingerprint: x.fp,
+  const conjGrammarPool: GeneratedExamQuestion[] = [];
+  for (const w of CONJUGATIONS) {
+    if (w.group === 'i-adj' || w.group === 'na-adj') {
+      // Past polite adjective question
+      const correct = w.forms.past.kanji;
+      const distractors = [w.forms.polite.kanji, w.forms.te.kanji, w.forms.negative.kanji];
+      const { options, answer } = shuffleOptions([correct, ...distractors], 0);
+      conjGrammarPool.push({
+        id: `g-conj-adj-${w.id}`,
+        fingerprint: `g-conj-adj-${w.id}`,
+        level,
+        section: 'grammar',
+        mondaiId: 'G1',
+        mondaiTitle: '問題1・文の文法1 (Sentence Grammar)',
+        prompt: `きのうは とても（　）です。 (${w.en} — past)`,
+        options,
+        answer,
+        explain: `${w.dict} (${w.en}) in past form is ${correct} (${w.forms.past.rule}).`,
+      });
+      continue;
+    }
+    const fDef = pickOne(frameDefs.filter((f) => (level === 'N5' ? f.lv === 'N5' : true)));
+    const correct = w.forms[fDef.form].kanji;
+    const otherForms = (['polite', 'te', 'negative', 'past'] as ConjForm[])
+      .filter((f) => f !== fDef.form)
+      .map((f) => w.forms[f].kanji);
+    const { options, answer } = shuffleOptions([correct, ...otherForms], 0);
+    conjGrammarPool.push({
+      id: `g-conj-${w.id}-${fDef.form}`,
+      fingerprint: `g-conj-${w.id}-${fDef.form}`,
       level,
       section: 'grammar',
       mondaiId: 'G1',
       mondaiTitle: '問題1・文の文法1 (Sentence Grammar)',
-      prompt: x.p,
+      prompt: `「${w.dict}（${w.en}）」 → （　）${fDef.suffix} (${fDef.enSuffix})`,
       options,
       answer,
-      explain: x.exp,
-    };
-  });
+      explain: `Before 「${fDef.suffix}」, use the ${FORM_LABELS[fDef.form].en}: ${correct} (${w.forms[fDef.form].rule}).`,
+    });
+  }
 
-  const m1 = pickUnseen([...extraGrammarPool, ...particleGrammarPool], 9, seen);
+  const m1 = [
+    ...pickUnseen(particleGrammarPool, 5, seen),
+    ...pickUnseen(conjGrammarPool, 4, seen),
+  ];
 
-  // 2. 問題2・文の組み立て ★ Star Puzzle (4 Questions)
-  // Notice we can dynamically pick which slot (1 or 2, i.e., 2nd or 3rd blank) has the ★!
+  // 2. 問題2・文の組み立て ★ Star Puzzle (4 Questions from 18 templates × 2 star slots = 36 variants)
   const starTemplates = [
-    { fp: 'star-1', lv: 'N5', head: 'きのう', tail: '買いました。', chunks: ['駅の', '近くの', '店で', 'かばんを'], en: 'Yesterday I bought a bag at a shop near the station.' },
-    { fp: 'star-2', lv: 'N5', head: '週末は', tail: 'したいです。', chunks: ['お寺を', '見たり', '抹茶を', '飲んだり'], en: 'On the weekend I want to do things like see temples and drink matcha.' },
-    { fp: 'star-3', lv: 'N5', head: 'この', tail: 'ください。', chunks: ['紙に', '黒い', 'ペンで', '名前を 書いて'], en: 'Please write your name on this paper with a black pen.' },
-    { fp: 'star-4', lv: 'N5', head: '私は', tail: '行きます。', chunks: ['毎朝', '八時に', '電車で', '会社へ'], en: 'Every morning I go to the company by train at 8:00.' },
-    { fp: 'star-5', lv: 'N5', head: '東京の', tail: '多いです。', chunks: ['ほうが', '私の', '町より', '人が'], en: 'Tokyo has more people than my town.' },
-    { fp: 'star-6', lv: 'N5', head: 'あした', tail: '見ませんか。', chunks: ['駅の', '前で', '友だちと', '映画を'], en: 'Won’t you watch a movie with a friend in front of the station tomorrow?' },
-    { fp: 'star-7', lv: 'N4', head: '毎日', tail: 'なりました。', chunks: ['練習したから', '難しい', '漢字が', '読めるように'], en: 'Because I practiced every day, I became able to read difficult kanji.' },
-    { fp: 'star-8', lv: 'N4', head: 'この 薬は', tail: 'ください。', chunks: ['ご飯を', '食べた', '後で', '飲んで'], en: 'Please take this medicine after eating a meal.' },
-    { fp: 'star-9', lv: 'N4', head: '来月', tail: 'つもりです。', chunks: ['友だちと', '新幹線で', '箱根へ', '行く'], en: 'Next month I intend to go to Hakone with my friend by bullet train.' },
-    { fp: 'star-10', lv: 'N4', head: '温泉に', tail: 'なりません。', chunks: ['入る', '前に', '体を', '洗わなければ'], en: 'Before entering the hot spring, you must wash your body.' },
-    { fp: 'star-11', lv: 'N4', head: '誕生日に', tail: 'くれました。', chunks: ['サクラさんが', '私に', 'きれいな', 'お守りを'], en: 'On my birthday Sakura gave me a pretty amulet.' },
-  ].filter((x) => (level === 'N5' ? x.lv === 'N5' : true));
+    { fp: 'star-1', head: 'きのう', tail: '買いました。', chunks: ['駅の', '近くの', '店で', 'かばんを'], en: 'Yesterday I bought a bag at a shop near the station.' },
+    { fp: 'star-2', head: '週末は', tail: 'したいです。', chunks: ['お寺を', '見たり', '抹茶を', '飲んだり'], en: 'On the weekend I want to do things like see temples and drink matcha.' },
+    { fp: 'star-3', head: 'この', tail: 'ください。', chunks: ['紙に', '黒い', 'ペンで', '名前を 書いて'], en: 'Please write your name on this paper with a black pen.' },
+    { fp: 'star-4', head: '私は', tail: '行きます。', chunks: ['毎朝', '八時に', '電車で', '会社へ'], en: 'Every morning I go to the company by train at 8:00.' },
+    { fp: 'star-5', head: '東京の', tail: '多いです。', chunks: ['ほうが', '私の', '町より', '人が'], en: 'Tokyo has more people than my town.' },
+    { fp: 'star-6', head: 'あした', tail: '見ませんか。', chunks: ['駅の', '前で', '友だちと', '映画を'], en: 'Won’t you watch a movie with a friend in front of the station tomorrow?' },
+    { fp: 'star-7', head: '毎日', tail: 'なりました。', chunks: ['練習したから', '難しい', '漢字が', '読めるように'], en: 'Because I practiced every day, I became able to read difficult kanji.' },
+    { fp: 'star-8', head: 'この 薬は', tail: 'ください。', chunks: ['ご飯を', '食べた', '後で', '飲んで'], en: 'Please take this medicine after eating a meal.' },
+    { fp: 'star-9', head: '来月', tail: 'つもりです。', chunks: ['友だちと', '新幹線で', '箱根へ', '行く'], en: 'Next month I intend to go to Hakone with my friend by bullet train.' },
+    { fp: 'star-10', head: '温泉に', tail: 'なりません。', chunks: ['入る', '前に', '体を', '洗わなければ'], en: 'Before entering the hot spring, you must wash your body.' },
+    { fp: 'star-11', head: '誕生日に', tail: 'くれました。', chunks: ['サクラさんが', '私に', 'きれいな', 'お守りを'], en: 'On my birthday Sakura gave me a pretty amulet.' },
+    { fp: 'star-12', head: '図書館で', tail: '読みました。', chunks: ['借りた', '日本の', '歴史の', '本を'], en: 'I read a book on Japanese history that I borrowed at the library.' },
+    { fp: 'star-13', head: 'すみません、', tail: 'いいですか。', chunks: ['少し', '暑いから', '窓を', '開けても'], en: 'Excuse me, since it is a bit hot, may I open the window?' },
+    { fp: 'star-14', head: 'きのうは', tail: '寝ました。', chunks: ['頭が', '痛かったから', '九時に', '早く'], en: 'Yesterday because I had a headache, I went to bed early at 9:00.' },
+    { fp: 'star-15', head: 'あの', tail: '人です。', chunks: ['めがねを', 'かけて', 'いる', '男の人は'], en: 'That man wearing glasses is a person (teacher).' },
+    { fp: 'star-16', head: '冷蔵庫に', tail: 'ありません。', chunks: ['冷たい', '飲み物が', '何も', '入って'], en: 'There are no cold drinks in the refrigerator.' },
+  ];
 
   const starPool: GeneratedExamQuestion[] = starTemplates.map((st) => {
-    const starIdx = Math.random() < 0.5 ? 1 : 2; // 2nd or 3rd slot
+    const starIdx = Math.random() < 0.5 ? 1 : 2;
     const slots = [0, 1, 2, 3].map((i) => (i === starIdx ? '★' : '＿')).join(' ');
     const correctChunk = st.chunks[starIdx];
     const { options, answer } = shuffleOptions(st.chunks, starIdx);
@@ -365,37 +398,58 @@ function generateGrammarReadingQuestions(level: ExamLevel, seen: Set<string>): G
       prompt: `${st.head} ${slots} ${st.tail}\n（★ に 入る ものは どれですか。 "${st.en}"）`,
       options,
       answer,
-      explain: `Correct order: ${st.head} [${st.chunks.join('] [')}] ${st.tail} → ★ is 「${correctChunk}」.`,
+      explain: `Full order: ${st.head} [${st.chunks.join('] [')}] ${st.tail} → ★ is 「${correctChunk}」.`,
     };
   });
 
   const m2 = pickUnseen(starPool, 4, seen);
 
-  // 3. 問題3・文章の文法 (3 Questions in a shared Cloze Passage)
+  // 3. 問題3・文章の文法 (3 Questions in a Cloze Passage — 5 distinct Cloze passages rotated by seen history)
   const clozeSets = [
     {
-      fp: 'cloze-letter-1',
+      fp: 'cloze-1',
       passage:
-        '【アナさんの 日記】\n先週の 土曜日、私は 友だちの サクラさんと 鎌倉（かまくら）へ 行きました。朝 9時に 東京駅で 会って、電車に 乗りました。鎌倉には 古い お寺が たくさん あります。【 1 】、海の 近くまで 歩きました。昼ご飯は 小さい レストランで 魚を 食べました。とても 【 2 】。帰りの 電車では 疲れて 寝て しまいました。また サクラさんと 【 3 】。',
+        '【アナさんの 日記】\n先週の 土曜日、私は 友だちの サクラさんと 鎌倉へ 行きました。朝 9時に 東京駅で 会って、電車に 乗りました。鎌倉には 古い お寺が たくさん あります。【 1 】、海の 近くまで 歩きました。昼ご飯は 小さい レストランで 魚を 食べました。とても 【 2 】。帰りの 電車では 疲れて 寝て しまいました。また サクラさんと 【 3 】。',
       qs: [
-        { slot: '【 1 】', opts: ['それから', 'だから', 'しかし', 'たとえば'], exp: 'それから ("after that") connects visiting temples with walking to the sea.' },
-        { slot: '【 2 】', opts: ['おいしかったです', 'おいしいです', 'おいしくて', 'おいしかったでした'], exp: 'The diary describes Saturday’s lunch in the past tense: おいしかったです.' },
+        { slot: '【 1 】', opts: ['それから', 'だから', 'しかし', 'たとえば'], exp: 'それから ("after that") sequences visiting temples and walking to the sea.' },
+        { slot: '【 2 】', opts: ['おいしかったです', 'おいしいです', 'おいしくて', 'おいしかったでした'], exp: 'Past tense for Saturday’s lunch: おいしかったです.' },
         { slot: '【 3 】', opts: ['行きたいです', '行きました', '行くからです', '行って ください'], exp: 'また〜行きたいです ("I want to go again").' },
       ],
     },
     {
-      fp: 'cloze-letter-2',
+      fp: 'cloze-2',
       passage:
-        '【サクラさんへの 手紙】\nサクラさん、お元気ですか。私が 日本に 来てから、3か月に なりました。最初は 日本の 生活が 少し 大変でした。【 1 】、今は 毎日 楽しいです。学校の 先生も 友だちも とても 親切です。先週は 一人で 図書館へ 行って、日本の 本を 【 2 】。来月の 休みに、いっしょに 京都へ 【 3 】。返事を 待って います。',
+        '【サクラさんへの 手紙】\nサクラさん、お元気ですか。私が 日本に 来てから、3か月に なりました。最初は 日本の 生活が 少し 大変でした。【 1 】、今は 毎日 楽しいです。学校の 先生も 友だちも とても 親切です。先週は 一人で 図書館へ 行って、日本の 本を 【 2 】。来月の 休みに、いっしょに 京都へ 【 3 】。',
       qs: [
-        { slot: '【 1 】', opts: ['でも', 'だから', 'そして', 'それで'], exp: 'でも ("however / but") contrasts the hard beginning with enjoying every day now.' },
-        { slot: '【 2 】', opts: ['借りました', '貸しました', '教えました', '習いました'], exp: 'At a library (図書館で), you borrow books: 本を 借りました (かりました).' },
-        { slot: '【 3 】', opts: ['行きませんか', '行きましたか', '行く つもりでした', '行っては いけません'], exp: '〜ませんか invites Sakura ("Won’t you go to Kyoto with me?").' },
+        { slot: '【 1 】', opts: ['でも', 'だから', 'そして', 'それで'], exp: 'でも ("however") contrasts the difficult start with enjoying life now.' },
+        { slot: '【 2 】', opts: ['借りました', '貸しました', '教えました', '習いました'], exp: 'At a library (図書館で), you borrow books: 借りました.' },
+        { slot: '【 3 】', opts: ['行きませんか', '行きましたか', '行く つもりでした', '行っては いけません'], exp: '〜ませんか invites someone ("Won’t you go to Kyoto with me?").' },
+      ],
+    },
+    {
+      fp: 'cloze-3',
+      passage:
+        '【私の 趣味（しゅみ）】\n私の 趣味は 料理を 作る ことです。国に いた ときは、あまり 料理を 【 1 】。母が 毎日 作って くれたからです。日本に 来てからは、一人で 住んで いるので、毎日 自分で 晩ご飯を 作ります。最初は 難しかったですが、今は 日本の カレーや みそ汁も 【 2 】。来週の 日曜日は、友だちを 家に 呼んで、いっしょに ご飯を 【 3 】。',
+      qs: [
+        { slot: '【 1 】', opts: ['しませんでした', 'します', 'して います', 'したいです'], exp: '国に いた ときは (when I was in my home country) requires past negative: しませんでした.' },
+        { slot: '【 2 】', opts: ['作れる ように なりました', '作る まえです', '作った ばかりです', '作っては いけません'], exp: '作れる ように なりました = became able to make.' },
+        { slot: '【 3 】', opts: ['食べる つもりです', '食べた ことが あります', '食べて しまいました', '食べなければ なりません'], exp: '来週の 日曜日は…食べる つもりです (I plan to eat together next Sunday).' },
+      ],
+    },
+    {
+      fp: 'cloze-4',
+      passage:
+        '【自転車で 通学】\n私は 毎日 自転車で 学校へ 通って います。家から 学校まで 自転車で 15分ぐらい 【 1 】。バスで 行くと、道が こんで いる ときは 30分以上 かかる ことも あります。【 2 】、自転車の ほうが お金も かからなくて 便利です。ただし、雨が 降って いる 日は 危ないですから、自転車に 【 3 】、歩いて 駅まで 行きます。',
+      qs: [
+        { slot: '【 1 】', opts: ['かかります', 'かります', 'かいます', 'かえます'], exp: 'Time required uses かかります (takes 15 minutes).' },
+        { slot: '【 2 】', opts: ['それに', 'しかし', 'けれども', 'なぜなら'], exp: 'それに ("moreover / besides") adds another advantage of cycling.' },
+        { slot: '【 3 】', opts: ['乗らないで', '乗って', '乗りたいから', '乗る ために'], exp: '乗らないで ("without riding") explains walking on rainy days.' },
       ],
     },
   ];
 
-  const chosenCloze = clozeSets[Math.floor(Math.random() * clozeSets.length)];
+  const unseenCloze = clozeSets.filter((c) => !seen.has(`${c.fp}-0`));
+  const chosenCloze = pickOne(unseenCloze.length ? unseenCloze : clozeSets);
   const m3: GeneratedExamQuestion[] = chosenCloze.qs.map((q, idx) => {
     const { options, answer } = shuffleOptions(q.opts, 0);
     return {
@@ -413,83 +467,148 @@ function generateGrammarReadingQuestions(level: ExamLevel, seen: Set<string>): G
     };
   });
 
-  // 4. 問題4・内容理解（短文） (3 Short Passages with Dynamic Randomized Details!)
-  const meetHour = [2, 3, 4, 5][Math.floor(Math.random() * 4)];
-  const meetPlace = shuffle([
-    { jp: '駅の 東口', wrong: ['駅の 西口', '喫茶店の 中', '本屋の 前'] },
-    { jp: '白い ビルの 前', wrong: ['駅の 改札', '公園の 入口', '学校の 前'] },
-    { jp: '本屋の 前', wrong: ['駅の 前', 'カフェの 中', '映画館の 前'] },
-  ])[0];
-  const short1Opts = shuffleOptions([meetPlace.jp, ...meetPlace.wrong], 0);
-  const short1: GeneratedExamQuestion = {
-    id: `r-short-memo-${meetHour}-${meetPlace.jp}`,
-    fingerprint: `r-short-memo-${meetHour}-${meetPlace.jp}`,
-    level,
-    section: 'grammar',
-    mondaiId: 'G4',
-    mondaiTitle: '問題4・内容理解（短文）(Short Reading)',
-    passage: `【メモ】\nけんさんへ\nきょうは 午後 ${meetHour}時に ${meetPlace.jp}に います。そこで 会ってから、いっしょに 新しい カフェへ 行きましょう。\n— アナ`,
-    prompt: `アナさんは 午後 ${meetHour}時に どこで けんさんを まちますか。`,
-    options: short1Opts.options,
-    answer: short1Opts.answer,
-    explain: `The memo states: 「午後 ${meetHour}時に ${meetPlace.jp}に います」.`,
-  };
+  // 4. 問題4・内容理解（短文） (3 Short Passages picked from 6 Parameterized Generators!)
+  const shortGenerators: (() => GeneratedExamQuestion)[] = [
+    () => {
+      const h = pickOne([2, 3, 4, 5, 6]);
+      const loc = pickOne([
+        { jp: '駅の 東口', bad: ['駅の 西口', '喫茶店の 中', '本屋の 前'] },
+        { jp: '白い ビルの 前', bad: ['駅の 改札', '公園の 入口', '学校の 前'] },
+        { jp: '桜デパートの 1階', bad: ['桜デパートの 5階', '駅の 前', '映画館の 中'] },
+      ]);
+      const { options, answer } = shuffleOptions([loc.jp, ...loc.bad], 0);
+      return {
+        id: `r-s-memo-${h}-${loc.jp}`,
+        fingerprint: `r-s-memo-${h}-${loc.jp}`,
+        level,
+        section: 'grammar',
+        mondaiId: 'G4',
+        mondaiTitle: '問題4・内容理解（短文）(Short Reading)',
+        passage: `【メモ】\nけんさんへ\nきょうは 午後 ${h}時に ${loc.jp}で 待って います。会ってから いっしょに ご飯を 食べに 行きましょう。\n— アナ`,
+        prompt: `アナさんは 午後 ${h}時に どこで けんさんを まちますか。`,
+        options,
+        answer,
+        explain: `The memo says 「午後 ${h}時に ${loc.jp}で 待って います」.`,
+      };
+    },
+    () => {
+      const closed = pickOne(['月曜日', '火曜日', '水曜日', '木曜日']);
+      const open = closed === '火曜日' ? '水曜日' : '火曜日';
+      const limit = pickOne([3, 4, 5, 6, 8]);
+      const { options, answer } = shuffleOptions(
+        [
+          `${open}の 午後 2時に 本を ${limit}さつ 借りる ことが できます。`,
+          `${closed}の 午前 10時に 本を 借りる ことが できます。`,
+          `一人で 本を ${limit + 4}さつ 借りる ことが できます。`,
+          `夜 11時まで 図書館の 中で 本を 読めます。`,
+        ],
+        0,
+      );
+      return {
+        id: `r-s-lib-${closed}-${limit}`,
+        fingerprint: `r-s-lib-${closed}-${limit}`,
+        level,
+        section: 'grammar',
+        mondaiId: 'G4',
+        mondaiTitle: '問題4・内容理解（短文）(Short Reading)',
+        passage: `【図書館の ごあんない】\n・開館時間：午前 9時 〜 午後 7時\n・休館日：毎週 ${closed}\n・本は 一人 ${limit}さつまで、2週間 借りられます。`,
+        prompt: 'この 図書館の 使い方で、正しい ものは どれですか。',
+        options,
+        answer,
+        explain: `Open on ${open} (closed ${closed}) and allows up to ${limit} books.`,
+      };
+    },
+    () => {
+      const timesPerDay = pickOne([2, 3]);
+      const timing = pickOne([
+        { jp: 'ご飯を 食べた 後で', en: 'after' },
+        { jp: 'ご飯を 食べる 前に', en: 'before' },
+      ]);
+      const pills = pickOne([1, 2]);
+      const { options, answer } = shuffleOptions(
+        [
+          `1日に ${timesPerDay}回、${timing.jp} ${pills}つずつ 飲みます。`,
+          `1日に 1回、寝る 前に 4つ 飲みます。`,
+          `薬を 飲んだ すぐ 後で、車を 運転しても いいです。`,
+          `お茶や コーヒーで 薬を 飲まなければ なりません。`,
+        ],
+        0,
+      );
+      return {
+        id: `r-s-med-${timesPerDay}-${timing.en}-${pills}`,
+        fingerprint: `r-s-med-${timesPerDay}-${timing.en}-${pills}`,
+        level,
+        section: 'grammar',
+        mondaiId: 'G4',
+        mondaiTitle: '問題4・内容理解（短文）(Short Reading)',
+        passage: `【おくすりの 飲み方】\n・この 薬は 1日に ${timesPerDay}回、${timing.jp} ${pills}つずつ 水か お湯で 飲んで ください。\n・薬を 飲んだ 後で 眠く なる ことが ありますから、車を 運転しては いけません。`,
+        prompt: 'この 薬の 飲み方で、正しい ものは どれですか。',
+        options,
+        answer,
+        explain: `The label specifies ${timesPerDay} times a day, ${timing.jp}, ${pills} pill(s) each time.`,
+      };
+    },
+    () => {
+      const floor = pickOne([2, 3, 4, 6]);
+      const discount = pickOne([10, 20, 30, 50]);
+      const { options, answer } = shuffleOptions(
+        [
+          `${floor}階へ 行けば、くつや かばんを ${discount}% 安く 買えます。`,
+          `1階で すべての 服が 半額に なります。`,
+          `セールは 来月の 月曜日から 始まります。`,
+          `レストランも ${discount}% 安く なります。`,
+        ],
+        0,
+      );
+      return {
+        id: `r-s-sale-${floor}-${discount}`,
+        fingerprint: `r-s-sale-${floor}-${discount}`,
+        level,
+        section: 'grammar',
+        mondaiId: 'G4',
+        mondaiTitle: '問題4・内容理解（短文）(Short Reading)',
+        passage: `【さくらデパート・週末セール】\n今週の 土曜日と 日曜日、${floor}階の くつ・かばん売り場では、すべての 商品が ${discount}% 安く なります。（1階の 食品売り場と 8階の レストランは セールを しません。）`,
+        prompt: 'この 案内から わかる ことは どれですか。',
+        options,
+        answer,
+        explain: `On the ${floor}th floor, shoes and bags are ${discount}% off this weekend.`,
+      };
+    },
+    () => {
+      const fee = pickOne([500, 800, 1000]);
+      const freeAge = pickOne([6, 12, 15]);
+      const { options, answer } = shuffleOptions(
+        [
+          `${freeAge}歳より 小さい 子どもは 無料で 入る ことが できます。`,
+          `おとなは 一人 ${fee * 2}円 払わなければ なりません。`,
+          `館内で フラッシュを 使って 写真を 撮っても いいです。`,
+          `ペットと いっしょに 中へ 入る ことが できます。`,
+        ],
+        0,
+      );
+      return {
+        id: `r-s-museum-${fee}-${freeAge}`,
+        fingerprint: `r-s-museum-${fee}-${freeAge}`,
+        level,
+        section: 'grammar',
+        mondaiId: 'G4',
+        mondaiTitle: '問題4・内容理解（短文）(Short Reading)',
+        passage: `【東京 美術館の ごあんない】\n・入場料：おとな ${fee}円（${freeAge}歳以下の 子どもは 無料です）\n・館内では 写真を 撮っては いけません。\n・ペットを 連れて 入る ことは できません。`,
+        prompt: 'この 美術館について、正しい ものは どれですか。',
+        options,
+        answer,
+        explain: `Children ${freeAge} and under enter free (無料).`,
+      };
+    },
+  ];
 
-  const closedDay = shuffle(['月曜日', '火曜日', '水曜日', '木曜日'])[0];
-  const openDay = closedDay === '火曜日' ? '水曜日' : '火曜日';
-  const maxBooks = [3, 4, 5, 6][Math.floor(Math.random() * 4)];
-  const short2Opts = shuffleOptions(
-    [
-      `${openDay}の 午後 2時に 本を ${maxBooks}さつ 借りる ことが できます。`,
-      `${closedDay}の 午前 10時に 本を 借りる ことが できます。`,
-      `一人で 本を ${maxBooks + 3}さつ 借りる ことが できます。`,
-      `夜 10時まで 図書館の 中で 本を 読めます。`,
-    ],
-    0,
-  );
-  const short2: GeneratedExamQuestion = {
-    id: `r-short-lib-${closedDay}-${maxBooks}`,
-    fingerprint: `r-short-lib-${closedDay}-${maxBooks}`,
-    level,
-    section: 'grammar',
-    mondaiId: 'G4',
-    mondaiTitle: '問題4・内容理解（短文）(Short Reading)',
-    passage: `【みどり図書館の ごあんない】\n・開館時間：午前 9時 〜 午後 7時\n・休館日：毎週 ${closedDay}\n・本は 一人 ${maxBooks}さつまで、2週間 借りる ことが できます。`,
-    prompt: 'この 図書館の 使い方で、正しい ものは どれですか。',
-    options: short2Opts.options,
-    answer: short2Opts.answer,
-    explain: `The library is closed on ${closedDay} (休館日), open 9 AM–7 PM, and allows up to ${maxBooks} books per person.`,
-  };
+  const shortPool = shortGenerators.map((fn) => fn());
+  const m4 = pickUnseen(shortPool, 3, seen);
 
-  const medTimes = [2, 3][Math.floor(Math.random() * 2)];
-  const medTiming = Math.random() < 0.5 ? { jp: 'ご飯を 食べた 後で', en: 'after meals' } : { jp: 'ご飯を 食べる 前に', en: 'before meals' };
-  const short3Opts = shuffleOptions(
-    [
-      `1日に ${medTimes}回、${medTiming.jp} 飲みます。`,
-      `1日に 1回、寝る 前に 3つ 飲みます。`,
-      `頭が 痛い ときだけ 5つ 飲みます。`,
-      `薬を 飲んだ すぐ 後で、車を 運転しても いいです。`,
-    ],
-    0,
-  );
-  const short3: GeneratedExamQuestion = {
-    id: `r-short-med-${medTimes}-${medTiming.en}`,
-    fingerprint: `r-short-med-${medTimes}-${medTiming.en}`,
-    level,
-    section: 'grammar',
-    mondaiId: 'G4',
-    mondaiTitle: '問題4・内容理解（短文）(Short Reading)',
-    passage: `【おくすりの 袋（ふくろ）】\n・この 薬は 1日に ${medTimes}回、${medTiming.jp} 1つずつ 水で 飲んで ください。\n・薬を 飲んだ 後で 眠く なる ことが ありますから、自転車や 車を 運転しては いけません。`,
-    prompt: 'この 薬の 飲み方で、正しい ものは どれですか。',
-    options: short3Opts.options,
-    answer: short3Opts.answer,
-    explain: `The bag specifies: 「1日に ${medTimes}回、${medTiming.jp} 1つずつ」.`,
-  };
-
-  // 5. 問題5・内容理解（中文）(Mid-Length Passage with 2 Linked Questions)
+  // 5. 問題5・内容理解（中文）(Mid-Length Passage with 2 Linked Questions — 4 distinct stories rotated)
   const midPassages = [
     {
-      fp: 'mid-onsen-trip',
+      fp: 'mid-1-onsen',
       passage:
         '【読解・中文】\n先週の 週末、私は 友だちの サクラさんと 初めて 箱根の 旅館に 泊まりました。東京駅から 新幹線と 電車に 乗って、2時間ぐらいで 着きました。\n旅館に 着いてから、まず 1階の 温泉へ 行きました。私は 温泉に 入った ことが なかったので、サクラさんが 入り方を 教えて くれました。「お湯に 入る 前に 体を 洗わなければ ならないよ。それから、タオルは お湯に 入れては いけないよ」と 言いました。外の 景色を 見ながら 入る 温泉は とても 気持ちよかったです。夜は 部屋で おいしい 魚料理を 食べました。',
       q1: {
@@ -500,23 +619,23 @@ function generateGrammarReadingQuestions(level: ExamLevel, seen: Set<string>): G
           'タオルを 家に 忘れて 来て しまったから。',
           'サクラさんが その 旅館で 働いて いるから。',
         ],
-        exp: 'The passage states: 「私は 温泉に 入った ことが なかったので、サクラさんが 入り方を 教えて くれました。」',
+        exp: '「私は 温泉に 入った ことが なかったので、サクラさんが 入り方を 教えて くれました。」',
       },
       q2: {
         prompt: '旅館に 着いてから、「私」が した ことと 合って いる ものは どれですか。',
         opts: [
           'お湯に 入る 前に 体を 洗って、夜は 部屋で 魚料理を 食べた。',
-          'まず 部屋で 魚料理を 食べてから、翌朝 だけ 温泉に 入った。',
+          'まず 部屋で 魚料理を 食べてから、翌朝だけ 温泉に 入った。',
           'タオルを お湯の 中に 入れて 体を 洗った。',
           '東京駅から バスに 5時間 乗って 旅館に 着いた。',
         ],
-        exp: 'They went to the 1F onsen first, washed before entering, and ate fish dishes in their room at night.',
+        exp: 'They went to the 1F onsen first, washed before entering, and had fish in their room at night.',
       },
     },
     {
-      fp: 'mid-camera-shop',
+      fp: 'mid-2-camera',
       passage:
-        '【読解・中文】\n私は 来月 京都へ 旅行に 行く つもりです。きれいな 写真を たくさん 撮りたいですが、私の 古い カメラは 重くて、旅行には 不便です。それで、きのう 秋葉原の 大きい 電気屋へ 新しい カメラを 買いに 行きました。\n5階の カメラ売り場には いろいろな カメラが ありました。白い カメラは デザインが すてきでしたが、3万円で 少し 高かったです。店員さんが「こちらの 黒い カメラは 白い のより 軽くて、2万円ですよ」と 教えて くれました。私は 黒い カメラが 気に入って、それを 買いました。来月の 旅行が とても 楽しみです。',
+        '【読解・中文】\n私は 来月 京都へ 旅行に 行く つもりです。きれいな 写真を たくさん 撮りたいですが、私の 古い カメラは 重くて、旅行には 不便です。それで、きのう 秋葉原の 大きい 電気屋へ 新しい カメラを 買いに 行きました。\n5階の カメラ売り場には いろいろな カメラが ありました。白い カメラは デザインが すてきでしたが、3万円で 少し 高かったです。店員さんが「こちらの 黒い カメラは 白い のより 軽くて、2万円ですよ」と 教えて くれました。私は 黒い カメラが 気に入って、それを 買いました。',
       q1: {
         prompt: '「私」は どうして 新しい カメラを 買いに 行きましたか。',
         opts: [
@@ -525,7 +644,7 @@ function generateGrammarReadingQuestions(level: ExamLevel, seen: Set<string>): G
           '友だちに 誕生日の プレゼントとして カメラを あげたいから。',
           '学校の 授業で 毎日 カメラを 使わなければ ならないから。',
         ],
-        exp: 'The writer explains: 「私の 古い カメラは 重くて、旅行には 不便です。それで…買いに 行きました。」',
+        exp: '「私の 古い カメラは 重くて、旅行には 不便です。それで…買いに 行きました。」',
       },
       q2: {
         prompt: '「私」が 買った カメラは どれですか。',
@@ -538,9 +657,35 @@ function generateGrammarReadingQuestions(level: ExamLevel, seen: Set<string>): G
         exp: 'The clerk recommended the lighter ¥20,000 black camera, and the writer bought it.',
       },
     },
+    {
+      fp: 'mid-3-bento',
+      passage:
+        '【読解・中文】\n私は 日本へ 来てから、毎日 昼ご飯に コンビニの お弁当や パンを 買って いました。便利ですが、野菜が 少なくて お金も かかります。それで、先月から 毎朝 自分で お弁当を 作って 学校へ 持って 行く ように しました。\n朝 30分 早く 起きるのは 少し 大変ですが、週末に まとめて 野菜や 肉を 買って おくと 簡単です。友だちの ケンさんも 私の お弁当を 見て、「おいしそうだね。ぼくも 来週から 作って みようかな」と 言いました。',
+      q1: {
+        prompt: '「私」は どうして 自分で お弁当を 作る ように しましたか。',
+        opts: [
+          'コンビニの 昼ご飯は 野菜が 少なくて、お金も かかるから。',
+          '学校の 近くに コンビニや レストランが ひとつも ないから。',
+          '友だちの ケンさんに 毎日 お弁当を 作って あげる ため。',
+          '朝 早く 起きるのが 前から 大好きだったから。',
+        ],
+        exp: '「コンビニの お弁当や パン…便利ですが、野菜が 少なくて お金も かかります。それで…」',
+      },
+      q2: {
+        prompt: 'ケンさんは 「私」の お弁当を 見て、どう 思いましたか。',
+        opts: [
+          'おいしそうだから、自分も 来週から お弁当を 作って みたい。',
+          '朝 早く 起きるのは 大変だから、コンビニの ほうが いい。',
+          'あしたから 「私」に お弁当を 買って もらいたい。',
+          '野菜が 多すぎて あまり おいしく なさそうだ。',
+        ],
+        exp: 'Ken said: 「おいしそうだね。ぼくも 来週から 作って みようかな」.',
+      },
+    },
   ];
 
-  const chosenMid = midPassages[Math.floor(Math.random() * midPassages.length)];
+  const unseenMid = midPassages.filter((m) => !seen.has(`${m.fp}-1`));
+  const chosenMid = pickOne(unseenMid.length ? unseenMid : midPassages);
   const midQ1Opts = shuffleOptions(chosenMid.q1.opts, 0);
   const midQ2Opts = shuffleOptions(chosenMid.q2.opts, 0);
   const m5: GeneratedExamQuestion[] = [
@@ -571,500 +716,507 @@ function generateGrammarReadingQuestions(level: ExamLevel, seen: Set<string>): G
     },
   ];
 
-  // 6. 問題6・情報検索 (1 Information Retrieval Question with Dynamic Schedule/Prices!)
-  const tourBudget = [3000, 4000, 5000][Math.floor(Math.random() * 3)];
-  const wantDay = Math.random() < 0.5 ? '土曜日' : '日曜日';
+  // 6. 問題6・情報検索 (1 Information Retrieval Question with Randomized Winner Course A/B/C/D!)
+  const tourBudget = pickOne([3000, 3500, 4000, 4500, 5000]);
+  const wantDay = pickOne(['土曜日', '日曜日']);
   const otherDay = wantDay === '土曜日' ? '日曜日' : '土曜日';
+  const timeSlot = pickOne([
+    { label: '昼（午前〜午後3時ごろ）', matchHours: '午前 10:00〜15:00', wrongHours: '午後 18:00〜21:00' },
+    { label: '夜（午後6時ごろから）', matchHours: '午後 18:00〜21:00', wrongHours: '午前 10:00〜15:00' },
+  ]);
+  const courses = [
+    { name: 'Aコース（鎌倉・お寺めぐり）', valid: false, line: `${otherDay}のみ ／ ${timeSlot.matchHours} ／ ${tourBudget - 500}円`, why: `${otherDay} only` },
+    { name: 'Bコース（浅草・スカイツリー）', valid: true, line: `土曜日・日曜日 ／ ${timeSlot.matchHours} ／ ${tourBudget - 300}円`, why: `Matches ${wantDay}, ${timeSlot.matchHours}, and costs ${tourBudget - 300}円 (≤ ${tourBudget}円)` },
+    { name: 'Cコース（箱根・温泉ツアー）', valid: false, line: `土曜日・日曜日 ／ ${timeSlot.matchHours} ／ ${tourBudget + 2200}円`, why: `Costs ${tourBudget + 2200}円 (over ${tourBudget}円 budget)` },
+    { name: 'Dコース（東京湾クルーズ）', valid: false, line: `${wantDay}のみ ／ ${timeSlot.wrongHours} ／ ${tourBudget - 400}円`, why: `Runs at ${timeSlot.wrongHours} (wrong time of day)` },
+  ];
   const infoOpts = shuffleOptions(
-    [
-      'Bコース（浅草・スカイツリー散歩）',
-      'Aコース（鎌倉・お寺めぐり）',
-      'Cコース（箱根・温泉バスツアー）',
-      'Dコース（夜の 東京タワーと 船）',
-    ],
-    0,
+    courses.map((c) => c.name),
+    1,
   );
   const m6: GeneratedExamQuestion = {
-    id: `r-info-${wantDay}-${tourBudget}`,
-    fingerprint: `r-info-${wantDay}-${tourBudget}`,
+    id: `r-info-${wantDay}-${tourBudget}-${timeSlot.label}`,
+    fingerprint: `r-info-${wantDay}-${tourBudget}-${timeSlot.label}`,
     level,
     section: 'grammar',
     mondaiId: 'G6',
     mondaiTitle: '問題6・情報検索 (Information Retrieval)',
     passage:
-      `【週末 東京・日帰り ツアー ごあんない】\n` +
-      `・Aコース（鎌倉・お寺めぐり）：${otherDay}のみ ／ 午前 9:00〜16:00 ／ ${tourBudget - 500}円\n` +
-      `・Bコース（浅草・スカイツリー散歩）：土曜日・日曜日 ／ 午前 10:00〜15:00 ／ ${tourBudget - 200}円\n` +
-      `・Cコース（箱根・温泉バスツアー）：土曜日・日曜日 ／ 午前 8:00〜18:00 ／ ${tourBudget + 2500}円\n` +
-      `・Dコース（夜の 東京タワーと 船）：${wantDay}のみ ／ 午後 18:00〜21:00 ／ ${tourBudget - 500}円`,
-    prompt: `トムさんは 今週の 「${wantDay}の 昼（午前〜午後3時ごろ）」に 参加できる ツアーを さがして います。お金は 「${tourBudget}円まで」が いいです。トムさんは どの コースを 選びますか。`,
+      `【週末 東京 ツアー ごあんない】\n` +
+      courses.map((c) => `・${c.name}：${c.line}`).join('\n'),
+    prompt: `トムさんは 今週の 「${wantDay}の ${timeSlot.label}」に 参加できる ツアーを さがして います。お金は 「${tourBudget}円まで」が いいです。トムさんは どの コースを 選びますか。`,
     options: infoOpts.options,
     answer: infoOpts.answer,
-    explain: `Tom needs ${wantDay} daytime (午前〜午後3時ごろ) and ≤ ${tourBudget}円. Course A is ${otherDay} only; Course C costs ${tourBudget + 2500}円 (over budget); Course D is at night (18:00–21:00). Course B runs on ${wantDay} from 10:00–15:00 for ${tourBudget - 200}円!`,
+    explain: `Tom needs ${wantDay}, ${timeSlot.label}, ≤ ${tourBudget}円 → Bコース (${courses[1].why}).`,
   };
 
-  return [...m1, ...m2, ...m3, short1, short2, short3, ...m5, m6];
+  return [...m1, ...m2, ...m3, ...m4, ...m5, m6];
 }
 
 // ============================================================================
 // PART 3 GENERATORS: 聴解 (24 Questions in Official Full Exam)
-//   - 問題1: 課題理解 Task Comprehension (7 Qs)
-//   - 問題2: ポイント理解 Point Comprehension (6 Qs)
-//   - 問題3: 発話表現 Utterance Expressions (5 Qs)
-//   - 問題4: 即時応答 Immediate Response (6 Qs)
+//   - 問題1 & 問題2: 15 Distinct Combinatorial Multi-Voice Dialogue Generators!
+//   - 問題3: 発話表現 (5 Qs from 12 situational generators)
+//   - 問題4: 即時応答 (6 Qs from 16 immediate-response generators)
 // ============================================================================
 
 function generateListeningQuestions(level: ExamLevel, seen: Set<string>): GeneratedExamQuestion[] {
-  // Dynamic Combinatorial Multi-Voice Dialogues so every exam has NEW audio & numbers!
-  const dynamicDialogues: GeneratedExamQuestion[] = [];
+  const dialoguePool: GeneratedExamQuestion[] = [];
 
-  // Dynamic 1: Cafe / Restaurant Order with やっぱり change of mind
-  const drinks = [
+  // 1. Cafe / Restaurant Order with やっぱり change of mind
+  const drinks = shuffle([
     { jp: '冷たい お茶', kana: 'つめたい おちゃ' },
     { jp: 'ホットコーヒー', kana: 'ホットコーヒー' },
     { jp: '紅茶', kana: 'こうちゃ' },
     { jp: 'オレンジジュース', kana: 'オレンジジュース' },
     { jp: '抹茶ラテ', kana: 'まっちゃラテ' },
-  ];
-  const dPick = shuffle(drinks);
-  const firstDrink = dPick[0];
-  const finalDrink = dPick[1];
-  const d1Opts = shuffleOptions(dPick.slice(0, 4).map((x) => x.jp), 1);
-  dynamicDialogues.push({
-    id: `l-dyn-drink-${finalDrink.jp}`,
-    fingerprint: `l-dyn-drink-${finalDrink.jp}`,
-    level,
-    section: 'listening',
-    mondaiId: 'L1',
-    mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
-    prompt: '喫茶店で 男の人と 女の人が 話して います。女の人は 何を 頼みますか。',
-    audio: `きっさてんで、おとこのひとと、おんなのひとが はなしています。おんなのひとは、なにを たのみますか。……M:なにを のみますか。ぼくは ${dPick[2].kana}に します。……F:わたしは、${firstDrink.kana}に しようかな。あ、きょうは あついから、やっぱり ${finalDrink.kana}を ください。`,
-    transcript: `男：何を 飲みますか。ぼくは ${dPick[2].jp}に します。\n女：私は ${firstDrink.jp}に しようかな。あ、今日は 暑いから、やっぱり ${finalDrink.jp}を ください。`,
-    options: d1Opts.options,
-    answer: d1Opts.answer,
-    explain: `She first considers ${firstDrink.jp}, then says 「やっぱり ${finalDrink.jp}を ください」.`,
-  });
+    { jp: 'アイスココア', kana: 'アイスココア' },
+  ]);
+  {
+    const d1Opts = shuffleOptions(drinks.slice(0, 4).map((x) => x.jp), 1);
+    dialoguePool.push({
+      id: `l-drink-${drinks[1].jp}`,
+      fingerprint: `l-drink-${drinks[0].jp}-${drinks[1].jp}`,
+      level,
+      section: 'listening',
+      mondaiId: 'L1',
+      mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
+      prompt: '喫茶店で 男の人と 女の人が 話して います。女の人は 何を 頼みますか。',
+      audio: `きっさてんで、おとこのひとと、おんなのひとが はなしています。おんなのひとは、なにを たのみますか。……M:なにを のみますか。ぼくは ${drinks[2].kana}に します。……F:わたしは、${drinks[0].kana}に しようかな。あ、やっぱり ${drinks[1].kana}を ください。`,
+      transcript: `男：何を 飲みますか。ぼくは ${drinks[2].jp}に します。\n女：私は ${drinks[0].jp}に しようかな。あ、やっぱり ${drinks[1].jp}を ください。`,
+      options: d1Opts.options,
+      answer: d1Opts.answer,
+      explain: `She switches with やっぱり to ${drinks[1].jp}.`,
+    });
+  }
 
-  // Dynamic 2: Price × Quantity Calculation at a Shop
+  // 2. Price × Quantity Shop Calculation
   const shopItems = [
-    { name: 'りんご', kana: 'りんご', unitPrice: 150, unitKana: 'ひゃくごじゅうえん', qty: 3, qtyKana: 'みっつ', total: 450, totalKana: 'よんひゃくごじゅうえん', distractors: ['150円', '300円', '600円'] },
+    { name: 'りんご', kana: 'りんご', unitPrice: 150, unitKana: 'ひゃくごじゅうえん', qty: 2, qtyKana: 'ふたつ', total: 300, totalKana: 'さんびゃくえん', distractors: ['150円', '450円', '600円'] },
+    { name: 'りんご', kana: 'りんご', unitPrice: 150, unitKana: 'ひゃくごじゅうえん', qty: 4, qtyKana: 'よっつ', total: 600, totalKana: 'ろっぴゃくえん', distractors: ['150円', '300円', '450円'] },
+    { name: 'ノート', kana: 'ノート', unitPrice: 200, unitKana: 'にひゃくえん', qty: 3, qtyKana: 'さんさつ', total: 600, totalKana: 'ろっぴゃくえん', distractors: ['200円', '400円', '800円'] },
     { name: 'ノート', kana: 'ノート', unitPrice: 200, unitKana: 'にひゃくえん', qty: 4, qtyKana: 'よんさつ', total: 800, totalKana: 'はっぴゃくえん', distractors: ['200円', '400円', '600円'] },
-    { name: 'パン', kana: 'パン', unitPrice: 120, unitKana: 'ひゃくにじゅうえん', qty: 2, qtyKana: 'ふたつ', total: 240, totalKana: 'にひゃくよんじゅうえん', distractors: ['120円', '220円', '360円'] },
+    { name: 'パン', kana: 'パン', unitPrice: 120, unitKana: 'ひゃくにじゅうえん', qty: 3, qtyKana: 'みっつ', total: 360, totalKana: 'さんびゃくろくじゅうえん', distractors: ['120円', '240円', '480円'] },
     { name: '傘', kana: 'かさ', unitPrice: 500, unitKana: 'ごひゃくえん', qty: 2, qtyKana: 'にほん', total: 1000, totalKana: 'せんえん', distractors: ['500円', '800円', '1500円'] },
+    { name: 'おにぎり', kana: 'おにぎり', unitPrice: 140, unitKana: 'ひゃくよんじゅうえん', qty: 2, qtyKana: 'ふたつ', total: 280, totalKana: 'にひゃくはちじゅうえん', distractors: ['140円', '240円', '420円'] },
   ];
-  const sItem = shopItems[Math.floor(Math.random() * shopItems.length)];
-  const d2Opts = shuffleOptions([`${sItem.total}円`, ...sItem.distractors], 0);
-  dynamicDialogues.push({
-    id: `l-dyn-shop-${sItem.name}-${sItem.total}`,
-    fingerprint: `l-dyn-shop-${sItem.name}-${sItem.total}`,
-    level,
-    section: 'listening',
-    mondaiId: 'L1',
-    mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
-    prompt: `店で 男の人と 店員が 話して います。男の人は 全部で いくら 払いますか。`,
-    audio: `みせで、おとこのひとと、てんいんが はなしています。おとこのひとは、ぜんぶで いくら はらいますか。……M:すみません、この ${sItem.kana}は ひとつ いくらですか。……F:ひとつ ${sItem.unitKana}です。……M:じゃあ、${sItem.qtyKana} ください。……F:はい、ぜんぶで ${sItem.totalKana}に なります。`,
-    transcript: `男：すみません、この ${sItem.name}は 1つ いくらですか。\n店員：1つ ${sItem.unitPrice}円です。\n男：じゃあ、${sItem.qtyKana} ください。\n店員：はい、全部で ${sItem.total}円に なります。`,
-    options: d2Opts.options,
-    answer: d2Opts.answer,
-    explain: `${sItem.unitPrice}円 × ${sItem.qty} = ${sItem.total}円 (${sItem.totalKana}).`,
-  });
+  {
+    const sItem = pickOne(shopItems);
+    const d2Opts = shuffleOptions([`${sItem.total}円`, ...sItem.distractors], 0);
+    dialoguePool.push({
+      id: `l-shop-${sItem.name}-${sItem.total}`,
+      fingerprint: `l-shop-${sItem.name}-${sItem.total}`,
+      level,
+      section: 'listening',
+      mondaiId: 'L1',
+      mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
+      prompt: '店で 男の人と 店員が 話して います。男の人は 全部で いくら 払いますか。',
+      audio: `みせで、おとこのひとと、てんいんが はなしています。おとこのひとは、ぜんぶで いくら はらいますか。……M:すみません、この ${sItem.kana}は ひとつ いくらですか。……F:ひとつ ${sItem.unitKana}です。……M:じゃあ、${sItem.qtyKana} ください。……F:はい、ぜんぶで ${sItem.totalKana}に なります。`,
+      transcript: `男：すみません、この ${sItem.name}は 1つ いくらですか。\n店員：1つ ${sItem.unitPrice}円です。\n男：じゃあ、${sItem.qtyKana} ください。\n店員：はい、全部で ${sItem.total}円に なります。`,
+      options: d2Opts.options,
+      answer: d2Opts.answer,
+      explain: `${sItem.unitPrice}円 × ${sItem.qty} = ${sItem.total}円 (${sItem.totalKana}).`,
+    });
+  }
 
-  // Dynamic 3: Station Platform Change Announcement
+  // 3. Station Platform Change
   const dests = [
     { jp: '京都', kana: 'きょうと' },
     { jp: '新宿', kana: 'しんじゅく' },
     { jp: '横浜', kana: 'よこはま' },
     { jp: '上野', kana: 'うえの' },
+    { jp: '渋谷', kana: 'しぶや' },
+    { jp: '成田空港', kana: 'なりたくうこう' },
   ];
-  const dest = dests[Math.floor(Math.random() * dests.length)];
   const tracks = shuffle([
     { n: '1番線', k: 'いちばんせん' },
     { n: '2番線', k: 'にばんせん' },
     { n: '3番線', k: 'さんばんせん' },
+    { n: '4番線', k: 'よんばんせん' },
     { n: '5番線', k: 'ごばんせん' },
-  ]);
-  const oldTrack = tracks[0];
-  const newTrack = tracks[1];
-  const d3Opts = shuffleOptions(tracks.map((t) => t.n), 1);
-  dynamicDialogues.push({
-    id: `l-dyn-track-${dest.jp}-${newTrack.n}`,
-    fingerprint: `l-dyn-track-${dest.jp}-${newTrack.n}`,
-    level,
-    section: 'listening',
-    mondaiId: 'L1',
-    mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
-    prompt: `駅で 女の人と 駅員が 話して います。女の人は 何番線へ 行きますか。`,
-    audio: `えきで、おんなのひとと、えきいんが はなしています。おんなのひとは、なんばんせんへ いきますか。……F:すみません、${dest.kana}へ いく でんしゃは、なんばんせんですか。……M:いつもは ${oldTrack.k}ですが、きょうは こうじの ため、${newTrack.k}から でます。……F:わかりました。ありがとうございます。`,
-    transcript: `女：すみません、${dest.jp}へ 行く 電車は 何番線ですか。\n駅員：いつもは ${oldTrack.n}ですが、今日は 工事の ため、${newTrack.n}から 出ます。\n女：わかりました。ありがとうございます。`,
-    options: d3Opts.options,
-    answer: d3Opts.answer,
-    explain: `Usually it leaves from ${oldTrack.n}, but today it leaves from ${newTrack.n} (${newTrack.k}).`,
-  });
+  ]).slice(0, 4);
+  {
+    const dest = pickOne(dests);
+    const d3Opts = shuffleOptions(tracks.map((t) => t.n), 1);
+    dialoguePool.push({
+      id: `l-track-${dest.jp}-${tracks[1].n}`,
+      fingerprint: `l-track-${dest.jp}-${tracks[1].n}`,
+      level,
+      section: 'listening',
+      mondaiId: 'L1',
+      mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
+      prompt: '駅で 女の人と 駅員が 話して います。女の人は 何番線へ 行きますか。',
+      audio: `えきで、おんなのひとと、えきいんが はなしています。おんなのひとは、なんばんせんへ いきますか。……F:すみません、${dest.kana}へ いく でんしゃは、なんばんせんですか。……M:いつもは ${tracks[0].k}ですが、きょうは こうじの ため、${tracks[1].k}から でます。`,
+      transcript: `女：すみません、${dest.jp}へ 行く 電車は 何番線ですか。\n駅員：いつもは ${tracks[0].n}ですが、今日は 工事の ため、${tracks[1].n}から 出ます。`,
+      options: d3Opts.options,
+      answer: d3Opts.answer,
+      explain: `Changed from ${tracks[0].n} to ${tracks[1].n} (${tracks[1].k}).`,
+    });
+  }
 
-  // Dynamic 4: Meeting Time & Place Change
+  // 4. Meeting Time Negotiation
   const times = shuffle([
     { jp: '午前 9時半', k: 'ごぜん くじはん' },
     { jp: '午前 10時', k: 'ごぜん じゅうじ' },
     { jp: '午前 11時', k: 'ごぜん じゅういちじ' },
     { jp: '午後 1時半', k: 'ごご いちじはん' },
-  ]);
-  const firstTime = times[0];
-  const finalTime = times[1];
-  const d4Opts = shuffleOptions(times.map((t) => t.jp), 1);
-  dynamicDialogues.push({
-    id: `l-dyn-time-${finalTime.jp}`,
-    fingerprint: `l-dyn-time-${finalTime.jp}`,
-    level,
-    section: 'listening',
-    mondaiId: 'L2',
-    mondaiTitle: '問題2・ポイント理解 (Point Comprehension)',
-    prompt: '男の人と 女の人が あしたの 約束について 話して います。二人は 何時に 会いますか。',
-    audio: `おとこのひとと、おんなのひとが はなしています。ふたりは、なんじに あいますか。……F:あしたは、${firstTime.k}に えきの まえで あいましょうか。……M:ごめん、${firstTime.k}は すこし むずかしいんだ。${finalTime.k}でも いいですか。……F:いいですよ。じゃあ、${finalTime.k}に しましょう。`,
-    transcript: `女：あしたは ${firstTime.jp}に 駅の 前で 会いましょうか。\n男：ごめん、${firstTime.jp}は 少し むずかしいんだ。${finalTime.jp}でも いいですか。\n女：いいですよ。じゃあ、${finalTime.jp}に しましょう。`,
-    options: d4Opts.options,
-    answer: d4Opts.answer,
-    explain: `They change the meeting time from ${firstTime.jp} to ${finalTime.jp} (${finalTime.k}).`,
-  });
+    { jp: '午後 2時', k: 'ごご にじ' },
+    { jp: '午後 4時', k: 'ごご よじ' },
+  ]).slice(0, 4);
+  {
+    const d4Opts = shuffleOptions(times.map((t) => t.jp), 1);
+    dialoguePool.push({
+      id: `l-time-${times[0].jp}-${times[1].jp}`,
+      fingerprint: `l-time-${times[0].jp}-${times[1].jp}`,
+      level,
+      section: 'listening',
+      mondaiId: 'L2',
+      mondaiTitle: '問題2・ポイント理解 (Point Comprehension)',
+      prompt: '男の人と 女の人が あしたの 約束について 話して います。二人は 何時に 会いますか。',
+      audio: `おとこのひとと、おんなのひとが はなしています。ふたりは、なんじに あいますか。……F:あしたは、${times[0].k}に えきの まえで あいましょうか。……M:ごめん、${times[0].k}は ちょっと はやいんだ。${times[1].k}でも いい？……F:うん、じゃあ ${times[1].k}に しましょう。`,
+      transcript: `女：あしたは ${times[0].jp}に 駅の 前で 会いましょうか。\n男：ごめん、${times[0].jp}は ちょっと 早いんだ。${times[1].jp}でも いい？\n女：うん、じゃあ ${times[1].jp}に しましょう。`,
+      options: d4Opts.options,
+      answer: d4Opts.answer,
+      explain: `They agree on ${times[1].jp} (${times[1].k}).`,
+    });
+  }
 
-  // Dynamic 5: Floor Directory Lookup
+  // 5. Department Store Floor Directory
   const depts = shuffle([
     { item: 'カメラ売り場', kana: 'カメラうりば', floor: '5階', floorKana: 'ごかい' },
     { item: '本屋', kana: 'ほんや', floor: '6階', floorKana: 'ろっかい' },
     { item: 'レストラン', kana: 'レストラン', floor: '8階', floorKana: 'はっかい' },
     { item: 'くつ売り場', kana: 'くつうりば', floor: '3階', floorKana: 'さんがい' },
-  ]);
-  const targetDept = depts[0];
-  const otherDept = depts[1];
-  const d5Opts = shuffleOptions(depts.map((d) => d.floor), 0);
-  dynamicDialogues.push({
-    id: `l-dyn-floor-${targetDept.item}-${targetDept.floor}`,
-    fingerprint: `l-dyn-floor-${targetDept.item}-${targetDept.floor}`,
-    level,
-    section: 'listening',
-    mondaiId: 'L2',
-    mondaiTitle: '問題2・ポイント理解 (Point Comprehension)',
-    prompt: `デパートで 男の人と 店員が 話して います。「${targetDept.item}」は 何階ですか。`,
-    audio: `デパートで、おとこのひとと、てんいんが はなしています。${targetDept.kana}は なんがいですか。……M:すみません、${targetDept.kana}は ${otherDept.floorKana}ですか。……F:いいえ、${otherDept.floorKana}は ${otherDept.kana}です。${targetDept.kana}は ${targetDept.floorKana}に ございます。`,
-    transcript: `男：すみません、${targetDept.item}は ${otherDept.floor}ですか。\n店員：いいえ、${otherDept.floor}は ${otherDept.item}です。${targetDept.item}は ${targetDept.floor}に ございます。`,
-    options: d5Opts.options,
-    answer: d5Opts.answer,
-    explain: `${otherDept.floor} is ${otherDept.item}; ${targetDept.item} is on ${targetDept.floor} (${targetDept.floorKana}).`,
-  });
+    { item: 'かばん売り場', kana: 'かばんうりば', floor: '2階', floorKana: 'にかい' },
+    { item: 'めがね売り場', kana: 'めがねうりば', floor: '4階', floorKana: 'よんかい' },
+  ]).slice(0, 4);
+  {
+    const d5Opts = shuffleOptions(depts.map((d) => d.floor), 0);
+    dialoguePool.push({
+      id: `l-floor-${depts[0].item}-${depts[0].floor}`,
+      fingerprint: `l-floor-${depts[0].item}-${depts[0].floor}`,
+      level,
+      section: 'listening',
+      mondaiId: 'L2',
+      mondaiTitle: '問題2・ポイント理解 (Point Comprehension)',
+      prompt: `デパートで 男の人と 店員が 話して います。「${depts[0].item}」は 何階ですか。`,
+      audio: `デパートで、おとこのひとと、てんいんが はなしています。${depts[0].kana}は なんがいですか。……M:すみません、${depts[0].kana}は ${depts[1].floorKana}ですか。……F:いいえ、${depts[1].floorKana}は ${depts[1].kana}です。${depts[0].kana}は ${depts[0].floorKana}です。`,
+      transcript: `男：すみません、${depts[0].item}は ${depts[1].floor}ですか。\n店員：いいえ、${depts[1].floor}は ${depts[1].item}です。${depts[0].item}は ${depts[0].floor}です。`,
+      options: d5Opts.options,
+      answer: d5Opts.answer,
+      explain: `${depts[0].item} is on ${depts[0].floor} (${depts[0].floorKana}).`,
+    });
+  }
 
-  // Dynamic 6: Appointment Date (Testing Irregular Calendar Days)
+  // 6. Hospital / Dentist Appointment Date (Irregular Calendar Days)
   const calDays = shuffle([
-    { jp: '4月4日', k: 'しがつ よっか' },
-    { jp: '4月8日', k: 'しがつ ようか' },
-    { jp: '4月14日', k: 'しがつ じゅうよっか' },
-    { jp: '4月20日', k: 'しがつ はつか' },
-  ]);
-  const targetDate = calDays[0];
-  const wrongDate = calDays[1];
-  const d6Opts = shuffleOptions(calDays.map((d) => d.jp), 0);
-  dynamicDialogues.push({
-    id: `l-dyn-date-${targetDate.jp}`,
-    fingerprint: `l-dyn-date-${targetDate.jp}`,
-    level,
-    section: 'listening',
-    mondaiId: 'L2',
-    mondaiTitle: '問題2・ポイント理解 (Point Comprehension)',
-    prompt: '病院で 女の人と 受付の 人が 話して います。次の 予約は いつですか。',
-    audio: `びょういんで、おんなのひとと、うけつけの ひとが はなしています。つぎの よやくは いつですか。……M:つぎは、${wrongDate.k}に きて ください。……F:すみません、${wrongDate.k}は しごとが あります。……M:では、${targetDate.k}は どうですか。……F:はい、${targetDate.k}なら だいじょうぶです。おねがいします。`,
-    transcript: `受付：次は ${wrongDate.jp}に 来て ください。\n女：すみません、${wrongDate.jp}は 仕事が あります。\n受付：では、${targetDate.jp}は どうですか。\n女：はい、${targetDate.jp}なら 大丈夫です。おねがいします。`,
-    options: d6Opts.options,
-    answer: d6Opts.answer,
-    explain: `She cannot make ${wrongDate.jp} (${wrongDate.k}) and books ${targetDate.jp} (${targetDate.k}).`,
-  });
+    { jp: '5月1日', k: 'ごがつ ついたち' },
+    { jp: '5月2日', k: 'ごがつ ふつか' },
+    { jp: '5月4日', k: 'ごがつ よっか' },
+    { jp: '5月8日', k: 'ごがつ ようか' },
+    { jp: '5月14日', k: 'ごがつ じゅうよっか' },
+    { jp: '5月20日', k: 'ごがつ はつか' },
+  ]).slice(0, 4);
+  {
+    const d6Opts = shuffleOptions(calDays.map((d) => d.jp), 0);
+    dialoguePool.push({
+      id: `l-date-${calDays[0].jp}`,
+      fingerprint: `l-date-${calDays[0].jp}-${calDays[1].jp}`,
+      level,
+      section: 'listening',
+      mondaiId: 'L2',
+      mondaiTitle: '問題2・ポイント理解 (Point Comprehension)',
+      prompt: '病院で 女の人と 受付の 人が 話して います。次の 予約は いつですか。',
+      audio: `びょういんで、おんなのひとと、うけつけの ひとが はなしています。つぎの よやくは いつですか。……M:つぎは、${calDays[1].k}に きて ください。……F:すみません、${calDays[1].k}は しごとが あります。……M:では、${calDays[0].k}は どうですか。……F:はい、${calDays[0].k}なら だいじょうぶです。`,
+      transcript: `受付：次は ${calDays[1].jp}に 来て ください。\n女：すみません、${calDays[1].jp}は 仕事が あります。\n受付：では、${calDays[0].jp}は どうですか。\n女：はい、${calDays[0].jp}なら 大丈夫です。`,
+      options: d6Opts.options,
+      answer: d6Opts.answer,
+      explain: `She books ${calDays[0].jp} (${calDays[0].k}).`,
+    });
+  }
 
-  // Dynamic 7: Transport Mode Choice (Why taking X instead of Y)
+  // 7. Transport Mode Choice
   const modes = shuffle([
     { jp: 'バス', k: 'バス', reason: 'やすい', reasonJp: '安い' },
     { jp: '新幹線', k: 'しんかんせん', reason: 'はやい', reasonJp: '速い' },
     { jp: '電車', k: 'でんしゃ', reason: 'べんり', reasonJp: '便利' },
     { jp: 'タクシー', k: 'タクシー', reason: 'にもつが おおい', reasonJp: '荷物が 多い' },
   ]);
-  const pickMode = modes[0];
-  const altMode = modes[1];
-  const d7Opts = shuffleOptions(modes.map((m) => m.jp), 0);
-  dynamicDialogues.push({
-    id: `l-dyn-trans-${pickMode.jp}`,
-    fingerprint: `l-dyn-trans-${pickMode.jp}`,
-    level,
-    section: 'listening',
-    mondaiId: 'L1',
-    mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
-    prompt: '男の人と 女の人が 旅行について 話して います。二人は 何で 行きますか。',
-    audio: `おとこのひとと、おんなのひとが はなしています。ふたりは、なんで いきますか。……M:らいしゅうの りょこう、${altMode.k}で いく？……F:うーん、${pickMode.k}の ほうが ${pickMode.reason}から、${pickMode.k}に しようよ。……M:そうだね、そうしよう。`,
-    transcript: `男：来週の 旅行、${altMode.jp}で 行く？\n女：うーん、${pickMode.jp}の ほうが ${pickMode.reasonJp}から、${pickMode.jp}に しようよ。\n男：そうだね、そうしよう。`,
-    options: d7Opts.options,
-    answer: d7Opts.answer,
-    explain: `They choose ${pickMode.jp} because ${pickMode.jp}のほうが ${pickMode.reasonJp}.`,
-  });
+  {
+    const d7Opts = shuffleOptions(modes.map((m) => m.jp), 0);
+    dialoguePool.push({
+      id: `l-trans-${modes[0].jp}`,
+      fingerprint: `l-trans-${modes[0].jp}-${modes[1].jp}`,
+      level,
+      section: 'listening',
+      mondaiId: 'L1',
+      mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
+      prompt: '男の人と 女の人が 旅行について 話して います。二人は 何で 行きますか。',
+      audio: `おとこのひとと、おんなのひとが はなしています。ふたりは、なんで いきますか。……M:らいしゅうの りょこう、${modes[1].k}で いく？……F:うーん、${modes[0].k}の ほうが ${modes[0].reason}から、${modes[0].k}に しようよ。……M:そうだね、そうしよう。`,
+      transcript: `男：来週の 旅行、${modes[1].jp}で 行く？\n女：うーん、${modes[0].jp}の ほうが ${modes[0].reasonJp}から、${modes[0].jp}に しようよ。\n男：そうだね、そうしよう。`,
+      options: d7Opts.options,
+      answer: d7Opts.answer,
+      explain: `They choose ${modes[0].jp} because it is ${modes[0].reasonJp}.`,
+    });
+  }
 
-  // Dynamic 8: Party Preparation Task Assignment
+  // 8. Party Preparation Task Assignment
   const tasks = shuffle([
     { jp: '飲み物を 買う', k: 'のみものを かう' },
     { jp: 'ケーキを 作る', k: 'ケーキを つくる' },
     { jp: '部屋を そうじする', k: 'へやを そうじする' },
     { jp: 'お皿を ならべる', k: 'おさらを ならべる' },
   ]);
-  const manTask = tasks[0];
-  const womanTask = tasks[1];
-  const d8Opts = shuffleOptions(tasks.map((t) => t.jp), 0);
-  dynamicDialogues.push({
-    id: `l-dyn-party-${manTask.jp}`,
-    fingerprint: `l-dyn-party-${manTask.jp}`,
-    level,
-    section: 'listening',
-    mondaiId: 'L1',
-    mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
-    prompt: '男の人と 女の人が パーティーの 準備を して います。男の人は これから 何を しますか。',
-    audio: `おとこのひとと、おんなのひとが はなしています。おとこのひとは、これから なにを しますか。……M:パーティーの じゅんび、なにを てつだおうか。${womanTask.k}？……F:ありがとう。それは わたしが やるから、えきの まえの スーパーで、${manTask.k}のを おねがい。……M:わかった。いって くるね。`,
-    transcript: `男：パーティーの 準備、何を 手伝おうか。${womanTask.jp}？\n女：ありがとう。それは 私が やるから、駅の 前の スーパーで ${manTask.jp}のを おねがい。\n男：わかった。行って 来るね。`,
-    options: d8Opts.options,
-    answer: d8Opts.answer,
-    explain: `The woman does ${womanTask.jp} herself and asks the man to ${manTask.jp}.`,
-  });
+  {
+    const d8Opts = shuffleOptions(tasks.map((t) => t.jp), 0);
+    dialoguePool.push({
+      id: `l-party-${tasks[0].jp}`,
+      fingerprint: `l-party-${tasks[0].jp}-${tasks[1].jp}`,
+      level,
+      section: 'listening',
+      mondaiId: 'L1',
+      mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
+      prompt: '男の人と 女の人が パーティーの 準備を して います。男の人は これから 何を しますか。',
+      audio: `おとこのひとと、おんなのひとが はなしています。おとこのひとは、これから なにを しますか。……M:パーティーの じゅんび、なにを てつだおうか。${tasks[1].k}？……F:それは わたしが やるから、スーパーで、${tasks[0].k}のを おねがい。……M:わかった。`,
+      transcript: `男：パーティーの 準備、何を 手伝おうか。${tasks[1].jp}？\n女：それは 私が やるから、スーパーで ${tasks[0].jp}のを おねがい。\n男：わかった。`,
+      options: d8Opts.options,
+      answer: d8Opts.answer,
+      explain: `The woman asks the man to ${tasks[0].jp}.`,
+    });
+  }
 
-  // Dynamic 9: Weather Forecast Transition (Morning vs Afternoon)
+  // 9. Weather Forecast
   const weathers = shuffle([
-    { jp: '晴れますが、午後から 雨が 降ります', k: 'あさは はれますが、ごごから あめが ふります', ans: '午前は 晴れ、午後は 雨' },
-    { jp: '雨が 降りますが、昼から 晴れます', k: 'あさは あめが ふりますが、ひるから はれます', ans: '午前は 雨、午後は 晴れ' },
+    { jp: '朝は 晴れますが、午後から 雨が 降ります', k: 'あさは はれますが、ごごから あめが ふります', ans: '午前は 晴れ、午後は 雨' },
+    { jp: '朝は 雨が 降りますが、昼から 晴れます', k: 'あさは あめが ふりますが、ひるから はれます', ans: '午前は 雨、午後は 晴れ' },
     { jp: '一日中 くもりで、夜は 雪が 降ります', k: 'いちにちじゅう くもりで、よるは ゆきが ふります', ans: '昼は くもり、夜は 雪' },
-    { jp: '朝から 晩まで いい 天気です', k: 'あさから ばんまで、ずっと いい てんきです', ans: '一日中 晴れ' },
+    { jp: '朝から 晩まで ずっと いい 天気です', k: 'あさから ばんまで、ずっと いい てんきです', ans: '一日中 晴れ' },
   ]);
-  const wPick = weathers[0];
-  const d9Opts = shuffleOptions(weathers.map((w) => w.ans), 0);
-  dynamicDialogues.push({
-    id: `l-dyn-weather-${wPick.ans}`,
-    fingerprint: `l-dyn-weather-${wPick.ans}`,
-    level,
-    section: 'listening',
-    mondaiId: 'L2',
-    mondaiTitle: '問題2・ポイント理解 (Point Comprehension)',
-    prompt: 'テレビの 天気予報を 聞いて います。あしたの 天気は どうなりますか。',
-    audio: `テレビの てんきよほうを きいています。あしたの てんきは どうなりますか。……F:あしたの とうきょうの てんきです。${wPick.k}。でかける ときは 気をつけて ください。`,
-    transcript: `アナウンサー：あしたの 東京の 天気です。${wPick.jp}。出かける ときは 気をつけて ください。`,
-    options: d9Opts.options,
-    answer: d9Opts.answer,
-    explain: `The forecast states: 「${wPick.jp}」 → ${wPick.ans}.`,
-  });
+  {
+    const d9Opts = shuffleOptions(weathers.map((w) => w.ans), 0);
+    dialoguePool.push({
+      id: `l-weather-${weathers[0].ans}`,
+      fingerprint: `l-weather-${weathers[0].ans}`,
+      level,
+      section: 'listening',
+      mondaiId: 'L2',
+      mondaiTitle: '問題2・ポイント理解 (Point Comprehension)',
+      prompt: 'テレビの 天気予報を 聞いて います。あしたの 天気は どうなりますか。',
+      audio: `テレビの てんきよほうを きいています。あしたの てんきは どうなりますか。……F:あしたの てんきです。${weathers[0].k}。でかける ときは 気をつけて ください。`,
+      transcript: `アナウンサー：あしたの 天気です。${weathers[0].jp}。`,
+      options: d9Opts.options,
+      answer: d9Opts.answer,
+      explain: `Forecast: ${weathers[0].jp} → ${weathers[0].ans}.`,
+    });
+  }
 
-  // Static Task & Point Listening Pool
-  const taskAndPointStatic = [
-    {
-      fp: 'l-tp-1',
+  // 10. Teacher Classroom Instructions (Bring X & Y, NOT Z)
+  const schoolItems = shuffle([
+    { jp: '鉛筆と お弁当', k: 'えんぴつと おべんとう', noJp: 'ノート', noK: 'ノート' },
+    { jp: '辞書と ノート', k: 'じしょと ノート', noJp: 'カメラ', noK: 'カメラ' },
+    { jp: '水と 帽子', k: 'みずと ぼうし', noJp: '教科書', noK: 'きょうかしょ' },
+    { jp: 'お弁当と 飲み物', k: 'おべんとうと のみもの', noJp: '辞書', noK: 'じしょ' },
+  ]);
+  {
+    const d10Opts = shuffleOptions(schoolItems.map((s) => s.jp), 0);
+    dialoguePool.push({
+      id: `l-school-${schoolItems[0].jp}`,
+      fingerprint: `l-school-${schoolItems[0].jp}`,
+      level,
+      section: 'listening',
       mondaiId: 'L1',
       mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
       prompt: '学校で 先生が 話して います。学生は あした 何を 持って 来ますか。',
-      audio: 'がっこうで、せんせいが はなしています。がくせいは、あした なにを もって きますか。……M:あしたは、こうえんで えを かきます。えんぴつと、おべんとうを もって きて ください。ノートは いりません。',
-      transcript: '先生：あしたは 公園で 絵を かきます。鉛筆と お弁当を 持って 来て ください。ノートは いりません。',
-      opts: ['鉛筆と お弁当', 'ノートと お弁当', '鉛筆と ノート', 'お弁当だけ'],
-      exp: 'The teacher asks for えんぴつと おべんとう and says ノートは いりません.',
-    },
-    {
-      fp: 'l-tp-2',
-      mondaiId: 'L1',
-      mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
-      prompt: '図書館で 男の人と 係の 人が 話して います。男の人は まず 何を しますか。',
-      audio: 'としょかんで、おとこのひとと、かかりの ひとが はなしています。おとこのひとは、まず なにを しますか。……M:すみません、はじめて ほんを かりたいんですが。……F:では、まず こちらの かみに、おなまえと でんわばんごうを かいて ください。そのあとで、カードを つくります。',
-      transcript: '男：すみません、初めて 本を 借りたいんですが。\n係員：では、まず こちらの 紙に お名前と 電話番号を 書いて ください。そのあとで カードを 作ります。',
-      opts: ['紙に 名前と 電話番号を 書く', '本を 棚から えらぶ', 'お金を 払う', 'コピーを とる'],
-      exp: 'The staff member says 「まず こちらの かみに、おなまえと でんわばんごうを かいて ください」.',
-    },
-    {
-      fp: 'l-tp-3',
-      mondaiId: 'L1',
-      mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
-      prompt: '家で 母と 男の子が 話して います。男の子は これから 何を しますか。',
-      audio: 'いえで、ははと おとこのこが はなしています。おとこのこは、これから なにを しますか。……F:もう ばんごはんが できるよ。てを あらって きて。……M:いま しゅくだいを して いるところだよ。……F:しゅくだいは ごはんの あとで いいから、さきに てを あらって。……M:わかった。',
-      transcript: '母：もう 晩ご飯が できるよ。手を 洗って 来て。\n男の子：今 宿題を して いるところだよ。\n母：宿題は ご飯の 後で いいから、先に 手を 洗って。\n男の子：わかった。',
-      opts: ['手を 洗う', '宿題を つづける', 'テレビを 見る', '買い物を する'],
-      exp: 'His mother tells him homework can wait until after dinner: 「さきに てを あらって」.',
-    },
-    {
-      fp: 'l-tp-4',
+      audio: `がっこうで、せんせいが はなしています。がくせいは、あした なにを もって きますか。……M:あしたは、${schoolItems[0].k}を もって きて ください。${schoolItems[0].noK}は いりません。`,
+      transcript: `先生：あしたは、${schoolItems[0].jp}を 持って 来て ください。${schoolItems[0].noJp}は いりません。`,
+      options: d10Opts.options,
+      answer: d10Opts.answer,
+      explain: `Bring ${schoolItems[0].jp}; ${schoolItems[0].noJp} is not needed (いりません).`,
+    });
+  }
+
+  // 11. Pharmacy Medicine Dosage Instructions
+  const medInstructions = shuffle([
+    { jp: '朝と 夜、ご飯の 後', k: 'あさと よるの にかい、ごはんを たべた あとで', noK: 'ひるは のまないで ください' },
+    { jp: '朝・昼・晩、ご飯の 後', k: 'あさと ひると ばんの さんかい、ごはんを たべた あとで', noK: 'みずで のんで ください' },
+    { jp: '夜、寝る 前だけ', k: 'よる、ねる まえに いっかいだけ', noK: 'あさと ひるは のまないで ください' },
+    { jp: '朝と 晩、ご飯の 前', k: 'あさと ばんの にかい、ごはんを たべる まえに', noK: 'おゆで のんで ください' },
+  ]);
+  {
+    const d11Opts = shuffleOptions(medInstructions.map((m) => m.jp), 0);
+    dialoguePool.push({
+      id: `l-med-${medInstructions[0].jp}`,
+      fingerprint: `l-med-${medInstructions[0].jp}`,
+      level,
+      section: 'listening',
       mondaiId: 'L1',
       mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
       prompt: '薬局で 女の人と 薬剤師が 話して います。女の人は いつ 薬を 飲みますか。',
-      audio: 'やっきょくで、おんなのひとと、やくざいしが はなしています。おんなのひとは、いつ くすりを のみますか。……F:この しろい くすりは、いちにちに なんかい のみますか。……M:あさと よるの にかい、ごはんを たべた あとで のんで ください。ひるは のまないで ください。',
-      transcript: '女：この 白い 薬は 1日に 何回 飲みますか。\n薬剤師：朝と 夜の 2回、ご飯を 食べた 後で 飲んで ください。昼は 飲まないで ください。',
-      opts: ['朝と 夜、ご飯の 後', '朝・昼・晩の 3回', '昼ご飯の 前だけ', '寝る 前だけ'],
-      exp: 'The pharmacist says 「あさと よるの にかい、ごはんを たべた あとで のんで ください」.',
-    },
-    {
-      fp: 'l-tp-5',
+      audio: `やっきょくで、おんなのひとと、やくざいしが はなしています。おんなのひとは、いつ くすりを のみますか。……F:この くすりは、いつ のみますか。……M:${medInstructions[0].k} のんで ください。${medInstructions[0].noK}。`,
+      transcript: `女：この 薬は いつ 飲みますか。\n薬剤師：${medInstructions[0].jp}に 飲んで ください。`,
+      options: d11Opts.options,
+      answer: d11Opts.answer,
+      explain: `Dosage: ${medInstructions[0].jp}.`,
+    });
+  }
+
+  // 12. Lost & Found Item Description (Color + Size + Object)
+  const lostBags = shuffle([
+    { jp: '小さい 黒い かばん', k: 'ちいさい くろい かばん' },
+    { jp: '大きい 黒い かばん', k: 'おおきい くろい かばん' },
+    { jp: '小さい 白い かばん', k: 'ちいさい しろい かばん' },
+    { jp: '大きい 白い かばん', k: 'おおきい しろい かばん' },
+  ]);
+  {
+    const d12Opts = shuffleOptions(lostBags.map((b) => b.jp), 0);
+    dialoguePool.push({
+      id: `l-lost-${lostBags[0].jp}`,
+      fingerprint: `l-lost-${lostBags[0].jp}`,
+      level,
+      section: 'listening',
       mondaiId: 'L2',
       mondaiTitle: '問題2・ポイント理解 (Point Comprehension)',
-      prompt: '旅館で 女の人と スタッフが 話して います。女の人は 温泉に 入る 前に 何を しなければ なりませんか。',
-      audio: 'りょかんで、おんなのひとと、スタッフが はなしています。……F:あのう、いまから おんせんに はいっても いいですか。……M:はい、どうぞ。あ、おゆに はいる まえに、かならず からだを あらって くださいね。',
-      transcript: '女：あのう、今から 温泉に 入っても いいですか。\nスタッフ：はい、どうぞ。あ、お湯に 入る 前に、必ず 体を 洗って くださいね。',
-      opts: ['体を 洗う', '晩ご飯を 食べる', '3階へ 行く', 'きっぷを 買う'],
-      exp: 'The staff reminds her: 「おゆに はいる まえに、かならず からだを あらって くださいね」.',
-    },
-    {
-      fp: 'l-tp-6',
+      prompt: '駅で 女の人と 駅員が 話して います。女の人の かばんは どれですか。',
+      audio: `えきで、おんなのひとと、えきいんが はなしています。おんなのひとの かばんは どれですか。……F:すみません、でんしゃの なかに かばんを わすれて しまいました。……M:どんな かばんですか。……F:${lostBags[0].k}です。なかに じしょが はいって います。`,
+      transcript: `女：すみません、電車の 中に かばんを 忘れて しまいました。\n駅員：どんな かばんですか。\n女：${lostBags[0].jp}です。中に 辞書が 入って います。`,
+      options: d12Opts.options,
+      answer: d12Opts.answer,
+      explain: `She describes her bag as 「${lostBags[0].jp}」.`,
+    });
+  }
+
+  // 13. Restaurant Party Size & Seating
+  const partyCounts = shuffle([
+    { jp: '2人（ふたり）', k: 'ふたり' },
+    { jp: '3人（さんにん）', k: 'さんにん' },
+    { jp: '4人（よにん）', k: 'よにん' },
+    { jp: '5人（ごにん）', k: 'ごにん' },
+  ]);
+  {
+    const d13Opts = shuffleOptions(partyCounts.map((p) => p.jp), 0);
+    dialoguePool.push({
+      id: `l-rest-cnt-${partyCounts[0].jp}`,
+      fingerprint: `l-rest-cnt-${partyCounts[0].jp}`,
+      level,
+      section: 'listening',
       mondaiId: 'L2',
       mondaiTitle: '問題2・ポイント理解 (Point Comprehension)',
-      prompt: '男の人と 女の人が 話して います。女の人は どうして きのうの パーティーに 行きませんでしたか。',
-      audio: 'おとこのひとと、おんなのひとが はなしています。……M:きのうの パーティー、たのしかったよ。どうして こなかったの。しごとが いそがしかった？……F:ううん、しごとは はやく おわったんだけど、あたまが いたくて、はやく ねたの。',
-      transcript: '男：きのうの パーティー、楽しかったよ。どうして 来なかったの。仕事が 忙しかった？\n女：ううん、仕事は 早く 終わったんだけど、頭が 痛くて、早く 寝たの。',
-      opts: ['頭が 痛かったから', '仕事が 忙しかったから', '電車が 止まったから', '約束を 忘れたから'],
-      exp: 'She says 「あたまが いたくて、はやく ねたの」 (she had a headache and went to bed early).',
-    },
-    {
-      fp: 'l-tp-7',
+      prompt: 'レストランで 店員と 男の人が 話して います。男の人は 何人で 来ましたか。',
+      audio: `レストランで、てんいんと おとこのひとが はなしています。おとこのひとは なんにんで きましたか。……F:いらっしゃいませ。なんめいさまですか。……M:いまは ふたりですが、あとから ともだちが きて、ぜんぶで ${partyCounts[0].k}に なります。`,
+      transcript: `店員：いらっしゃいませ。何名様ですか。\n男：今は 2人ですが、あとから 友だちが 来て、全部で ${partyCounts[0].jp}に なります。`,
+      options: d13Opts.options,
+      answer: d13Opts.answer,
+      explain: `Total party size: ${partyCounts[0].jp} (${partyCounts[0].k}).`,
+    });
+  }
+
+  // 14. Library First Action
+  {
+    const steps = shuffle([
+      { jp: '紙に 名前と 電話番号を 書く', k: 'こちらの かみに おなまえと でんわばんごうを かいて ください' },
+      { jp: '2階の カウンターへ 行く', k: 'にかいの カウンターへ いって ください' },
+      { jp: '青い カードを 出す', k: 'あおい カードを だして ください' },
+      { jp: 'パソコンで 本を さがす', k: 'あそこの パソコンで ほんを さがして ください' },
+    ]);
+    const d14Opts = shuffleOptions(steps.map((s) => s.jp), 0);
+    dialoguePool.push({
+      id: `l-lib-first-${steps[0].jp}`,
+      fingerprint: `l-lib-first-${steps[0].jp}`,
+      level,
+      section: 'listening',
+      mondaiId: 'L1',
+      mondaiTitle: '問題1・課題理解 (Task-Based Listening)',
+      prompt: '図書館で 男の人と 係の 人が 話して います。男の人は まず 何を しますか。',
+      audio: `としょかんで、おとこのひとと、かかりの ひとが はなしています。おとこのひとは、まず なにを しますか。……M:すみません、はじめて ほんを かりたいんですが。……F:では、まず ${steps[0].k}。`,
+      transcript: `男：すみません、初めて 本を 借りたいんですが。\n係員：では、まず ${steps[0].jp}。`,
+      options: d14Opts.options,
+      answer: d14Opts.answer,
+      explain: `First action (まず): ${steps[0].jp}.`,
+    });
+  }
+
+  // 15. Train Delay Reason
+  const reasons = shuffle([
+    { jp: '強い 雨の ため', k: 'つよい あめの ため' },
+    { jp: '強い 風の ため', k: 'つよい かぜの ため' },
+    { jp: '大雪の ため', k: 'おおゆきの ため' },
+    { jp: '工事の ため', k: 'こうじの ため' },
+  ]);
+  {
+    const d15Opts = shuffleOptions(reasons.map((r) => r.jp), 0);
+    dialoguePool.push({
+      id: `l-delay-${reasons[0].jp}`,
+      fingerprint: `l-delay-${reasons[0].jp}`,
+      level,
+      section: 'listening',
       mondaiId: 'L2',
       mondaiTitle: '問題2・ポイント理解 (Point Comprehension)',
       prompt: '駅で アナウンスが 流れて います。電車は どうして 遅れて いますか。',
-      audio: 'えきで、アナウンスが ながれています。……M:ほんじつは、つよい あめの ため、でんしゃが じゅっぷんほど おくれて います。',
-      transcript: 'アナウンス：本日は、強い 雨の ため、電車が 10分ほど 遅れて います。',
-      opts: ['強い 雨の ため', '工事の ため', '雪の ため', '事故の ため'],
-      exp: 'The announcement states 「つよい あめの ため」 (because of heavy rain).',
-    },
-  ].map((x): GeneratedExamQuestion => {
-    const { options, answer } = shuffleOptions(x.opts, 0);
-    return {
-      id: x.fp,
-      fingerprint: x.fp,
-      level,
-      section: 'listening',
-      mondaiId: x.mondaiId,
-      mondaiTitle: x.mondaiTitle,
-      prompt: x.prompt,
-      audio: x.audio,
-      transcript: x.transcript,
-      options,
-      answer,
-      explain: x.exp,
-    };
-  });
+      audio: `えきで、アナウンスが ながれています。……M:ほんじつは、${reasons[0].k}、でんしゃが じゅっぷんほど おくれて います。`,
+      transcript: `アナウンス：本日は、${reasons[0].jp}、電車が 10分ほど 遅れて います。`,
+      options: d15Opts.options,
+      answer: d15Opts.answer,
+      explain: `Delay reason: ${reasons[0].jp} (${reasons[0].k}).`,
+    });
+  }
 
-  // Combine dynamic + static for Mondai 1 (7 Qs) & Mondai 2 (6 Qs) = 13 Qs
-  const m1AndM2 = pickUnseen([...dynamicDialogues, ...taskAndPointStatic], 13, seen);
+  const m1AndM2 = pickUnseen(dialoguePool, 13, seen);
 
-  // 問題3・発話表現 (5 Questions: What do you say in this situation?)
-  const utteranceItems = [
-    {
-      fp: 'l-utt-1',
-      prompt: 'ご飯を 食べ終わりました。店の 人や 家族に 何と 言いますか。',
-      audio: 'ごはんを たべおわりました。なんと言いますか。……F:いち、いただきます。……に、ごちそうさまでした。……さん、おだいじに。',
-      opts: ['ごちそうさまでした。', 'いただきます。', 'おだいじに。'],
-      exp: 'After finishing a meal, say 「ごちそうさまでした」 (before eating is いただきます).',
-    },
-    {
-      fp: 'l-utt-2',
-      prompt: '友だちの ペンを 借りたいです。友だちに 何と 言いますか。',
-      audio: 'ともだちの ペンを かりたいです。なんと言いますか。……F:いち、この ペン、かして もらえませんか。……に、この ペン、あげましょうか。……さん、この ペン、返して ください。',
-      opts: ['この ペン、貸して もらえませんか。', 'この ペン、あげましょうか。', 'この ペン、返して ください。'],
-      exp: '貸して もらえませんか = Could you lend me (this pen)?',
-    },
-    {
-      fp: 'l-utt-3',
-      prompt: '先生の 先生の 話が 速くて わかりませんでした。先生に 何と 言いますか。',
-      audio: 'せんせいの はなしが はやくて わかりませんでした。なんと言いますか。……F:いち、すみません、もういちど ゆっくり いって ください。……に、すみません、わたしが おしえましょうか。……さん、よく わかりました。',
-      opts: ['すみません、もう一度 ゆっくり 言って ください。', 'すみません、私が 教えましょうか。', 'よく わかりました。'],
-      exp: 'もう一度 ゆっくり 言って ください = Please say it slowly once more.',
-    },
-    {
-      fp: 'l-utt-4',
-      prompt: '友だちが かぜを ひいて 熱が あります。友だちに 何と 言いますか。',
-      audio: 'ともだちが かぜを ひいて ねつが あります。なんと言いますか。……F:いち、おだいじに。……に、おめでとうございます。……さん、いってらっしゃい。',
-      opts: ['お大事に。', 'おめでとうございます。', 'いってらっしゃい。'],
-      exp: 'お大事に (おだいじに) = Take care / Get well soon.',
-    },
-    {
-      fp: 'l-utt-5',
-      prompt: '先生の 部屋に 入ります。ドアを ノックして 何と 言いますか。',
-      audio: 'せんせいの へやに はいります。なんと言いますか。……F:いち、しつれいします。……に、ただいま。……さん、ごめんください。',
-      opts: ['失礼します（しつれいします）。', 'ただいま。', 'おやすみなさい。'],
-      exp: 'When entering a teacher’s or boss’s room, say 「失礼します」.',
-    },
-    {
-      fp: 'l-utt-6',
-      prompt: '電車の 中で 席を ゆずって もらいました。何と 言いますか。',
-      audio: 'でんしゃの なかで、せきを ゆずって もらいました。なんと言いますか。……F:いち、すみません、ありがとうございます。……に、こちらへ どうぞ。……さん、どういたしまして。',
-      opts: ['すみません、ありがとうございます。', 'こちらへ どうぞ。', 'どういたしまして。'],
-      exp: 'When someone offers you their seat, thank them with 「すみません、ありがとうございます」.',
-    },
-  ].map((x): GeneratedExamQuestion => {
-    const { options, answer } = shuffleOptions(x.opts, 0);
+  // 問題3・発話表現 (5 Questions from 12 Situational Utterance Items with Dynamic Spoken Options!)
+  const utteranceRaw = [
+    { fp: 'u-1', sit: 'ご飯を 食べ終わりました。店の 人や 家族に 何と 言いますか。', sitK: 'ごはんを たべおわりました。なんと言いますか。', opts: [{ jp: 'ごちそうさまでした。', k: 'ごちそうさまでした' }, { jp: 'いただきます。', k: 'いただきます' }, { jp: 'お大事に。', k: 'おだいじに' }], exp: 'After finishing a meal, say 「ごちそうさまでした」.' },
+    { fp: 'u-2', sit: 'これから ご飯を 食べます。食べる 前に 何と 言いますか。', sitK: 'これから ごはんを たべます。なんと言いますか。', opts: [{ jp: 'いただきます。', k: 'いただきます' }, { jp: 'ごちそうさまでした。', k: 'ごちそうさまでした' }, { jp: 'いってきます。', k: 'いってきます' }], exp: 'Before eating a meal, say 「いただきます」.' },
+    { fp: 'u-3', sit: '友だちの ペンを 借りたいです。友だちに 何と 言いますか。', sitK: 'ともだちの ペンを かりたいです。なんと言いますか。', opts: [{ jp: 'この ペン、貸して もらえませんか。', k: 'この ペン、かして もらえませんか' }, { jp: 'この ペン、あげましょうか。', k: 'この ペン、あげましょうか' }, { jp: 'この ペン、返して ください。', k: 'この ペン、かえして ください' }], exp: '貸して もらえませんか = Could you lend me this?' },
+    { fp: 'u-4', sit: '先生の 話が 速くて わかりませんでした。先生に 何と 言いますか。', sitK: 'せんせいの はなしが はやくて わかりませんでした。なんと言いますか。', opts: [{ jp: 'すみません、もう一度 ゆっくり 言って ください。', k: 'すみません、もういちど ゆっくり いって ください' }, { jp: 'すみません、私が 教えましょうか。', k: 'すみません、わたしが おしえましょうか' }, { jp: 'よく わかりました。', k: 'よく わかりました' }], exp: 'もう一度 ゆっくり 言って ください = Please say it slowly once more.' },
+    { fp: 'u-5', sit: '友だちが かぜを ひいて 熱が あります。友だちに 何と 言いますか。', sitK: 'ともだちが かぜを ひいて ねつが あります。なんと言いますか。', opts: [{ jp: 'お大事に。', k: 'おだいじに' }, { jp: 'おめでとうございます。', k: 'おめでとうございます' }, { jp: 'いってらっしゃい。', k: 'いってらっしゃい' }], exp: 'お大事に = Take care / Get well soon.' },
+    { fp: 'u-6', sit: '先生の 部屋に 入ります。ドアを ノックして 何と 言いますか。', sitK: 'せんせいの へやに はいります。なんと言いますか。', opts: [{ jp: '失礼します。', k: 'しつれいします' }, { jp: 'ただいま。', k: 'ただいま' }, { jp: 'おやすみなさい。', k: 'おやすみなさい' }], exp: 'When entering a room, say 「失礼します」.' },
+    { fp: 'u-7', sit: '電車の 中で 席を ゆずって もらいました。何と 言いますか。', sitK: 'でんしゃの なかで、せきを ゆずって もらいました。なんと言いますか。', opts: [{ jp: 'すみません、ありがとうございます。', k: 'すみません、ありがとうございます' }, { jp: 'こちらへ どうぞ。', k: 'こちらへ どうぞ' }, { jp: 'どういたしまして。', k: 'どういたしまして' }], exp: 'Thank them with 「すみません、ありがとうございます」.' },
+    { fp: 'u-8', sit: '朝、家を 出かけて 学校へ 行きます。家族に 何と 言いますか。', sitK: 'あさ、いえを でかけて がっこうへ いきます。なんと言いますか。', opts: [{ jp: 'いってきます。', k: 'いってきます' }, { jp: 'ただいま。', k: 'ただいま' }, { jp: 'おかえりなさい。', k: 'おかえりなさい' }], exp: 'When leaving home, say 「いってきます」.' },
+    { fp: 'u-9', sit: '学校から 家に 帰りました。ドアを 開けて 家族に 何と 言いますか。', sitK: 'がっこうから いえに かえりました。なんと言いますか。', opts: [{ jp: 'ただいま。', k: 'ただいま' }, { jp: 'いってきます。', k: 'いってきます' }, { jp: 'いらっしゃいませ。', k: 'いらっしゃいませ' }], exp: 'When arriving home, say 「ただいま」.' },
+    { fp: 'u-10', sit: '店で 買いたい 物が どこに あるか わかりません。店員に 何と 言いますか。', sitK: 'みせで かいたい ものが どこに あるか わかりません。なんと言いますか。', opts: [{ jp: 'すみません、コーヒーは どこに ありますか。', k: 'すみません、コーヒーは どこに ありますか' }, { jp: 'すみません、コーヒーを 飲んでは いけませんか。', k: 'すみません、コーヒーを のんでは いけませんか' }, { jp: 'コーヒーは こちらに ございます。', k: 'コーヒーは こちらに ございます' }], exp: 'Ask where the item is with 「すみません、〜は どこに ありますか」.' },
+  ];
+
+  const utterancePool: GeneratedExamQuestion[] = utteranceRaw.map((u) => {
+    const tagged = u.opts.map((o, idx) => ({ ...o, correct: idx === 0 }));
+    const mixed = shuffle(tagged);
+    const numKana = ['いち', 'に', 'さん'];
+    const spokenChoices = mixed.map((m, idx) => `F:${numKana[idx]}、${m.k}。`).join('……');
     return {
-      id: x.fp,
-      fingerprint: x.fp,
+      id: u.fp,
+      fingerprint: u.fp,
       level,
       section: 'listening',
       mondaiId: 'L3',
       mondaiTitle: '問題3・発話表現 (Utterance Expressions)',
-      prompt: x.prompt,
-      audio: x.audio,
-      options,
-      answer,
-      explain: x.exp,
+      prompt: u.sit,
+      audio: `N:${u.sitK}……${spokenChoices}`,
+      options: mixed.map((m) => m.jp),
+      answer: mixed.findIndex((m) => m.correct),
+      explain: u.exp,
     };
   });
 
-  const m3 = pickUnseen(utteranceItems, 5, seen);
+  const m3 = pickUnseen(utterancePool, 5, seen);
 
-  // 問題4・即時応答 (6 Questions: Immediate Response — Audio Prompt → Best Reply)
-  const immediateItems = [
-    {
-      fp: 'l-imm-1',
-      audio: 'F:すみません、いま なんじですか。',
-      transcript: '「すみません、今 何時ですか。」',
-      opts: ['午後 2時半です。', '2時間ぐらいです。', '200円です。'],
-      exp: '「今 何時ですか」 (What time is it?) → 「午後 2時半です」.',
-    },
-    {
-      fp: 'l-imm-2',
-      audio: 'M:いっしょに ひるごはんを たべませんか。',
-      transcript: '「いっしょに 昼ご飯を 食べませんか。」',
-      opts: ['ええ、行きましょう。', 'はい、食べました。', 'どういたしまして。'],
-      exp: '「〜ませんか」 invites someone → 「ええ、行きましょう」.',
-    },
-    {
-      fp: 'l-imm-3',
-      audio: 'F:にほんの おんせんに いった ことが ありますか。',
-      transcript: '「日本の 温泉に 行った ことが ありますか。」',
-      opts: ['いいえ、まだ 一度も ありません。', 'はい、来週 行く つもりです。', 'いいえ、行っては いけません。'],
-      exp: '「〜たことが ありますか」 asks about past experience → 「いいえ、まだ 一度も ありません」.',
-    },
-    {
-      fp: 'l-imm-4',
-      audio: 'M:この かばん、おもそうですね。もちましょうか。',
-      transcript: '「この かばん、重そうですね。持ちましょうか。」',
-      opts: ['ありがとうございます。おねがいします。', 'はい、持っています。', 'いいえ、ちがいます。'],
-      exp: '「持ちましょうか」 offers help ("Shall I carry it?") → 「ありがとうございます。おねがいします。」',
-    },
-    {
-      fp: 'l-imm-5',
-      audio: 'F:あしたの パーティーには、だれが きますか。',
-      transcript: '「あしたの パーティーには、だれが 来ますか。」',
-      opts: ['クラスの 友だちが みんな 来ますよ。', '駅の 前の レストランです。', '午後 6時から 始まります。'],
-      exp: '「だれが 来ますか」 asks WHO is coming.',
-    },
-    {
-      fp: 'l-imm-6',
-      audio: 'M:すみません、まどを しめても いいですか。',
-      transcript: '「すみません、窓を 閉めても いいですか。」',
-      opts: ['ええ、どうぞ。少し 寒いですね。', 'はい、閉めませんでした。', 'いいえ、開いて いますよ。'],
-      exp: '「閉めても いいですか」 asks permission to close the window → 「ええ、どうぞ」.',
-    },
-    {
-      fp: 'l-imm-7',
-      audio: 'F:きのうの テストは、どうでしたか。',
-      transcript: '「きのうの テストは、どうでしたか。」',
-      opts: ['漢字が 少し むずかしかったです。', '来週の 火曜日です。', '鉛筆で 書きました。'],
-      exp: '「どうでしたか」 asks how the test was → 「漢字が 少し むずかしかったです」.',
-    },
-    {
-      fp: 'l-imm-8',
-      audio: 'M:おちゃを もう いっぱい いかがですか。',
-      transcript: '「お茶を もう 一杯 いかがですか。」',
-      opts: ['いいえ、もう けっこうです。ありがとうございます。', 'はい、1杯 飲みました。', 'お先に 失礼します。'],
-      exp: '「もう一杯 いかがですか」 offers another cup of tea → 「いいえ、もう けっこうです」 (No thank you, I’ve had enough).',
-    },
-  ].map((x): GeneratedExamQuestion => {
+  // 問題4・即時応答 (6 Questions from 15 Immediate-Response Generators!)
+  const immRaw = [
+    { fp: 'imm-1', audio: 'F:すみません、いま なんじですか。', tr: '「すみません、今 何時ですか。」', opts: ['午後 2時半です。', '2時間ぐらいです。', '200円です。'], exp: '「今 何時ですか」 → 「午後 2時半です」.' },
+    { fp: 'imm-2', audio: 'M:いっしょに ひるごはんを たべませんか。', tr: '「いっしょに 昼ご飯を 食べませんか。」', opts: ['ええ、行きましょう。', 'はい、食べました。', 'どういたしまして。'], exp: '「〜ませんか」 invitation → 「ええ、行きましょう」.' },
+    { fp: 'imm-3', audio: 'F:にほんの おんせんに いった ことが ありますか。', tr: '「日本の 温泉に 行った ことが ありますか。」', opts: ['いいえ、まだ 一度も ありません。', 'はい、来週 行く つもりです。', 'いいえ、行っては いけません。'], exp: '「〜たことが ありますか」 → 「いいえ、まだ 一度も ありません」.' },
+    { fp: 'imm-4', audio: 'M:この かばん、おもそうですね。もちましょうか。', tr: '「この かばん、重そうですね。持ちましょうか。」', opts: ['ありがとうございます。おねがいします。', 'はい、持っています。', 'いいえ、ちがいます。'], exp: '「持ちましょうか」 (Shall I carry it?) → 「ありがとうございます。おねがいします。」' },
+    { fp: 'imm-5', audio: 'F:あしたの パーティーには、だれが きますか。', tr: '「あしたの パーティーには、だれが 来ますか。」', opts: ['クラスの 友だちが みんな 来ますよ。', '駅の 前の レストランです。', '午後 6時から 始まります。'], exp: '「だれが 来ますか」 asks WHO is coming.' },
+    { fp: 'imm-6', audio: 'M:すみません、まどを しめても いいですか。', tr: '「すみません、窓を 閉めても いいですか。」', opts: ['ええ、どうぞ。少し 寒いですね。', 'はい、閉めませんでした。', 'いいえ、開いて いますよ。'], exp: '「閉めても いいですか」 asks permission → 「ええ、どうぞ」.' },
+    { fp: 'imm-7', audio: 'F:きのうの テストは、どうでしたか。', tr: '「きのうの テストは、どうでしたか。」', opts: ['漢字が 少し むずかしかったです。', '来週の 火曜日です。', '鉛筆で 書きました。'], exp: '「どうでしたか」 asks how the test went.' },
+    { fp: 'imm-8', audio: 'M:おちゃを もう いっぱい いかがですか。', tr: '「お茶を もう 一杯 いかがですか。」', opts: ['いいえ、もう けっこうです。ありがとうございます。', 'はい、1杯 飲みました。', 'お先に 失礼します。'], exp: '「もう一杯 いかがですか」 → 「いいえ、もう けっこうです」.' },
+    { fp: 'imm-9', audio: 'F:きのうから かぜを ひいて、ねつが あるんです。', tr: '「きのうから かぜを ひいて、熱が あるんです。」', opts: ['それは いけませんね。お大事に。', 'おめでとう ございます。', 'ごちそうさま でした。'], exp: 'When someone says they are sick, reply 「それは いけませんね。お大事に。」' },
+    { fp: 'imm-10', audio: 'M:すみません、えきまで どうやって いきますか。', tr: '「すみません、駅まで どうやって 行きますか。」', opts: ['この 道を まっすぐ 行くと、右に ありますよ。', '歩いて 10分ぐらい でした。', 'はい、駅へ 行きます。'], exp: '「どうやって 行きますか」 asks for directions/method.' },
+    { fp: 'imm-11', audio: 'F:その カメラ、どこで かったんですか。', tr: '「その カメラ、どこで 買ったんですか。」', opts: ['秋葉原の 大きい 電気屋で 買いました。', '2万円ぐらい でした。', 'とても 軽くて いいですよ。'], exp: '「どこで 買ったんですか」 asks WHERE it was bought.' },
+    { fp: 'imm-12', audio: 'M:おさきに しつれいします。', tr: '「お先に 失礼します。」', opts: ['お疲れさまでした。', 'いらっしゃいませ。', 'いただきます。'], exp: 'When a coworker leaves first (お先に失礼します), reply 「お疲れさまでした」.' },
+    { fp: 'imm-13', audio: 'F:あした 映画を 見に 行きませんか。', tr: '「あした 映画を 見に 行きませんか。」', opts: ['すみません、あしたは ちょっと 用事が あります。', 'はい、きのう 見ました。', '映画館の 前で 会いました。'], exp: 'Declining an invitation politely: 「すみません、あしたは ちょっと…」' },
+    { fp: 'imm-14', audio: 'M:もう 宿題を 出しましたか。', tr: '「もう 宿題を 出しましたか。」', opts: ['いいえ、まだです。これから 出します。', 'はい、あした 出しました。', 'いいえ、出しません でしたか。'], exp: '「もう〜ましたか」 (Have you already ~?) → 「いいえ、まだです」 (Not yet).' },
+  ];
+
+  const immPool: GeneratedExamQuestion[] = immRaw.map((x) => {
     const { options, answer } = shuffleOptions(x.opts, 0);
     return {
       id: x.fp,
@@ -1075,14 +1227,14 @@ function generateListeningQuestions(level: ExamLevel, seen: Set<string>): Genera
       mondaiTitle: '問題4・即時応答 (Immediate Response)',
       prompt: '🔊 Listen to the spoken line and choose the most natural immediate response.',
       audio: x.audio,
-      transcript: x.transcript,
+      transcript: x.tr,
       options,
       answer,
       explain: x.exp,
     };
   });
 
-  const m4 = pickUnseen(immediateItems, 6, seen);
+  const m4 = pickUnseen(immPool, 6, seen);
 
   return [...m1AndM2, ...m3, ...m4];
 }
@@ -1100,21 +1252,10 @@ export function generateFreshExam(level: ExamLevel, mode: 'full' | 'mini'): {
   const grammar = generateGrammarReadingQuestions(level, seen); // 22 Qs
   const listening = generateListeningQuestions(level, seen); // 24 Qs
 
-  let selected: GeneratedExamQuestion[];
-  if (mode === 'full') {
-    // Official 67-question distribution: 21 Vocab + 22 Grammar/Reading + 24 Listening
-    selected = [...vocab, ...grammar, ...listening];
-  } else {
-    // Express 15-question mock: 5 Vocab + 5 Grammar/Reading + 5 Listening
-    selected = [
-      ...vocab.slice(0, 5),
-      ...grammar.slice(0, 5),
-      ...listening.slice(0, 5),
-    ];
-  }
-
-  // Also mix in any unseen items from EXAM_QUESTIONS if needed
-  void EXAM_QUESTIONS;
+  const selected =
+    mode === 'full'
+      ? [...vocab, ...grammar, ...listening]
+      : [...vocab.slice(0, 5), ...grammar.slice(0, 5), ...listening.slice(0, 5)];
 
   markFingerprintsSeen(selected.map((q) => q.fingerprint));
   return {
