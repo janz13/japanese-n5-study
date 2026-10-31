@@ -1,7 +1,7 @@
 /** JLPT N5-style listening (聴解) items. `audio` is pure kana (with 、 pauses) so browser TTS never misreads counters/dates; `transcript` is what the user sees. */
 export interface ListeningItem {
   id: string;
-  type: 'time' | 'number' | 'price' | 'direction' | 'situation';
+  type: 'time' | 'number' | 'price' | 'direction' | 'situation' | 'dialogue';
   audio: string;
   /** Transcript shown after answering. */
   transcript: string;
@@ -17,6 +17,7 @@ export const LISTENING_TYPES: Record<ListeningItem['type'], string> = {
   price: '💴 Prices',
   direction: '🧭 Directions',
   situation: '💬 Situations',
+  dialogue: '👥 Dialogues',
 };
 
 export const LISTENING: ListeningItem[] = [
@@ -46,4 +47,10 @@ export const LISTENING: ListeningItem[] = [
   { id: 's2', type: 'situation', audio: 'まどを、あけて ください。', transcript: '窓を 開けて ください。', question: 'What should you do?', options: ['Open the window', 'Close the window', 'Close the door', 'Turn on the light'], answer: 0, note: '開けて = open; 閉めて = close.' },
   { id: 's3', type: 'situation', audio: 'いらっしゃいませ。なんめいさまですか。', transcript: 'いらっしゃいませ。何名様（なんめいさま）ですか。', question: 'What is the restaurant staff asking?', options: ['How many people?', 'What would you like to order?', 'Smoking or non-smoking?', 'Cash or card?'], answer: 0, note: 'Answer with 二人です (ふたりです) etc.' },
   { id: 's4', type: 'situation', audio: 'あしたは あめですから、かさを もって きて ください。', transcript: '明日は 雨ですから、傘（かさ）を 持って 来て ください。', question: 'What should you bring tomorrow?', options: ['An umbrella', 'A lunch box', 'A jacket', 'A dictionary'], answer: 0 },
+  // Dialogues (JLPT 聴解 style: two speakers, question about the outcome)
+  { id: 'c1', type: 'dialogue', audio: 'おとこのひとと、おんなのひとが はなしています。おとこのひとは、なにを のみますか。……コーヒーと こうちゃ、どちらが いいですか。……そうですね、こうちゃを ください。あ、やっぱり、つめたい おちゃに します。', transcript: '男：コーヒーと 紅茶、どちらが いいですか。\n女：そうですね、紅茶を ください。あ、やっぱり、冷たい お茶に します。', question: 'What will the woman drink?', options: ['Cold green tea', 'Black tea', 'Coffee', 'Water'], answer: 0, note: 'やっぱり signals a change of mind — JLPT loves this trap!' },
+  { id: 'c2', type: 'dialogue', audio: 'おんなのひとと、おとこのひとが はなしています。ふたりは、なんじに あいますか。……あしたは、くじに えきで あいましょう。……くじは ちょっと はやいです。じゅうじは どうですか。……いいですよ。じゃあ、じゅうじに。', transcript: '女：明日は 九時に 駅で 会いましょう。\n男：九時は ちょっと 早いです。十時は どうですか。\n女：いいですよ。じゃあ、十時に。', question: 'What time will they meet?', options: ['10:00', '9:00', '9:30', '11:00'], answer: 0, note: 'The first time mentioned is often NOT the answer — listen to the end.' },
+  { id: 'c3', type: 'dialogue', audio: 'みせで、おとこのひとと、てんいんが はなしています。おとこのひとは、ぜんぶで いくら はらいますか。……すみません、この ペンは いくらですか。……ひゃくえんです。……じゃあ、みっつ ください。', transcript: '男：すみません、この ペンは いくらですか。\n店員：百円です。\n男：じゃあ、三つ ください。', question: 'How much does the man pay in total?', options: ['¥300', '¥100', '¥200', '¥3,000'], answer: 0, note: '百円 × 三つ = 三百円 (さんびゃくえん).' },
+  { id: 'c4', type: 'dialogue', audio: 'がっこうで、せんせいが はなしています。がくせいは、あした なにを もって きますか。……あしたは、こうえんで えを かきます。えんぴつと、おべんとうを もって きて ください。ノートは いりません。', transcript: '先生：明日は 公園で 絵を かきます。鉛筆と お弁当を 持って 来て ください。ノートは いりません。', question: 'What should students bring tomorrow?', options: ['Pencils and lunch', 'A notebook and lunch', 'Pencils and a notebook', 'Only a notebook'], answer: 0, note: 'いりません = not needed. Watch for items that are explicitly excluded.' },
+  { id: 'c5', type: 'dialogue', audio: 'えきで、おんなのひとと、えきいんが はなしています。おんなのひとは、なんばんせんに いきますか。……すみません、しんじゅくへ いきたいんですが。……しんじゅくなら、にばんせんです。あ、すみません、きょうは こうじで、ごばんせんです。', transcript: '女：すみません、新宿へ 行きたいんですが。\n駅員：新宿なら 二番線です。あ、すみません、今日は 工事で 五番線です。', question: 'Which platform should she go to?', options: ['Platform 5', 'Platform 2', 'Platform 7', 'Platform 1'], answer: 0, note: '工事 (こうじ) = construction. The correction at the end is the real answer.' },
 ];

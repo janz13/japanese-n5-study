@@ -85,7 +85,7 @@ export default function Listening() {
               <button className="chip" onClick={() => speak(cur.item.audio, 0.7)}>🐢 Slow</button>
               <button className="chip" onClick={() => setShowText((v) => !v)}>{showText ? 'Hide' : 'Show'} transcript</button>
             </div>
-            {(showText || picked !== null) && <p className="jp center" style={{ fontSize: '1.2rem' }}>{cur.item.transcript}</p>}
+            {(showText || picked !== null) && <p className="jp center" style={{ fontSize: '1.2rem', whiteSpace: 'pre-line' }}>{cur.item.transcript}</p>}
             <p><b>{cur.item.question}</b></p>
             <div className="controls">
               {cur.order.map((o) => (

@@ -234,4 +234,78 @@ export const LESSONS: Lesson[] = [
       { type: 'order', en: 'Tokyo is bigger than Kyoto.', tokens: ['東京の ほうが', '京都より', '大きいです'] },
     ],
   },
+  {
+    id: 'g7',
+    chapter: 7,
+    title: 'N4 · Experience, plans & rules',
+    points: [
+      {
+        pattern: 'V-た ことが あります',
+        meaning: 'have (ever) done V',
+        explain: 'Plain past + ことが あります talks about life experience (行く → 行った ことが あります).',
+        examples: [{ jp: '富士山に 登った ことが あります。', en: 'I have climbed Mt. Fuji.', audio: 'ふじさんに、のぼった ことが あります。' }],
+      },
+      {
+        pattern: 'V-る つもりです',
+        meaning: 'intend / plan to V',
+        explain: 'Dictionary form + つもりです states a firm plan (行く つもりです).',
+        examples: [{ jp: '来年 日本に 行く つもりです。', en: 'I plan to go to Japan next year.', audio: 'らいねん、にほんに いく つもりです。' }],
+      },
+      {
+        pattern: 'V-なければ なりません / V-ては いけません',
+        meaning: 'must V / must not V',
+        explain: 'Negative stem + なければ なりません = obligation. て-form + は いけません = prohibition.',
+        examples: [{ jp: 'ここで たばこを 吸っては いけません。', en: 'You must not smoke here.' }],
+      },
+      {
+        pattern: 'V-る 前に / V-た 後で',
+        meaning: 'before V-ing / after V-ing',
+        explain: 'Dictionary form + 前に, past form + 後で order two actions.',
+        examples: [{ jp: '寝る 前に 歯を みがきます。', en: 'I brush my teeth before sleeping.', audio: 'ねる まえに、はを みがきます。' }],
+      },
+    ],
+    exercises: [
+      { type: 'mcq', prompt: 'すしを（　）ことが ありますか。', en: 'Have you ever eaten sushi?', options: ['食べた', '食べる', '食べて'], answer: 0 },
+      { type: 'mcq', prompt: '明日は 早く 起き（　）なりません。', en: 'Tomorrow I must get up early.', options: ['なければ', 'ては', 'たら'], answer: 0 },
+      { type: 'mcq', prompt: 'ここで 写真を 撮っては（　）。', en: 'You must not take photos here.', options: ['いけません', 'いいです', 'あります'], answer: 0 },
+      { type: 'order', en: 'I plan to study Japanese.', tokens: ['日本語を', '勉強する', 'つもりです'] },
+    ],
+  },
+  {
+    id: 'g8',
+    chapter: 8,
+    title: 'N4 · Ability, change & giving',
+    points: [
+      {
+        pattern: 'Potential form (話せる / 食べられる)',
+        meaning: 'can V',
+        explain: 'Godan: う-row → え-row + る (話す → 話せる). Ichidan: る → られる (食べる → 食べられる). する → できる.',
+        examples: [{ jp: '日本語が 少し 話せます。', en: 'I can speak a little Japanese.' }],
+      },
+      {
+        pattern: 'V-る ように なりました',
+        meaning: 'have come to be able to V',
+        explain: 'Potential/dictionary form + ように なる shows a gradual change in ability or habit.',
+        examples: [{ jp: '漢字が 読める ように なりました。', en: 'I have become able to read kanji.' }],
+      },
+      {
+        pattern: 'あげる / くれる / もらう',
+        meaning: 'give (away) / give (to me) / receive',
+        explain: 'あげる = I/others give outward; くれる = someone gives to me/my group; もらう = receive from (に/から).',
+        examples: [{ jp: '友だちが 私に 本を くれました。', en: 'My friend gave me a book.' }],
+      },
+      {
+        pattern: 'V-て みたい',
+        meaning: 'want to try V-ing',
+        explain: 'て-form + みる = try doing; + たい = want to try.',
+        examples: [{ jp: '着物を 着て みたいです。', en: 'I want to try wearing a kimono.' }],
+      },
+    ],
+    exercises: [
+      { type: 'mcq', prompt: '私は ピアノが（　）。', en: 'I can play the piano.', options: ['ひけます', 'ひきます', 'ひいて'], answer: 0 },
+      { type: 'mcq', prompt: '母が 私に セーターを（　）。', en: 'My mother gave me a sweater.', options: ['くれました', 'あげました', 'もらいました'], answer: 0 },
+      { type: 'mcq', prompt: '泳げる（　）なりました。', en: 'I have become able to swim.', options: ['ように', 'ために', 'ことが'], answer: 0 },
+      { type: 'order', en: 'I want to try eating natto.', tokens: ['なっとうを', '食べて', 'みたいです'] },
+    ],
+  },
 ];
