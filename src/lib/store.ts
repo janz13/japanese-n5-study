@@ -9,7 +9,7 @@ interface KanaStat {
   wrong: number;
 }
 
-export type CardKind = 'word' | 'kanji';
+export type CardKind = 'word' | 'kanji' | 'grammar';
 
 export interface SrsItem {
   id: string;
@@ -40,6 +40,7 @@ interface State {
   lastStudy: string | null;
   showFurigana: boolean;
   theme: ThemeMode;
+  ttsRate: number;
   recordKana: (kana: string, ok: boolean) => void;
   saveWord: (w: Word) => void;
   addCard: (item: Omit<SrsItem, 'card'>) => void;
@@ -50,6 +51,8 @@ interface State {
   completeExam: (score: number) => void;
   toggleFurigana: () => void;
   toggleTheme: () => void;
+  setTtsRate: (rate: number) => void;
+  importData: (data: Partial<State>) => void;
   resetProgress: () => void;
 }
 
@@ -81,6 +84,7 @@ const initialData = {
   lastStudy: null as string | null,
   showFurigana: true,
   theme: 'dark' as ThemeMode,
+  ttsRate: 0.9,
 };
 
 export const useStore = create<State>()(
@@ -130,15 +134,30 @@ export const useStore = create<State>()(
         set((s) => ({ ...bumpStreak(s), examBest: Math.max(score, s.examBest ?? 0) })),
       toggleFurigana: () => set((s) => ({ showFurigana: !s.showFurigana })),
       toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+      setTtsRate: (ttsRate) => set({ ttsRate }),
+      importData: (data) =>
+        set((s) => ({
+          ...s,
+          kanaStats: data.kanaStats ?? s.kanaStats,
+          savedWords: data.savedWords ?? s.savedWords,
+          srs: data.srs ?? s.srs,
+          completedStories: data.completedStories ?? s.completedStories,
+          grammarDone: data.grammarDone ?? s.grammarDone,
+          scenesDone: data.scenesDone ?? s.scenesDone,
+          examBest: data.examBest ?? s.examBest,
+          streak: data.streak ?? s.streak,
+          lastStudy: data.lastStudy ?? s.lastStudy,
+        })),
       resetProgress: () =>
         set((s) => ({
           ...initialData,
           theme: s.theme,
+          ttsRate: s.ttsRate,
         })),
     }),
     {
       name: 'n5-study',
-      version: 4,
+      version: 5,
       migrate: (old: unknown) => {
         const s = (old ?? {}) as Partial<State>;
         const srs: Record<string, SrsItem> = s.srs ?? {};
@@ -154,6 +173,7 @@ export const useStore = create<State>()(
           scenesDone: s.scenesDone ?? {},
           examBest: s.examBest ?? null,
           theme: s.theme ?? 'dark',
+          ttsRate: s.ttsRate ?? 0.9,
         } as State;
       },
     },

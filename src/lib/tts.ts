@@ -1,3 +1,5 @@
+import { useStore } from './store';
+
 let jaVoice: SpeechSynthesisVoice | null = null;
 
 function pickVoice() {
@@ -12,7 +14,8 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 
 export const ttsSupported = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
 
-export function speak(text: string, rate = 0.9, onEnd?: () => void) {
+export function speak(text: string, rate?: number, onEnd?: () => void) {
+  const effectiveRate = rate ?? useStore.getState().ttsRate ?? 0.9;
   let called = false;
   const finish = () => {
     if (called) return;
@@ -23,7 +26,7 @@ export function speak(text: string, rate = 0.9, onEnd?: () => void) {
 
   // Fallback timer guarantees `onEnd` always fires even if browser TTS is muted,
   // blocked by autoplay policy, or lacks a local Japanese voice.
-  const estMs = Math.min(8000, Math.max(1200, text.length * 260));
+  const estMs = Math.min(8000, Math.max(1200, (text.length * 260) / effectiveRate));
   const fallbackTimer = setTimeout(finish, estMs);
 
   if (!ttsSupported()) return;
@@ -32,7 +35,7 @@ export function speak(text: string, rate = 0.9, onEnd?: () => void) {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'ja-JP';
-    u.rate = rate;
+    u.rate = effectiveRate;
     if (jaVoice) u.voice = jaVoice;
     u.onend = finish;
     u.onerror = finish;

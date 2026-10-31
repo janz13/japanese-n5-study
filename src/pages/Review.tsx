@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { Rating, type Grade } from 'ts-fsrs';
 import { isDue, useStore } from '../lib/store';
 import { speak } from '../lib/tts';
+import { STORIES } from '../data/stories';
+import { LESSONS } from '../data/grammar';
 
 export default function Review() {
-  const { srs, reviewCard } = useStore();
+  const { srs, reviewCard, saveWord, addCard } = useStore();
   // Snapshot the queue at session start so cards don't reshuffle mid-review.
   const [queue, setQueue] = useState(() =>
     Object.values(srs).filter((i) => isDue(i)).sort(() => Math.random() - 0.5).map((i) => i.id),
@@ -13,17 +15,47 @@ export default function Review() {
   const [flipped, setFlipped] = useState(false);
   const [done, setDone] = useState(0);
 
-  const total = Object.keys(srs).length;
+  const items = Object.values(srs);
+  const total = items.length;
+  const counts = {
+    kanji: items.filter((i) => i.kind === 'kanji').length,
+    word: items.filter((i) => i.kind === 'word').length,
+    grammar: items.filter((i) => i.kind === 'grammar').length,
+  };
+
   const nextDue = useMemo(() => {
     const times = Object.values(srs).map((i) => new Date(i.card.due).getTime());
     return times.length ? new Date(Math.min(...times)) : null;
   }, [srs]);
 
+  const refreshQueue = () =>
+    setQueue(
+      Object.values(useStore.getState().srs)
+        .filter((i) => isDue(i))
+        .sort(() => Math.random() - 0.5)
+        .map((i) => i.id),
+    );
+
+  const seedVocabAndGrammar = () => {
+    STORIES.forEach((s) => s.paragraphs.forEach((p) => p.forEach((t) => t.en && saveWord(t))));
+    LESSONS.forEach((l) =>
+      l.points.forEach((pt) =>
+        addCard({
+          id: `g:${pt.pattern}`,
+          kind: 'grammar',
+          front: pt.pattern,
+          reading: pt.examples[0]?.jp,
+          back: `${pt.meaning} — ${pt.explain}`,
+        }),
+      ),
+    );
+    refreshQueue();
+  };
+
   const item = queue.length ? srs[queue[0]] : null;
 
   const grade = (g: Grade) => {
     reviewCard(item!.id, g);
-    // "Again" puts the card back at the end of this session
     setQueue((q) => (g === Rating.Again ? [...q.slice(1), q[0]] : q.slice(1)));
     setFlipped(false);
     setDone((d) => d + 1);
@@ -33,7 +65,16 @@ export default function Review() {
     return (
       <div className="page">
         <h1>復習 <span className="muted">Review</span></h1>
-        <p>Your deck is empty. Add kanji from the <Link to="/kanji" className="link">Kanji</Link> page, or tap words in a <Link to="/stories" className="link">story</Link> and save them.</p>
+        <p>
+          Your SRS deck is empty. Add items from <Link to="/kanji" className="link">Kanji</Link>,{' '}
+          <Link to="/grammar" className="link">Grammar</Link>, or <Link to="/stories" className="link">Stories</Link> — or load the starter vocabulary &amp; grammar pack below:
+        </p>
+        <div className="controls">
+          <button className="chip on" onClick={seedVocabAndGrammar}>
+            + Load Story Vocab &amp; Grammar Deck
+          </button>
+          <Link className="chip" to="/kanji">Browse Kanji →</Link>
+        </div>
       </div>
     );
 
@@ -41,19 +82,35 @@ export default function Review() {
     return (
       <div className="page">
         <h1>復習 <span className="muted">Review</span></h1>
+        <p className="muted small">
+          Deck: {counts.kanji} Kanji · {counts.word} Vocab · {counts.grammar} Grammar
+        </p>
         <div className="card-box center">
           <div className="big-emoji">🎉</div>
           <p>All caught up! {done ? `${done} reviews done.` : ''}</p>
           {nextDue && <p className="muted">Next card due {nextDue.toLocaleString()}</p>}
-          <button className="chip" onClick={() => setQueue(Object.values(srs).filter((i) => isDue(i)).map((i) => i.id))}>Refresh</button>
+          <div className="controls">
+            <button className="chip on" onClick={refreshQueue}>Refresh Queue</button>
+            {counts.word === 0 && (
+              <button className="chip" onClick={seedVocabAndGrammar}>+ Add Story Vocab &amp; Grammar</button>
+            )}
+          </div>
         </div>
       </div>
     );
 
   return (
     <div className="page">
-      <h1>復習 <span className="muted">Review · {queue.length} left</span></h1>
-      <div className="card-box" onClick={() => !flipped && (setFlipped(true), speak(item.reading?.split(/[ /、]/)[0] || item.front))}>
+      <div className="row-between">
+        <h1>復習 <span className="muted">Review · {queue.length} left</span></h1>
+        <span className="muted small">
+          {counts.kanji} Kanji · {counts.word} Vocab · {counts.grammar} Grammar
+        </span>
+      </div>
+      <div
+        className="card-box"
+        onClick={() => !flipped && (setFlipped(true), speak(item.reading?.split(/[ /、]/)[0] || item.front))}
+      >
         <span className="tag">{item.kind}</span>
         <div className="card-front">{item.front}</div>
         {flipped ? (

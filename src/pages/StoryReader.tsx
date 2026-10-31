@@ -61,7 +61,7 @@ export default function StoryReader() {
   const { id } = useParams();
   const story = STORIES.find((s) => s.id === id);
   const state = useStore();
-  const { showFurigana, toggleFurigana, saveWord, savedWords, completeStory } = state;
+  const { showFurigana, toggleFurigana, saveWord, srs, completeStory, ttsRate, setTtsRate } = state;
   const [gloss, setGloss] = useState<Token | null>(null);
   const [playing, setPlaying] = useState<number | null>(null);
   const [showEn, setShowEn] = useState(false);
@@ -84,10 +84,14 @@ export default function StoryReader() {
     );
   }
 
+  const chapterWords = story.paragraphs.flatMap((p) => p.filter((t) => t.en));
+  const unsavedWords = chapterWords.filter((w) => !srs[`w:${w.t}`]);
+  const addAllChapterWords = () => chapterWords.forEach((w) => saveWord(w));
+
   const playFrom = (i: number) => {
     if (i >= story.paragraphs.length) return setPlaying(null);
     setPlaying(i);
-    speak(plain(story.paragraphs[i]), 0.85, () => playFrom(i + 1));
+    speak(plain(story.paragraphs[i]), ttsRate, () => playFrom(i + 1));
   };
 
   const allAnswered = Object.keys(answers).length === story.questions.length;
@@ -103,8 +107,18 @@ export default function StoryReader() {
         <button className="chip" onClick={() => (playing === null ? playFrom(0) : (stopSpeaking(), setPlaying(null)))}>
           {playing === null ? '▶ Listen' : '■ Stop'}
         </button>
+        {([0.75, 0.9, 1.0] as const).map((r) => (
+          <button key={r} className={ttsRate === r ? 'chip on' : 'chip'} onClick={() => setTtsRate(r)}>
+            {r}x
+          </button>
+        ))}
         <button className={showFurigana ? 'chip on' : 'chip'} onClick={toggleFurigana}>ふりがな</button>
         <button className={showEn ? 'chip on' : 'chip'} onClick={() => setShowEn(!showEn)}>English</button>
+        {unsavedWords.length > 0 && (
+          <button className="chip on" onClick={addAllChapterWords}>
+            + Add {unsavedWords.length} words to SRS
+          </button>
+        )}
       </div>
 
       <div className="story-body">
@@ -138,8 +152,8 @@ export default function StoryReader() {
             {gloss.r && <span className="muted"> ({gloss.r})</span>}
             <div>{gloss.en}</div>
           </div>
-          <button className="chip" disabled={savedWords.some((w) => w.t === gloss.t)} onClick={() => saveWord(gloss)}>
-            {savedWords.some((w) => w.t === gloss.t) ? '✓ Saved' : '+ Save word'}
+          <button className="chip" disabled={!!srs[`w:${gloss.t}`]} onClick={() => saveWord(gloss)}>
+            {srs[`w:${gloss.t}`] ? '✓ In SRS' : '+ Add to SRS'}
           </button>
           <button className="chip" onClick={() => setGloss(null)}>✕</button>
         </div>

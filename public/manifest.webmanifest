@@ -1,0 +1,17 @@
+{
+  "name": "日本語 N5 — Japanese Study App",
+  "short_name": "日本語 N5",
+  "description": "JLPT N5 Kana, Kanji, Grammar, Stories, Speaking, and Spaced Repetition Study App",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#16161e",
+  "theme_color": "#16161e",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

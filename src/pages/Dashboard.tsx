@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { isDue, useStore } from '../lib/store';
 import { HIRAGANA, KATAKANA } from '../data/kana';
@@ -18,11 +18,16 @@ export default function Dashboard() {
     examBest,
     theme,
     showFurigana,
+    ttsRate,
     toggleTheme,
     toggleFurigana,
+    setTtsRate,
+    importData,
     resetProgress,
   } = p;
   const [confirmReset, setConfirmReset] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const practiced = (list: typeof HIRAGANA) => list.filter((k) => (kanaStats[k.kana]?.correct ?? 0) >= 1).length;
   const due = Object.values(srs).filter((i) => isDue(i)).length;
@@ -38,6 +43,44 @@ export default function Dashboard() {
     }
     return null;
   })();
+
+  const exportProgress = () => {
+    const payload = {
+      kanaStats: p.kanaStats,
+      savedWords: p.savedWords,
+      srs: p.srs,
+      completedStories: p.completedStories,
+      grammarDone: p.grammarDone,
+      scenesDone: p.scenesDone,
+      examBest: p.examBest,
+      streak: p.streak,
+      lastStudy: p.lastStudy,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `japanese-n5-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const onImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        importData(parsed);
+        setImportMsg('✓ Progress imported!');
+        setTimeout(() => setImportMsg(null), 3000);
+      } catch {
+        setImportMsg('✗ Invalid backup JSON file.');
+      }
+    };
+    reader.readAsText(file);
+  };
 
   return (
     <div className="page">
@@ -61,7 +104,7 @@ export default function Dashboard() {
 
       <div className="grid">
         <Link to="/kana" className="tile"><span className="big">あ</span>Kana Dojo<small>Typing &amp; Yōon drills</small></Link>
-        <Link to="/review" className="tile"><span className="big">復</span>Review<small>{due} due</small></Link>
+        <Link to="/review" className="tile"><span className="big">復</span>Review<small>{due} due · {Object.keys(srs).length} total</small></Link>
         <Link to="/kanji" className="tile"><span className="big">漢</span>Kanji<small>103 N5 · Search &amp; write</small></Link>
         <Link to="/grammar" className="tile"><span className="big">文</span>Grammar<small>Unlock chapters</small></Link>
         <Link to="/stories" className="tile"><span className="big">物語</span>Stories<small>Read &amp; listen</small></Link>
@@ -78,6 +121,19 @@ export default function Dashboard() {
           <button className={showFurigana ? 'chip on' : 'chip'} onClick={toggleFurigana}>
             ふりがな Furigana: {showFurigana ? 'ON' : 'OFF'}
           </button>
+          <span className="muted small" style={{ alignSelf: 'center', marginLeft: '0.3rem' }}>
+            🔊 Audio Speed:
+          </span>
+          {([0.75, 0.9, 1.0] as const).map((r) => (
+            <button key={r} className={ttsRate === r ? 'chip on' : 'chip'} onClick={() => setTtsRate(r)}>
+              {r === 0.75 ? '0.75x Slow' : r === 0.9 ? '0.9x Normal' : '1.0x Native'}
+            </button>
+          ))}
+        </div>
+        <div className="controls" style={{ marginTop: '0.6rem' }}>
+          <button className="chip" onClick={exportProgress}>📥 Export Backup (JSON)</button>
+          <button className="chip" onClick={() => fileRef.current?.click()}>📤 Import Backup</button>
+          <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={onImportFile} />
           {!confirmReset ? (
             <button className="chip bad" onClick={() => setConfirmReset(true)}>
               🗑️ Reset All Progress
@@ -99,6 +155,7 @@ export default function Dashboard() {
             </>
           )}
         </div>
+        {importMsg && <p className="small ok-text">{importMsg}</p>}
       </div>
     </div>
   );

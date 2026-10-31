@@ -7,10 +7,33 @@ import { speak } from '../lib/tts';
 
 export function GrammarList() {
   const p = useStore();
+  const { srs, addCard } = p;
+  const allPoints = LESSONS.flatMap((l) => l.points);
+  const inDeck = allPoints.filter((pt) => srs[`g:${pt.pattern}`]).length;
+
+  const addAllGrammar = () =>
+    allPoints.forEach((pt) =>
+      addCard({
+        id: `g:${pt.pattern}`,
+        kind: 'grammar',
+        front: pt.pattern,
+        reading: pt.examples[0]?.jp,
+        back: `${pt.meaning} — ${pt.explain}`,
+      }),
+    );
+
   return (
     <div className="page">
       <h1>文法 <span className="muted">Grammar</span></h1>
       <p className="muted">Each lesson unlocks the next story chapter (pass with {PASS}%+).</p>
+      <div className="controls">
+        <span className="muted">{inDeck}/{allPoints.length} grammar points in SRS deck</span>
+        {inDeck < allPoints.length && (
+          <button className="chip on" onClick={addAllGrammar}>
+            + Add all grammar to review
+          </button>
+        )}
+      </div>
       <div className="story-list">
         {LESSONS.map((l) => {
           const open = lessonUnlocked(l.chapter, p);
@@ -41,7 +64,6 @@ const shuffle = <T,>(a: T[]) => {
     const j = Math.floor(Math.random() * (i + 1));
     [b[i], b[j]] = [b[j], b[i]];
   }
-  // avoid presenting an already-solved order
   return b.join() === a.join() && a.length > 1 ? [...b.slice(1), b[0]] : b;
 };
 
@@ -56,23 +78,38 @@ function OrderEx({ ex, onAnswer }: { ex: Extract<Exercise, { type: 'order' }>; o
       <p className="muted">{ex.en}</p>
       <div className="order-line">
         {picked.map((i, n) => (
-          <button key={n} className="chip on" disabled={checked !== null}
-            onClick={() => setPicked((p) => p.filter((_, k) => k !== n))}>{ex.tokens[i]}</button>
+          <button
+            key={n}
+            className="chip on"
+            disabled={checked !== null}
+            onClick={() => setPicked((p) => p.filter((_, k) => k !== n))}
+          >
+            {ex.tokens[i]}
+          </button>
         ))}
         {!picked.length && <span className="muted">Tap the words in order…</span>}
       </div>
       <div className="controls">
-        {pool.filter((x) => !picked.includes(x.i)).map((x) => (
-          <button key={x.i} className="chip" onClick={() => setPicked((p) => [...p, x.i])}>{x.t}</button>
-        ))}
+        {pool
+          .filter((x) => !picked.includes(x.i))
+          .map((x) => (
+            <button key={x.i} className="chip" onClick={() => setPicked((p) => [...p, x.i])}>
+              {x.t}
+            </button>
+          ))}
       </div>
       {picked.length === ex.tokens.length && checked === null && (
-        <button className="chip on" onClick={() => {
-          const ok = answer === ex.tokens.join('');
-          setChecked(ok);
-          speak(ex.tokens.join(''));
-          onAnswer(ok);
-        }}>Check</button>
+        <button
+          className="chip on"
+          onClick={() => {
+            const ok = answer === ex.tokens.join('');
+            setChecked(ok);
+            speak(ex.tokens.join(''));
+            onAnswer(ok);
+          }}
+        >
+          Check
+        </button>
       )}
       {checked === false && <p className="bad-text">✗ {ex.tokens.join(' ')}</p>}
       {checked && <p className="ok-text">✓ Correct</p>}
@@ -83,7 +120,7 @@ function OrderEx({ ex, onAnswer }: { ex: Extract<Exercise, { type: 'order' }>; o
 export function GrammarLesson() {
   const { id } = useParams();
   const lesson = LESSONS.find((l) => l.id === id);
-  const { completeLesson } = useStore();
+  const { completeLesson, srs, addCard } = useStore();
   const [answers, setAnswers] = useState<Record<number, boolean>>({});
   const [mcq, setMcq] = useState<Record<number, number>>({});
   const [saved, setSaved] = useState(false);
@@ -97,15 +134,41 @@ export function GrammarLesson() {
     <div className="page">
       <Link to="/grammar" className="muted">← Grammar</Link>
       <h1>{lesson.title}</h1>
-      {lesson.points.map((pt) => (
-        <div key={pt.pattern} className="gp">
-          <div className="gp-head"><b className="jp">{pt.pattern}</b><span className="muted">{pt.meaning}</span></div>
-          <p>{pt.explain}</p>
-          {pt.examples.map((e) => (
-            <p key={e.jp} className="example" onClick={() => speak(e.jp)}>🔊 <span className="jp">{e.jp}</span> <span className="muted">— {e.en}</span></p>
-          ))}
-        </div>
-      ))}
+      {lesson.points.map((pt) => {
+        const cardId = `g:${pt.pattern}`;
+        const inDeck = !!srs[cardId];
+        return (
+          <div key={pt.pattern} className="gp">
+            <div className="row-between">
+              <div className="gp-head">
+                <b className="jp">{pt.pattern}</b>
+                <span className="muted">{pt.meaning}</span>
+              </div>
+              <button
+                className="chip"
+                disabled={inDeck}
+                onClick={() =>
+                  addCard({
+                    id: cardId,
+                    kind: 'grammar',
+                    front: pt.pattern,
+                    reading: pt.examples[0]?.jp,
+                    back: `${pt.meaning} — ${pt.explain}`,
+                  })
+                }
+              >
+                {inDeck ? '✓ In SRS' : '+ Add to SRS'}
+              </button>
+            </div>
+            <p>{pt.explain}</p>
+            {pt.examples.map((e) => (
+              <p key={e.jp} className="example" onClick={() => speak(e.jp)}>
+                🔊 <span className="jp">{e.jp}</span> <span className="muted">— {e.en}</span>
+              </p>
+            ))}
+          </div>
+        );
+      })}
 
       <h2>練習 <span className="muted">Practice</span></h2>
       {lesson.exercises.map((ex, i) => (
@@ -120,8 +183,17 @@ export function GrammarLesson() {
                   const chosen = mcq[i];
                   const cls = chosen === undefined ? 'chip' : j === ex.answer ? 'chip ok' : chosen === j ? 'chip bad' : 'chip';
                   return (
-                    <button key={j} className={cls} disabled={chosen !== undefined}
-                      onClick={() => { setMcq((m) => ({ ...m, [i]: j })); setAnswers((a) => ({ ...a, [i]: j === ex.answer })); }}>{o}</button>
+                    <button
+                      key={j}
+                      className={cls}
+                      disabled={chosen !== undefined}
+                      onClick={() => {
+                        setMcq((m) => ({ ...m, [i]: j }));
+                        setAnswers((a) => ({ ...a, [i]: j === ex.answer }));
+                      }}
+                    >
+                      {o}
+                    </button>
                   );
                 })}
               </div>
@@ -135,7 +207,9 @@ export function GrammarLesson() {
         <div className="result">
           <span>Score: {score}% {score >= PASS ? '— passed!' : `— need ${PASS}% to unlock`}</span>
           {!saved ? (
-            <button className="chip on" onClick={() => { completeLesson(lesson.id, score); setSaved(true); }}>Save result</button>
+            <button className="chip on" onClick={() => { completeLesson(lesson.id, score); setSaved(true); }}>
+              Save result
+            </button>
           ) : score >= PASS ? (
             <Link className="chip on" to="/stories">Go to Ch.{lesson.chapter} story →</Link>
           ) : (
