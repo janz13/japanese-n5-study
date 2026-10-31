@@ -218,8 +218,8 @@ export function KanjiDetail() {
       </div>
 
       <div className="two-col">
-        <section><h2>Stroke order</h2><StrokeOrder kanji={kj.k} /></section>
-        <section><h2>Practice writing</h2><TraceCanvas kanji={kj.k} /></section>
+        <section><h2>Stroke order</h2><StrokeOrder key={`order-${kj.k}`} kanji={kj.k} /></section>
+        <section><h2>Practice writing</h2><TraceCanvas key={`trace-${kj.k}`} kanji={kj.k} /></section>
       </div>
       <p className="muted small">Stroke data: KanjiVG (CC BY-SA 3.0)</p>
     </div>

@@ -61,6 +61,7 @@ export function TraceCanvas({ kanji }: { kanji: string }) {
   const [, force] = useState(0);
 
   useEffect(() => {
+    setPaths(null);
     setStrokes([]);
     setResult(null);
     loadStrokes(kanji).then(setPaths, () => setPaths([]));

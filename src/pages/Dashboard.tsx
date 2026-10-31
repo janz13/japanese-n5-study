@@ -5,6 +5,7 @@ import { HIRAGANA, KATAKANA } from '../data/kana';
 import { STORIES } from '../data/stories';
 import { KANJI } from '../data/kanji';
 import { LESSONS } from '../data/grammar';
+import { SCENES } from '../data/scenes';
 import { STAMPS } from '../data/stamps';
 import { PARTICLES } from '../data/particles';
 import { COUNTERS } from '../data/counters';
@@ -223,7 +224,7 @@ export default function Dashboard() {
   const grammarPct = Math.round((Object.keys(grammarDone).length / LESSONS.length) * 100);
   const storyPct = Math.round((Object.keys(completedStories).length / STORIES.length) * 100);
   const speakStampPct = Math.round(
-    ((Object.keys(scenesDone).length + earnedStampCount) / (7 + STAMPS.length)) * 100,
+    ((Object.keys(scenesDone).length + earnedStampCount) / (SCENES.length + STAMPS.length)) * 100,
   );
   const examPct = examBest ?? 0;
 
@@ -452,7 +453,7 @@ export default function Dashboard() {
         <Link to="/review" className="tile"><span className="big">復</span>Review<small>{due} due · {Object.keys(srs).length} total</small></Link>
         <Link to="/grammar" className="tile"><span className="big">文</span>Grammar<small>10 N5/N4 lessons &amp; Keigo</small></Link>
         <Link to="/stories" className="tile"><span className="big">物語</span>Stories<small>10 graded chapters</small></Link>
-        <Link to="/speaking" className="tile"><span className="big">話</span>Speaking<small>7 role-play scenarios</small></Link>
+        <Link to="/speaking" className="tile"><span className="big">話</span>Speaking<small>10 role-play scenarios</small></Link>
         <Link to="/listening" className="tile"><span className="big">聴</span>Listening &amp; Pitch<small>聴解 &amp; 高低アクセント</small></Link>
         <Link to="/drive" className="tile"><span className="big">音</span>Drive Mode<small>Hands-free podcast</small></Link>
         <Link to="/signs" className="tile"><span className="big">看板</span>Signs &amp; 食券機<small>Street signs &amp; Ramen machine</small></Link>
