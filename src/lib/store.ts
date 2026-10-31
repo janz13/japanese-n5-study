@@ -26,6 +26,8 @@ interface Word {
   en?: string;
 }
 
+export type ThemeMode = 'dark' | 'light';
+
 interface State {
   kanaStats: Record<string, KanaStat>;
   savedWords: Word[];
@@ -37,6 +39,7 @@ interface State {
   streak: number;
   lastStudy: string | null;
   showFurigana: boolean;
+  theme: ThemeMode;
   recordKana: (kana: string, ok: boolean) => void;
   saveWord: (w: Word) => void;
   addCard: (item: Omit<SrsItem, 'card'>) => void;
@@ -46,6 +49,8 @@ interface State {
   completeScene: (id: string, score: number) => void;
   completeExam: (score: number) => void;
   toggleFurigana: () => void;
+  toggleTheme: () => void;
+  resetProgress: () => void;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -64,19 +69,24 @@ export function reviveCard(c: Card): Card {
 
 export const isDue = (i: SrsItem, now = Date.now()) => new Date(i.card.due).getTime() <= now;
 
+const initialData = {
+  kanaStats: {} as Record<string, KanaStat>,
+  savedWords: [] as Word[],
+  srs: {} as Record<string, SrsItem>,
+  completedStories: {} as Record<string, number>,
+  grammarDone: {} as Record<string, number>,
+  scenesDone: {} as Record<string, number>,
+  examBest: null as number | null,
+  streak: 0,
+  lastStudy: null as string | null,
+  showFurigana: true,
+  theme: 'dark' as ThemeMode,
+};
+
 export const useStore = create<State>()(
   persist(
     (set) => ({
-      kanaStats: {},
-      savedWords: [],
-      srs: {},
-      completedStories: {},
-      grammarDone: {},
-      scenesDone: {},
-      examBest: null,
-      streak: 0,
-      lastStudy: null,
-      showFurigana: true,
+      ...initialData,
       recordKana: (kana, ok) =>
         set((s) => {
           const prev = s.kanaStats[kana] ?? { correct: 0, wrong: 0 };
@@ -119,10 +129,16 @@ export const useStore = create<State>()(
       completeExam: (score) =>
         set((s) => ({ ...bumpStreak(s), examBest: Math.max(score, s.examBest ?? 0) })),
       toggleFurigana: () => set((s) => ({ showFurigana: !s.showFurigana })),
+      toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+      resetProgress: () =>
+        set((s) => ({
+          ...initialData,
+          theme: s.theme,
+        })),
     }),
     {
       name: 'n5-study',
-      version: 3,
+      version: 4,
       migrate: (old: unknown) => {
         const s = (old ?? {}) as Partial<State>;
         const srs: Record<string, SrsItem> = s.srs ?? {};
@@ -131,11 +147,13 @@ export const useStore = create<State>()(
           srs[id] ??= { id, kind: 'word', front: w.t, reading: w.r, back: w.en ?? '', card: createEmptyCard() };
         }
         return {
+          ...initialData,
           ...s,
           srs,
           grammarDone: s.grammarDone ?? {},
           scenesDone: s.scenesDone ?? {},
           examBest: s.examBest ?? null,
+          theme: s.theme ?? 'dark',
         } as State;
       },
     },

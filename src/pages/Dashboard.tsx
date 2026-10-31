@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { isDue, useStore } from '../lib/store';
 import { HIRAGANA, KATAKANA } from '../data/kana';
@@ -8,7 +9,21 @@ import { lessonUnlocked, storyUnlocked } from '../lib/progress';
 
 export default function Dashboard() {
   const p = useStore();
-  const { kanaStats, streak, completedStories, srs, grammarDone, examBest } = p;
+  const {
+    kanaStats,
+    streak,
+    completedStories,
+    srs,
+    grammarDone,
+    examBest,
+    theme,
+    showFurigana,
+    toggleTheme,
+    toggleFurigana,
+    resetProgress,
+  } = p;
+  const [confirmReset, setConfirmReset] = useState(false);
+
   const practiced = (list: typeof HIRAGANA) => list.filter((k) => (kanaStats[k.kana]?.correct ?? 0) >= 1).length;
   const due = Object.values(srs).filter((i) => isDue(i)).length;
 
@@ -43,6 +58,7 @@ export default function Dashboard() {
         <div className="stat"><b>{Object.keys(grammarDone).length}/{LESSONS.length}</b><span>lessons</span></div>
         <div className="stat"><b>{Object.keys(completedStories).length}/{STORIES.length}</b><span>stories</span></div>
       </div>
+
       <div className="grid">
         <Link to="/kana" className="tile"><span className="big">あ</span>Kana Dojo<small>Typing &amp; Yōon drills</small></Link>
         <Link to="/review" className="tile"><span className="big">復</span>Review<small>{due} due</small></Link>
@@ -51,6 +67,38 @@ export default function Dashboard() {
         <Link to="/stories" className="tile"><span className="big">物語</span>Stories<small>Read &amp; listen</small></Link>
         <Link to="/speaking" className="tile"><span className="big">話</span>Speaking<small>Role-play dialogues</small></Link>
         <Link to="/exam" className="tile"><span className="big">試</span>Mock Exam<small>{examBest !== null ? `Best: ${examBest}%` : 'Timed N5 test'}</small></Link>
+      </div>
+
+      <h2>設定 <span className="muted">Settings &amp; Data</span></h2>
+      <div className="gp">
+        <div className="controls">
+          <button className="chip on" onClick={toggleTheme}>
+            {theme === 'dark' ? '☀️ Switch to Light Theme' : '🌙 Switch to Dark Theme'}
+          </button>
+          <button className={showFurigana ? 'chip on' : 'chip'} onClick={toggleFurigana}>
+            ふりがな Furigana: {showFurigana ? 'ON' : 'OFF'}
+          </button>
+          {!confirmReset ? (
+            <button className="chip bad" onClick={() => setConfirmReset(true)}>
+              🗑️ Reset All Progress
+            </button>
+          ) : (
+            <>
+              <button
+                className="chip bad"
+                onClick={() => {
+                  resetProgress();
+                  setConfirmReset(false);
+                }}
+              >
+                ⚠️ Confirm Reset Progress
+              </button>
+              <button className="chip" onClick={() => setConfirmReset(false)}>
+                Cancel
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

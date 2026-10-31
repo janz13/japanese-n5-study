@@ -119,8 +119,8 @@ export function KanjiDetail() {
           <p><span className="muted">音</span> {kj.on}<br /><span className="muted">訓</span> {kj.kun}</p>
           <p className="example" onClick={() => speak(kj.ex.r)}>
             🔊{' '}
-            <ruby className="ruby-pair">
-              <span className="rb-text">{kj.ex.w}</span>
+            <ruby>
+              {kj.ex.w}
               <rt>{kj.ex.r}</rt>
             </ruby>{' '}
             <span className="muted">— {kj.ex.en}</span>

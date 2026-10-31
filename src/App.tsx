@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import KanaDojo from './pages/KanaDojo';
@@ -24,7 +24,13 @@ const LINKS = [
 
 export default function App() {
   const due = useStore((s) => Object.values(s.srs).filter((i) => isDue(i)).length);
+  const theme = useStore((s) => s.theme);
+  const toggleTheme = useStore((s) => s.toggleTheme);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   return (
     <HashRouter>
@@ -40,13 +46,23 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
-        <button
-          className="menu-btn"
-          aria-label="Toggle navigation menu"
-          onClick={() => setDrawerOpen((o) => !o)}
-        >
-          {drawerOpen ? '✕' : '☰'}
-        </button>
+        <div className="nav-actions">
+          <button
+            className="chip theme-btn"
+            aria-label="Toggle light/dark theme"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to Light theme' : 'Switch to Dark theme'}
+          >
+            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+          </button>
+          <button
+            className="menu-btn"
+            aria-label="Toggle navigation menu"
+            onClick={() => setDrawerOpen((o) => !o)}
+          >
+            {drawerOpen ? '✕' : '☰'}
+          </button>
+        </div>
       </header>
 
       {drawerOpen && (
