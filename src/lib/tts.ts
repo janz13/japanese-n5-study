@@ -18,7 +18,7 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 
 export const ttsSupported = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
 
-/** Turn 0 = narrator, then alternating Speaker A / Speaker B. */
+/** Role 0 = narrator, 1 = Speaker A / female (F:), 2 = Speaker B / male (M:). */
 const TURN_PITCH = [1.0, 1.18, 0.85];
 const TURN_GAP_MS = 450;
 
@@ -34,7 +34,11 @@ function speakDialogue(turns: string[], rate: number, onEnd?: () => void) {
     if (myGen !== generation) return;
     if (i >= turns.length) return onEnd?.();
     const idx = i++;
-    const role = idx === 0 ? 0 : ((idx - 1) % 2) + 1;
+    // Optional speaker tags: "F:" female, "M:" male, "N:" narrator. Untagged turns
+    // fall back to order-based roles (narrator → A → B → A …).
+    const tag = turns[idx].match(/^([FMN]):\s*/i)?.[1]?.toUpperCase();
+    const line = turns[idx].replace(/^[FMN]:\s*/i, '');
+    const role = tag === 'N' ? 0 : tag === 'F' ? 1 : tag === 'M' ? 2 : idx === 0 ? 0 : ((idx - 1) % 2) + 1;
     let advanced = false;
     const advance = () => {
       if (advanced) return;
@@ -42,10 +46,10 @@ function speakDialogue(turns: string[], rate: number, onEnd?: () => void) {
       clearTimeout(fallback);
       setTimeout(next, TURN_GAP_MS);
     };
-    const fallback = setTimeout(advance, Math.min(12000, Math.max(1500, (turns[idx].length * 260) / rate)));
+    const fallback = setTimeout(advance, Math.min(12000, Math.max(1500, (line.length * 260) / rate)));
     if (!ttsSupported()) return;
     try {
-      const u = new SpeechSynthesisUtterance(turns[idx]);
+      const u = new SpeechSynthesisUtterance(line);
       u.lang = 'ja-JP';
       u.rate = rate;
       u.pitch = TURN_PITCH[role];
