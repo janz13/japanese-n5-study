@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import KanaDojo from './pages/KanaDojo';
+import ConjugationDojo from './pages/ConjugationDojo';
 import Stories from './pages/Stories';
 import StoryReader from './pages/StoryReader';
 import Review from './pages/Review';
@@ -15,6 +16,7 @@ const LINKS = [
   { to: '/', icon: '家', label: 'Home', end: true },
   { to: '/kana', icon: 'あ', label: 'Kana' },
   { to: '/kanji', icon: '漢', label: 'Kanji' },
+  { to: '/conjugate', icon: '活', label: 'Verbs' },
   { to: '/review', icon: '復', label: 'Review' },
   { to: '/grammar', icon: '文', label: 'Grammar' },
   { to: '/stories', icon: '物', label: 'Stories' },
@@ -83,6 +85,7 @@ export default function App() {
           <Route path="/kana" element={<KanaDojo />} />
           <Route path="/kanji" element={<KanjiList />} />
           <Route path="/kanji/:k" element={<KanjiDetail />} />
+          <Route path="/conjugate" element={<ConjugationDojo />} />
           <Route path="/review" element={<Review />} />
           <Route path="/grammar" element={<GrammarList />} />
           <Route path="/grammar/:id" element={<GrammarLesson />} />

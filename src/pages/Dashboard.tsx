@@ -104,8 +104,9 @@ export default function Dashboard() {
 
       <div className="grid">
         <Link to="/kana" className="tile"><span className="big">あ</span>Kana Dojo<small>Typing &amp; Yōon drills</small></Link>
-        <Link to="/review" className="tile"><span className="big">復</span>Review<small>{due} due · {Object.keys(srs).length} total</small></Link>
         <Link to="/kanji" className="tile"><span className="big">漢</span>Kanji<small>103 N5 · Search &amp; write</small></Link>
+        <Link to="/conjugate" className="tile"><span className="big">活</span>Conjugation<small>Verbs &amp; adjectives</small></Link>
+        <Link to="/review" className="tile"><span className="big">復</span>Review<small>{due} due · {Object.keys(srs).length} total</small></Link>
         <Link to="/grammar" className="tile"><span className="big">文</span>Grammar<small>Unlock chapters</small></Link>
         <Link to="/stories" className="tile"><span className="big">物語</span>Stories<small>Read &amp; listen</small></Link>
         <Link to="/speaking" className="tile"><span className="big">話</span>Speaking<small>Role-play dialogues</small></Link>
