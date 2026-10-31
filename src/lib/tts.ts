@@ -14,7 +14,9 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 
 export const ttsSupported = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
 
-export function speak(text: string, rate?: number, onEnd?: () => void) {
+export function speak(rawText: string, rate?: number, onEnd?: () => void) {
+  // Never read parenthetical readings aloud, e.g. 七時半（しちじはん） → 七時半
+  const text = rawText.replace(/[（(][^）)]*[）)]/g, '');
   const effectiveRate = rate ?? useStore.getState().ttsRate ?? 0.9;
   let called = false;
   const finish = () => {

@@ -6,7 +6,8 @@ export interface GrammarPoint {
   pattern: string;
   meaning: string;
   explain: string;
-  examples: { jp: string; en: string }[];
+  /** `audio` = optional kana override for TTS when kanji readings are ambiguous (e.g. 三階). */
+  examples: { jp: string; en: string; audio?: string }[];
 }
 
 export interface Lesson {
@@ -217,7 +218,7 @@ export const LESSONS: Lesson[] = [
         pattern: 'Number + 階',
         meaning: '~th floor',
         explain: '階 counts floors. Watch the sound changes: 一階 いっかい, 三階 さんがい, 何階 なんがい.',
-        examples: [{ jp: 'トイレは 三階に あります。', en: 'The restroom is on the 3rd floor.' }],
+        examples: [{ jp: 'トイレは 三階に あります。', en: 'The restroom is on the 3rd floor.', audio: 'トイレは、さんがいに あります。' }],
       },
       {
         pattern: 'A の ほうが B より 〜',

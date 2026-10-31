@@ -162,7 +162,7 @@ export function GrammarLesson() {
             </div>
             <p>{pt.explain}</p>
             {pt.examples.map((e) => (
-              <p key={e.jp} className="example" onClick={() => speak(e.jp)}>
+              <p key={e.jp} className="example" onClick={() => speak(e.audio ?? e.jp)}>
                 🔊 <span className="jp">{e.jp}</span> <span className="muted">— {e.en}</span>
               </p>
             ))}
