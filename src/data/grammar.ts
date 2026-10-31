@@ -171,4 +171,66 @@ export const LESSONS: Lesson[] = [
       { type: 'order', en: 'Tonight I will buy a ticket.', tokens: ['今晩', 'きっぷを', '買います'] },
     ],
   },
+  {
+    id: 'g5',
+    chapter: 5,
+    title: 'Requests & permission',
+    points: [
+      {
+        pattern: 'V-て ください',
+        meaning: 'please do V',
+        explain: 'Use the て-form + ください to politely ask someone to do something (待つ → 待って ください).',
+        examples: [{ jp: 'ちょっと 待って ください。', en: 'Please wait a moment.' }],
+      },
+      {
+        pattern: 'V-ても いいですか',
+        meaning: 'may I do V?',
+        explain: 'て-form + も いいですか asks for permission (開ける → 開けても いいですか).',
+        examples: [{ jp: '窓を 開けても いいですか。', en: 'May I open the window?' }],
+      },
+      {
+        pattern: '〜と 言いました / 聞きました',
+        meaning: 'said / asked "~"',
+        explain: 'Put a quote in 「 」 followed by と to report what someone said or asked.',
+        examples: [{ jp: '「どうぞ」と 言いました。', en: 'He said "please go ahead".' }],
+      },
+    ],
+    exercises: [
+      { type: 'mcq', prompt: 'ここに 名前を（　）ください。', en: 'Please write your name here.', options: ['書いて', '書き', '書く'], answer: 0 },
+      { type: 'mcq', prompt: '写真を 撮っても（　）。', en: 'May I take a photo?', options: ['いいですか', 'くださいか', 'ありますか'], answer: 0 },
+      { type: 'mcq', prompt: '「すみません」（　）言いました。', en: 'I said "excuse me".', options: ['と', 'を', 'で'], answer: 0 },
+      { type: 'order', en: 'Please open the window.', tokens: ['窓を', '開けて', 'ください'] },
+    ],
+  },
+  {
+    id: 'g6',
+    chapter: 6,
+    title: 'Prices, floors & comparisons',
+    points: [
+      {
+        pattern: '〜は いくらですか',
+        meaning: 'how much is ~?',
+        explain: 'いくら asks the price. Answer with number + 円 (三万円 = さんまんえん).',
+        examples: [{ jp: 'この カメラは いくらですか。', en: 'How much is this camera?' }],
+      },
+      {
+        pattern: 'Number + 階',
+        meaning: '~th floor',
+        explain: '階 counts floors. Watch the sound changes: 一階 いっかい, 三階 さんがい, 何階 なんがい.',
+        examples: [{ jp: 'トイレは 三階に あります。', en: 'The restroom is on the 3rd floor.' }],
+      },
+      {
+        pattern: 'A の ほうが B より 〜',
+        meaning: 'A is more ~ than B',
+        explain: 'ほうが marks the winner of the comparison; より marks what it is compared against.',
+        examples: [{ jp: '黒い ほうが 白い のより 軽いです。', en: 'The black one is lighter than the white one.' }],
+      },
+    ],
+    exercises: [
+      { type: 'mcq', prompt: 'この かばんは（　）ですか。', en: 'How much is this bag?', options: ['いくら', 'どこ', 'だれ'], answer: 0 },
+      { type: 'mcq', prompt: 'カメラ売り場は 五（　）です。', en: 'The camera section is on the 5th floor.', options: ['階', '枚', '本'], answer: 0 },
+      { type: 'mcq', prompt: '電車の（　）が バスより 速いです。', en: 'The train is faster than the bus.', options: ['ほう', 'より', 'まで'], answer: 0 },
+      { type: 'order', en: 'Tokyo is bigger than Kyoto.', tokens: ['東京の ほうが', '京都より', '大きいです'] },
+    ],
+  },
 ];

@@ -3,6 +3,8 @@ import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import DailyBento from './pages/DailyBento';
 import StampBook from './pages/StampBook';
+import SignDecoder from './pages/SignDecoder';
+import Listening from './pages/Listening';
 import KanaDojo from './pages/KanaDojo';
 import ConjugationDojo from './pages/ConjugationDojo';
 import Stories from './pages/Stories';
@@ -24,6 +26,8 @@ const LINKS = [
   { to: '/grammar', icon: '文', label: 'Grammar' },
   { to: '/stories', icon: '物', label: 'Stories' },
   { to: '/speaking', icon: '話', label: 'Speak' },
+  { to: '/listening', icon: '聴', label: 'Listen' },
+  { to: '/signs', icon: '看', label: 'Signs' },
   { to: '/stamps', icon: '印', label: 'Stamps' },
   { to: '/exam', icon: '試', label: 'Exam' },
 ];
@@ -99,6 +103,8 @@ export default function App() {
           <Route path="/speaking" element={<SceneList />} />
           <Route path="/speaking/:id" element={<ScenePlayer />} />
           <Route path="/stamps" element={<StampBook />} />
+          <Route path="/signs" element={<SignDecoder />} />
+          <Route path="/listening" element={<Listening />} />
           <Route path="/exam" element={<Exam />} />
         </Routes>
       </main>

@@ -21,56 +21,7 @@ interface WarmupPrompt {
   options: string[];
 }
 
-interface StreetSign {
-  place: string;
-  sign: string;
-  reading: string;
-  question: string;
-  options: string[];
-  answer: number;
-  note: string;
-}
-
-const SIGNS: StreetSign[] = [
-  {
-    place: '🍜 Ramen Ticket Machine (券売機)',
-    sign: '特製ラーメン（大盛り無料） 800円',
-    reading: 'とくせいラーメン（おおもり むりょう） はっぴゃくえん',
-    question: 'What does 大盛り無料 (おおもり むりょう) on this ramen button mean?',
-    options: ['Large portion is free', 'Extra spicy soup', 'Takeout only', 'Sold out today'],
-    answer: 0,
-    note: '大 (big) + 盛り (serving) = large portion; 無料 (むりょう) = free of charge!',
-  },
-  {
-    place: '🚃 JR Station Platform Sign',
-    sign: '山手線 内回り（東京・上野方面）',
-    reading: 'やまのてせん うちまわり（とうきょう・うえの ほうめん）',
-    question: 'Which train line and direction does this platform sign indicate?',
-    options: [
-      'Yamanote Line heading toward Tokyo & Ueno',
-      'Shinkansen to Kyoto',
-      'Airport Express to Narita',
-      'Exit Only (No Entry)',
-    ],
-    answer: 0,
-    note: '山手線 (Yamanote Line) is Tokyo’s famous green loop line; 方面 means "bound for / direction of".',
-  },
-  {
-    place: '🏪 Convenience Store Counter (コンビニ)',
-    sign: 'お弁当 温めますか？',
-    reading: 'おべんとう あたためますか？',
-    question: 'The clerk asks 「お弁当 温めますか？」 when you buy a bento. What are they asking?',
-    options: [
-      'Would you like your bento heated up?',
-      'Do you need a plastic bag?',
-      'Are you paying by cash?',
-      'Would you like chopsticks?',
-    ],
-    answer: 0,
-    note: '温めます (あたためます) is the #1 phrase you will hear at every Japanese konbini!',
-  },
-];
-
+import { SIGNS } from '../data/signs';
 export default function DailyBento() {
   const { srs, addCard, reviewCard, recordKana, completeBento } = useStore();
   const [dish, setDish] = useState<1 | 2 | 3 | 4>(1);
