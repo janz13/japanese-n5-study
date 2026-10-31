@@ -1,23 +1,30 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
-import DailyBento from './pages/DailyBento';
 import StampBook from './pages/StampBook';
-import SignDecoder from './pages/SignDecoder';
-import Listening from './pages/Listening';
-import DriveMode from './pages/DriveMode';
-import KanaDojo from './pages/KanaDojo';
-import ConjugationDojo from './pages/ConjugationDojo';
-import CounterDojo from './pages/CounterDojo';
-import ParticleDojo from './pages/ParticleDojo';
-import Stories from './pages/Stories';
-import StoryReader from './pages/StoryReader';
-import Review from './pages/Review';
-import Exam from './pages/Exam';
-import { KanjiDetail, KanjiList } from './pages/Kanji';
-import { GrammarLesson, GrammarList } from './pages/Grammar';
-import { SceneList, ScenePlayer } from './pages/Speaking';
+import CommandPalette from './components/CommandPalette';
 import { isDue, useStore } from './lib/store';
+import { stopSpeaking } from './lib/tts';
+
+// Lazy-load secondary routes so initial bundle load is ultra-fast
+const DailyBento = lazy(() => import('./pages/DailyBento'));
+const SignDecoder = lazy(() => import('./pages/SignDecoder'));
+const Listening = lazy(() => import('./pages/Listening'));
+const DriveMode = lazy(() => import('./pages/DriveMode'));
+const KanaDojo = lazy(() => import('./pages/KanaDojo'));
+const ConjugationDojo = lazy(() => import('./pages/ConjugationDojo'));
+const CounterDojo = lazy(() => import('./pages/CounterDojo'));
+const ParticleDojo = lazy(() => import('./pages/ParticleDojo'));
+const Stories = lazy(() => import('./pages/Stories'));
+const StoryReader = lazy(() => import('./pages/StoryReader'));
+const Review = lazy(() => import('./pages/Review'));
+const Exam = lazy(() => import('./pages/Exam'));
+const KanjiList = lazy(() => import('./pages/Kanji').then((m) => ({ default: m.KanjiList })));
+const KanjiDetail = lazy(() => import('./pages/Kanji').then((m) => ({ default: m.KanjiDetail })));
+const GrammarList = lazy(() => import('./pages/Grammar').then((m) => ({ default: m.GrammarList })));
+const GrammarLesson = lazy(() => import('./pages/Grammar').then((m) => ({ default: m.GrammarLesson })));
+const SceneList = lazy(() => import('./pages/Speaking').then((m) => ({ default: m.SceneList })));
+const ScenePlayer = lazy(() => import('./pages/Speaking').then((m) => ({ default: m.ScenePlayer })));
 
 interface NavItem {
   to: string;
@@ -90,12 +97,14 @@ function HeaderNav({
   toggleTheme,
   drawerOpen,
   setDrawerOpen,
+  onOpenSearch,
 }: {
   due: number;
   theme: 'dark' | 'light';
   toggleTheme: () => void;
   drawerOpen: boolean;
   setDrawerOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  onOpenSearch: () => void;
 }) {
   const location = useLocation();
   const [openGroup, setOpenGroup] = useState<string | null>(null);
@@ -104,6 +113,7 @@ function HeaderNav({
   useEffect(() => {
     setOpenGroup(null);
     setDrawerOpen(false);
+    stopSpeaking();
   }, [location.pathname, setDrawerOpen]);
 
   useEffect(() => {
@@ -122,7 +132,7 @@ function HeaderNav({
   return (
     <header className="nav" ref={navRef}>
       <NavLink to="/" className="logo" onClick={() => setDrawerOpen(false)}>
-        日本語<span>N5</span>
+        日本語<span>N5/N4</span>
       </NavLink>
 
       <nav className="top-links" aria-label="Main navigation">
@@ -193,6 +203,15 @@ function HeaderNav({
 
       <div className="nav-actions">
         <button
+          type="button"
+          className="chip theme-btn"
+          aria-label="Open dictionary & quick search (Ctrl+K)"
+          onClick={onOpenSearch}
+          title="Instant Dictionary & Module Search (Ctrl+K / ⌘K)"
+        >
+          🔍 辞書 <span className="muted small">⌘K</span>
+        </button>
+        <button
           className="chip theme-btn"
           aria-label="Toggle light/dark theme"
           onClick={toggleTheme}
@@ -217,10 +236,22 @@ export default function App() {
   const theme = useStore((s) => s.theme);
   const toggleTheme = useStore((s) => s.toggleTheme);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen((o) => !o);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   return (
     <HashRouter>
@@ -230,7 +261,10 @@ export default function App() {
         toggleTheme={toggleTheme}
         drawerOpen={drawerOpen}
         setDrawerOpen={setDrawerOpen}
+        onOpenSearch={() => setSearchOpen(true)}
       />
+
+      <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {drawerOpen && (
         <nav className="mobile-drawer" onClick={() => setDrawerOpen(false)}>
@@ -261,28 +295,30 @@ export default function App() {
       )}
 
       <main>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/bento" element={<DailyBento />} />
-          <Route path="/kana" element={<KanaDojo />} />
-          <Route path="/kanji" element={<KanjiList />} />
-          <Route path="/kanji/:k" element={<KanjiDetail />} />
-          <Route path="/conjugate" element={<ConjugationDojo />} />
-          <Route path="/counters" element={<CounterDojo />} />
-          <Route path="/particles" element={<ParticleDojo />} />
-          <Route path="/review" element={<Review />} />
-          <Route path="/grammar" element={<GrammarList />} />
-          <Route path="/grammar/:id" element={<GrammarLesson />} />
-          <Route path="/stories" element={<Stories />} />
-          <Route path="/stories/:id" element={<StoryReader />} />
-          <Route path="/speaking" element={<SceneList />} />
-          <Route path="/speaking/:id" element={<ScenePlayer />} />
-          <Route path="/stamps" element={<StampBook />} />
-          <Route path="/signs" element={<SignDecoder />} />
-          <Route path="/listening" element={<Listening />} />
-          <Route path="/drive" element={<DriveMode />} />
-          <Route path="/exam" element={<Exam />} />
-        </Routes>
+        <Suspense fallback={<div className="page muted center" style={{ paddingTop: '3rem' }}>読み込み中… Loading…</div>}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/bento" element={<DailyBento />} />
+            <Route path="/kana" element={<KanaDojo />} />
+            <Route path="/kanji" element={<KanjiList />} />
+            <Route path="/kanji/:k" element={<KanjiDetail />} />
+            <Route path="/conjugate" element={<ConjugationDojo />} />
+            <Route path="/counters" element={<CounterDojo />} />
+            <Route path="/particles" element={<ParticleDojo />} />
+            <Route path="/review" element={<Review />} />
+            <Route path="/grammar" element={<GrammarList />} />
+            <Route path="/grammar/:id" element={<GrammarLesson />} />
+            <Route path="/stories" element={<Stories />} />
+            <Route path="/stories/:id" element={<StoryReader />} />
+            <Route path="/speaking" element={<SceneList />} />
+            <Route path="/speaking/:id" element={<ScenePlayer />} />
+            <Route path="/stamps" element={<StampBook />} />
+            <Route path="/signs" element={<SignDecoder />} />
+            <Route path="/listening" element={<Listening />} />
+            <Route path="/drive" element={<DriveMode />} />
+            <Route path="/exam" element={<Exam />} />
+          </Routes>
+        </Suspense>
       </main>
 
       {/* Mobile bottom tab bar */}

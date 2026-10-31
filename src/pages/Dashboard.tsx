@@ -57,6 +57,18 @@ export default function Dashboard() {
   const [repairIdx, setRepairIdx] = useState(0);
   const [repairPicked, setRepairPicked] = useState<string | null>(null);
   const [repairScore, setRepairScore] = useState(0);
+  const [studyTrack, setStudyTrack] = useState<'beginner' | 'travel' | 'n5' | 'n4'>(() => {
+    return (localStorage.getItem('n5_study_track') as 'beginner' | 'travel' | 'n5' | 'n4') || 'beginner';
+  });
+
+  const selectTrack = (t: 'beginner' | 'travel' | 'n5' | 'n4') => {
+    setStudyTrack(t);
+    try {
+      localStorage.setItem('n5_study_track', t);
+    } catch {
+      // ignore
+    }
+  };
 
   const fileRef = useRef<HTMLInputElement>(null);
   const earnedStamps = useEarnedStamps();
@@ -441,6 +453,67 @@ export default function Dashboard() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Guided Study Path Selector */}
+      <div className="gp" style={{ padding: '1rem 1.25rem', marginBottom: '1.2rem' }}>
+        <div className="row-between">
+          <div>
+            <span className="tag">🧭 PERSONALIZED STUDY PATH</span>
+            <h2 className="nomargin" style={{ fontSize: '1.15rem', marginTop: '0.1rem' }}>
+              Choose Your Focus Track
+            </h2>
+          </div>
+          <div className="controls nomargin">
+            {(
+              [
+                ['beginner', '🌱 Complete Beginner'],
+                ['travel', '✈️ Japan Travel Survival'],
+                ['n5', '💮 JLPT N5 Exam Prep'],
+                ['n4', '🚀 JLPT N4 Bridge'],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                className={studyTrack === id ? 'chip on' : 'chip'}
+                onClick={() => selectTrack(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="controls" style={{ marginTop: '0.7rem', marginBottom: 0 }}>
+          {studyTrack === 'beginner' && (
+            <>
+              <Link to="/kana" className="chip on">Step 1: あ Master Hiragana &amp; Katakana →</Link>
+              <Link to="/grammar/g1" className="chip on">Step 2: 文 Unlock Lesson 1 (Particles) →</Link>
+              <Link to="/stories/ch1-arrival" className="chip on">Step 3: 物語 Read Ch.1 Arrival in Tokyo →</Link>
+            </>
+          )}
+          {studyTrack === 'travel' && (
+            <>
+              <Link to="/signs" className="chip on">Step 1: 🎫 Ramen Ticket Machine &amp; Signs →</Link>
+              <Link to="/speaking" className="chip on">Step 2: 話 Practice 10 Travel Role-Plays →</Link>
+              <Link to="/drive" className="chip on">Step 3: 📻 Hands-Free Pimsleur Drive Mode →</Link>
+            </>
+          )}
+          {studyTrack === 'n5' && (
+            <>
+              <Link to="/exam" className="chip on">Step 1: 💮 Take 67-Q JLPT N5 Simulation →</Link>
+              <Link to="/particles" className="chip on">Step 2: 助 Conquer Particle Traps →</Link>
+              <Link to="/counters" className="chip on">Step 3: 数 Drill Irregular Counters &amp; Dates →</Link>
+            </>
+          )}
+          {studyTrack === 'n4' && (
+            <>
+              <Link to="/conjugate" className="chip on">Step 1: 🔄 Transitive vs. Intransitive Pairs →</Link>
+              <Link to="/grammar/g9" className="chip on">Step 2: 文 Conditionals (g9) &amp; Keigo (g10) →</Link>
+              <Link to="/listening" className="chip on">Step 3: 🎵 Tokyo Pitch Accent &amp; N4 Listening →</Link>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid">
