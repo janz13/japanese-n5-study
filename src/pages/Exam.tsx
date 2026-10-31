@@ -1,28 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { SECTION_META, type ExamLevel, type ExamSection } from '../data/exam';
 import {
-  EXAM_QUESTIONS,
-  SECTION_META,
-  type ExamLevel,
-  type ExamQuestion,
-  type ExamSection,
-} from '../data/exam';
+  clearSeenFingerprints,
+  generateFreshExam,
+  type GeneratedExamQuestion,
+} from '../lib/jlptGenerator';
 import { useStore } from '../lib/store';
-import { speak } from '../lib/tts';
+import { speak, stopSpeaking } from '../lib/tts';
 import { playDing, playFanfare } from '../lib/sfx';
 
 type ExamMode = 'full' | 'mini';
-
-function buildExamSet(level: ExamLevel, mode: ExamMode): ExamQuestion[] {
-  const pool = EXAM_QUESTIONS.filter((q) => q.level === level);
-  const pick = (sec: ExamSection) => {
-    const items = pool.filter((q) => q.section === sec);
-    const count = mode === 'full' ? SECTION_META[sec].fullCount : SECTION_META[sec].miniCount;
-    if (mode === 'full') return items.slice(0, count);
-    return [...items].sort(() => Math.random() - 0.5).slice(0, count);
-  };
-  return [...pick('vocab'), ...pick('grammar'), ...pick('listening')];
-}
 
 function letterGrade(pct: number): 'A' | 'B' | 'C' {
   if (pct >= 67) return 'A';
@@ -35,11 +23,20 @@ export default function Exam() {
   const [level, setLevel] = useState<ExamLevel>('N5');
   const [mode, setMode] = useState<ExamMode>('full');
   const [activeSec, setActiveSec] = useState<ExamSection | 'all'>('all');
-  const [seed, setSeed] = useState(0);
-  const questions = useMemo(() => buildExamSet(level, mode), [level, mode, seed]);
+  const [edition, setEdition] = useState(1);
+
+  const { questions, seenCount } = useMemo(
+    () => generateFreshExam(level, mode),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [level, mode, edition],
+  );
+
   const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [flagged, setFlagged] = useState<Record<number, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
-  const durationMins = mode === 'full' ? 30 : 10;
+
+  // Official JLPT N5 time limit: 20m (Vocab) + 40m (Grammar/Reading) + 30m (Listening) = 90 mins
+  const durationMins = mode === 'full' ? 90 : 15;
   const [secondsLeft, setSecondsLeft] = useState(durationMins * 60);
 
   useEffect(() => {
@@ -56,15 +53,14 @@ export default function Exam() {
     return () => clearInterval(t);
   }, [submitted]);
 
+  useEffect(() => () => stopSpeaking(), []);
+
   const total = questions.length;
   const answeredCount = Object.keys(answers).length;
+  const flaggedCount = Object.values(flagged).filter(Boolean).length;
   const correctCount = questions.filter((q, i) => answers[i] === q.answer).length;
   const pctScore = Math.round((correctCount / total) * 100);
 
-  // Official JLPT 180-point scoring breakdown:
-  // Language Knowledge (Vocab + Grammar/Reading) = 120 pts (min 38 to pass)
-  // Listening = 60 pts (min 19 to pass)
-  // Total = 180 pts (N5 pass >= 80, N4 pass >= 90)
   const secStats = (sec: ExamSection) => {
     const qs = questions.map((q, i) => ({ q, i })).filter((x) => x.q.section === sec);
     const ok = qs.filter((x) => answers[x.i] === x.q.answer).length;
@@ -76,6 +72,7 @@ export default function Exam() {
   const grammarStats = secStats('grammar');
   const listenStats = secStats('listening');
 
+  // Official JLPT 180-point scaled score calculation
   const langReadingTotalQs = vocabStats.total + grammarStats.total;
   const langReadingOk = vocabStats.ok + grammarStats.ok;
   const langReadingPts = langReadingTotalQs ? Math.round((langReadingOk / langReadingTotalQs) * 120) : 0;
@@ -88,20 +85,27 @@ export default function Exam() {
   const passedOverall = totalPts >= passTotalThreshold && passedLangSection && passedListenSection;
 
   const submit = () => {
+    stopSpeaking();
     setSubmitted(true);
     completeExam(pctScore);
     if (sfxEnabled) (passedOverall ? playFanfare : playDing)();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const reset = (nextLevel: ExamLevel = level, nextMode: ExamMode = mode) => {
+  const generateNewTake = (nextLevel: ExamLevel = level, nextMode: ExamMode = mode) => {
+    stopSpeaking();
     setLevel(nextLevel);
     setMode(nextMode);
     setActiveSec('all');
-    setSeed((s) => s + 1);
+    setEdition((e) => e + 1);
     setAnswers({});
+    setFlagged({});
     setSubmitted(false);
-    setSecondsLeft((nextMode === 'full' ? 30 : 10) * 60);
+    setSecondsLeft((nextMode === 'full' ? 90 : 15) * 60);
+  };
+
+  const toggleFlag = (idx: number) => {
+    setFlagged((f) => ({ ...f, [idx]: !f[idx] }));
   };
 
   const mins = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
@@ -110,67 +114,81 @@ export default function Exam() {
   return (
     <div className="page">
       <div className="row-between">
-        <h1>
-          模擬試験 <span className="muted">JLPT {level} {mode === 'full' ? 'Full Mock Exam' : 'Mini-Mock'}</span>
-        </h1>
+        <div>
+          <h1 className="nomargin">
+            日本語能力試験 <span className="muted">JLPT {level} {mode === 'full' ? 'Full Simulation (67 Qs)' : 'Express Mock (15 Qs)'}</span>
+          </h1>
+          <p className="muted small nomargin" style={{ marginTop: '0.2rem' }}>
+            Edition #{edition} · Unique non-repeating generator ({seenCount} unseen/tracked items rotated)
+          </p>
+        </div>
         <div className="controls">
           {examBest !== null && <span className="chip">Best: {examBest}%</span>}
-          <span className={`chip ${secondsLeft < 60 && !submitted ? 'bad' : 'on'}`}>⏱ {mins}:{secs}</span>
+          <span className={`chip ${secondsLeft < 120 && !submitted ? 'bad' : 'on'}`}>⏱ {mins}:{secs}</span>
         </div>
       </div>
 
-      {/* Mode & Level Controls */}
-      <div className="controls">
-        <button className={mode === 'full' ? 'chip on' : 'chip'} onClick={() => reset(level, 'full')}>
-          🏛️ Full JLPT Exam (30 Qs · 180 pts)
+      {/* Mode, Level & Fresh Exam Generator Bar */}
+      <div className="controls" style={{ marginTop: '0.8rem' }}>
+        <button className={mode === 'full' ? 'chip on' : 'chip'} onClick={() => generateNewTake(level, 'full')}>
+          🏛️ Official Full Exam (67 Qs · 90m)
         </button>
-        <button className={mode === 'mini' ? 'chip on' : 'chip'} onClick={() => reset(level, 'mini')}>
-          ⚡ Quick Mini-Mock (10 Qs)
+        <button className={mode === 'mini' ? 'chip on' : 'chip'} onClick={() => generateNewTake(level, 'mini')}>
+          ⚡ Express Mock (15 Qs · 15m)
         </button>
-        <span className="muted small" style={{ alignSelf: 'center', marginLeft: '0.3rem' }}>Level:</span>
-        <button className={level === 'N5' ? 'chip on' : 'chip'} onClick={() => reset('N5', mode)}>
+        <button className={level === 'N5' ? 'chip on' : 'chip'} onClick={() => generateNewTake('N5', mode)}>
           JLPT N5
         </button>
-        <button className={level === 'N4' ? 'chip on' : 'chip'} onClick={() => reset('N4', mode)}>
-          JLPT N4 Bridge
+        <button className={level === 'N4' ? 'chip on' : 'chip'} onClick={() => generateNewTake('N4', mode)}>
+          JLPT N4
         </button>
-        {mode === 'mini' && (
-          <button className="chip" onClick={() => reset(level, mode)}>
-            🔀 Shuffle Set
-          </button>
-        )}
+        <button className="chip on" onClick={() => generateNewTake(level, mode)} title="Synthesize a brand-new exam with fresh questions, passages, and listening dialogues">
+          🎲 Generate Brand-New Exam
+        </button>
+        <button
+          className="chip"
+          onClick={() => {
+            clearSeenFingerprints();
+            generateNewTake(level, mode);
+          }}
+          title="Clear seen-question history and draw fresh"
+        >
+          ↺ Reset History
+        </button>
       </div>
 
-      {/* Section Tabs */}
+      {/* Section Filter Bar */}
       <div className="controls">
         <button className={activeSec === 'all' ? 'chip on' : 'chip'} onClick={() => setActiveSec('all')}>
-          All Parts ({questions.length})
+          All 3 Sections ({questions.length})
         </button>
         {(['vocab', 'grammar', 'listening'] as ExamSection[]).map((sec) => {
           const cnt = questions.filter((q) => q.section === sec).length;
           return (
             <button key={sec} className={activeSec === sec ? 'chip on' : 'chip'} onClick={() => setActiveSec(sec)}>
-              {sec === 'vocab' ? '第1部・文字語彙' : sec === 'grammar' ? '第2部・文法読解' : '第3部・聴解'} ({cnt})
+              {sec === 'vocab' ? '第1部・文字語彙 (20m)' : sec === 'grammar' ? '第2部・文法読解 (40m)' : '第3部・聴解 (30m)'} ({cnt})
             </button>
           );
         })}
       </div>
 
-      {/* Question Navigator Grid */}
-      <div className="gp" style={{ padding: '0.75rem 1rem' }}>
-        <div className="row-between" style={{ marginBottom: '0.45rem' }}>
+      {/* Mark Sheet (マークシート) Question Navigator */}
+      <div className="gp" style={{ padding: '0.85rem 1rem' }}>
+        <div className="row-between" style={{ marginBottom: '0.5rem' }}>
           <span className="small muted">
-            Question Navigator ({answeredCount}/{total} answered · Official Scale: 180 pts, Pass ≥ {passTotalThreshold} pts)
+            <b>マークシート Answer Sheet</b>: {answeredCount}/{total} answered
+            {flaggedCount > 0 ? ` · 🚩 ${flaggedCount} flagged` : ''} · Official Pass ≥ {passTotalThreshold}/180 pts
           </span>
-          {!submitted && answeredCount > 0 && (
-            <button className="chip on" style={{ padding: '0.25rem 0.8rem', fontSize: '0.8rem' }} onClick={submit}>
-              Submit Exam Now →
+          {!submitted && (
+            <button className="chip on" style={{ padding: '0.28rem 0.85rem', fontSize: '0.82rem' }} onClick={submit}>
+              💮 Submit &amp; Grade Exam ({answeredCount}/{total})
             </button>
           )}
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-          {questions.map((q, i) => {
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+          {questions.map((q: GeneratedExamQuestion, i: number) => {
             const isAnswered = answers[i] !== undefined;
+            const isFlagged = !!flagged[i];
             const isCorrect = answers[i] === q.answer;
             const pillCls = !submitted
               ? isAnswered
@@ -181,9 +199,14 @@ export default function Exam() {
                 : 'chip bad';
             return (
               <button
-                key={q.id}
+                key={q.id + '-' + i}
                 className={pillCls}
-                style={{ padding: '0.22rem 0.55rem', fontSize: '0.78rem', minWidth: '2.1rem' }}
+                style={{
+                  padding: '0.2rem 0.5rem',
+                  fontSize: '0.75rem',
+                  minWidth: '2.1rem',
+                  borderColor: isFlagged && !submitted ? 'var(--bad)' : undefined,
+                }}
                 onClick={() => {
                   setActiveSec('all');
                   setTimeout(() => {
@@ -192,6 +215,7 @@ export default function Exam() {
                 }}
               >
                 {i + 1}
+                {isFlagged && !submitted ? '🚩' : ''}
               </button>
             );
           })}
@@ -203,7 +227,7 @@ export default function Exam() {
         <div className="bento-banner" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.9rem' }}>
           <div className="row-between">
             <div>
-              <span className="tag">日本語能力試験 合否結果通知書 · OFFICIAL SCORE REPORT</span>
+              <span className="tag">日本語能力試験 合否結果通知書 · OFFICIAL SCORE REPORT (EDITION #{edition})</span>
               <h2 className="nomargin" style={{ fontSize: '1.55rem', marginTop: '0.2rem' }}>
                 JLPT {level} Result:{' '}
                 <span className={passedOverall ? 'ok-text' : 'bad-text'}>
@@ -227,7 +251,7 @@ export default function Exam() {
                 {langReadingPts} <span className="muted small">/ 120</span>
               </b>
               <span>
-                言語知識・読解 (Min 38) {passedLangSection ? '✓' : '✗'}
+                言語知識・読解 (基準点 38) {passedLangSection ? '✓' : '✗'}
               </span>
             </div>
             <div className="stat">
@@ -235,7 +259,7 @@ export default function Exam() {
                 {listenPts} <span className="muted small">/ 60</span>
               </b>
               <span>
-                聴解 Listening (Min 19) {passedListenSection ? '✓' : '✗'}
+                聴解 Listening (基準点 19) {passedListenSection ? '✓' : '✗'}
               </span>
             </div>
             <div className="stat">
@@ -249,11 +273,11 @@ export default function Exam() {
           </div>
 
           <div className="controls">
-            <button className="chip on" onClick={() => reset(level, mode)}>
-              ↻ Retake {level} {mode === 'full' ? 'Full Exam' : 'Mini-Mock'}
+            <button className="chip on" onClick={() => generateNewTake(level, mode)}>
+              🎲 Take Another Fresh {level} Exam (New Questions &amp; Audio)
             </button>
-            <button className="chip" onClick={() => reset(level === 'N5' ? 'N4' : 'N5', mode)}>
-              Switch to JLPT {level === 'N5' ? 'N4 Bridge' : 'N5'} →
+            <button className="chip" onClick={() => generateNewTake(level === 'N5' ? 'N4' : 'N5', mode)}>
+              Switch to JLPT {level === 'N5' ? 'N4' : 'N5'} →
             </button>
             <Link className="chip" to="/">
               ← Back to Dashboard
@@ -263,34 +287,53 @@ export default function Exam() {
       )}
 
       {/* Questions List */}
-      {questions.map((q, i) => {
+      {questions.map((q: GeneratedExamQuestion, i: number) => {
         if (activeSec !== 'all' && q.section !== activeSec) return null;
         const prevSec = i > 0 ? questions[i - 1].section : null;
+        const prevMondai = i > 0 ? questions[i - 1].mondaiId : null;
         const showSecHeader = activeSec === 'all' && q.section !== prevSec;
+        const showMondaiHeader = q.mondaiId !== prevMondai;
 
         return (
-          <div key={q.id} id={`exam-q-${i}`}>
+          <div key={`${edition}-${q.id}-${i}`} id={`exam-q-${i}`}>
             {showSecHeader && (
-              <h2 style={{ marginTop: '1.6rem', marginBottom: '0.4rem' }}>
+              <h2 style={{ marginTop: '1.8rem', marginBottom: '0.3rem', color: 'var(--accent)' }}>
                 {SECTION_META[q.section].jp}{' '}
                 <span className="muted small">— {SECTION_META[q.section].en}</span>
               </h2>
             )}
+            {showMondaiHeader && (
+              <p className="muted small" style={{ margin: '0.8rem 0 0.3rem', fontWeight: 600 }}>
+                ■ {q.mondaiTitle}
+              </p>
+            )}
+
             <div className="question">
               <div className="row-between">
                 <span className="tag">
-                  Q{i + 1} · {q.level} · {q.mondai}
+                  問{i + 1} · {q.mondaiTitle}
                 </span>
-                {q.audio && (
-                  <div className="controls nomargin">
-                    <button className="chip on" onClick={() => speak(q.audio!, 0.9)}>
-                      🔊 Play Audio
+                <div className="controls nomargin">
+                  {q.audio && (
+                    <>
+                      <button className="chip on" onClick={() => speak(q.audio!, 0.9)}>
+                        🔊 Play Audio
+                      </button>
+                      <button className="chip" onClick={() => speak(q.audio!, 0.72)}>
+                        🐢 Slow
+                      </button>
+                    </>
+                  )}
+                  {!submitted && (
+                    <button
+                      className={flagged[i] ? 'chip bad' : 'chip'}
+                      style={{ padding: '0.25rem 0.65rem', fontSize: '0.78rem' }}
+                      onClick={() => toggleFlag(i)}
+                    >
+                      {flagged[i] ? '🚩 Flagged' : '🏳️ Flag'}
                     </button>
-                    <button className="chip" onClick={() => speak(q.audio!, 0.72)}>
-                      🐢 Slow
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {q.passage && (
@@ -313,7 +356,7 @@ export default function Exam() {
               </p>
 
               <div className="controls">
-                {q.options.map((opt, j) => {
+                {q.options.map((opt: string, j: number) => {
                   const chosen = answers[i] === j;
                   const cls = !submitted
                     ? chosen
@@ -338,10 +381,17 @@ export default function Exam() {
               </div>
 
               {submitted && (
-                <p className={answers[i] === q.answer ? 'ok-text small' : 'bad-text small'}>
-                  {answers[i] === q.answer ? '✓ Correct — ' : '✗ Incorrect — '}
-                  {q.explain}
-                </p>
+                <div style={{ marginTop: '0.5rem' }}>
+                  {q.transcript && (
+                    <p className="jp small muted" style={{ whiteSpace: 'pre-line', margin: '0.3rem 0' }}>
+                      📜 <b>Script:</b> {q.transcript}
+                    </p>
+                  )}
+                  <p className={answers[i] === q.answer ? 'ok-text small nomargin' : 'bad-text small nomargin'}>
+                    {answers[i] === q.answer ? '✓ Correct — ' : `✗ Incorrect (Answer: ${q.answer + 1}. ${q.options[q.answer]}) — `}
+                    {q.explain}
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -351,7 +401,7 @@ export default function Exam() {
       {!submitted && (
         <div className="result">
           <span className="muted">
-            {answeredCount}/{total} answered
+            {answeredCount}/{total} answered {flaggedCount > 0 ? `(${flaggedCount} flagged)` : ''}
           </span>
           <button className="chip on" onClick={submit}>
             💮 Submit JLPT {level} Exam ({answeredCount}/{total})
