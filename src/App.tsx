@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
+import DailyBento from './pages/DailyBento';
+import StampBook from './pages/StampBook';
 import KanaDojo from './pages/KanaDojo';
 import ConjugationDojo from './pages/ConjugationDojo';
 import Stories from './pages/Stories';
@@ -14,6 +16,7 @@ import { isDue, useStore } from './lib/store';
 
 const LINKS = [
   { to: '/', icon: '家', label: 'Home', end: true },
+  { to: '/bento', icon: '弁', label: 'Bento' },
   { to: '/kana', icon: 'あ', label: 'Kana' },
   { to: '/kanji', icon: '漢', label: 'Kanji' },
   { to: '/conjugate', icon: '活', label: 'Verbs' },
@@ -21,6 +24,7 @@ const LINKS = [
   { to: '/grammar', icon: '文', label: 'Grammar' },
   { to: '/stories', icon: '物', label: 'Stories' },
   { to: '/speaking', icon: '話', label: 'Speak' },
+  { to: '/stamps', icon: '印', label: 'Stamps' },
   { to: '/exam', icon: '試', label: 'Exam' },
 ];
 
@@ -82,6 +86,7 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/bento" element={<DailyBento />} />
           <Route path="/kana" element={<KanaDojo />} />
           <Route path="/kanji" element={<KanjiList />} />
           <Route path="/kanji/:k" element={<KanjiDetail />} />
@@ -93,6 +98,7 @@ export default function App() {
           <Route path="/stories/:id" element={<StoryReader />} />
           <Route path="/speaking" element={<SceneList />} />
           <Route path="/speaking/:id" element={<ScenePlayer />} />
+          <Route path="/stamps" element={<StampBook />} />
           <Route path="/exam" element={<Exam />} />
         </Routes>
       </main>

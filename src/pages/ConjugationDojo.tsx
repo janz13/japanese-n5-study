@@ -10,6 +10,7 @@ import {
 } from '../data/conjugations';
 import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
+import { playDing, playMiss } from '../lib/sfx';
 
 const ALL_GROUPS: WordGroup[] = ['ichidan', 'godan', 'irregular', 'i-adj', 'na-adj'];
 const ALL_FORMS: ConjForm[] = ['polite', 'te', 'negative', 'past', 'politePast'];
@@ -29,7 +30,7 @@ function matchesTarget(input: string, word: ConjugatableWord, form: ConjForm) {
 }
 
 export default function ConjugationDojo() {
-  const { srs, addCard } = useStore();
+  const { srs, addCard, sfxEnabled } = useStore();
   const [groups, setGroups] = useState<WordGroup[]>(ALL_GROUPS);
   const [forms, setForms] = useState<ConjForm[]>(['polite', 'te', 'negative', 'past']);
   const [current, setCurrent] = useState<PromptItem | null>(null);
@@ -71,6 +72,7 @@ export default function ConjugationDojo() {
     const ok = matchesTarget(val, current.word, current.form);
     setSession((s) => ({ ok: s.ok + (ok ? 1 : 0), total: s.total + 1 }));
     setFlash(ok ? 'ok' : 'bad');
+    if (sfxEnabled) (ok ? playDing : playMiss)();
     speak(target.kana);
     if (ok) {
       setReveal(null);

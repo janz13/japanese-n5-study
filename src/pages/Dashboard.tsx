@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { isDue, useStore } from '../lib/store';
+import { isDue, todayStr, useStore } from '../lib/store';
 import { HIRAGANA, KATAKANA } from '../data/kana';
 import { STORIES } from '../data/stories';
 import { KANJI } from '../data/kanji';
 import { LESSONS } from '../data/grammar';
+import { STAMPS } from '../data/stamps';
 import { lessonUnlocked, storyUnlocked } from '../lib/progress';
+import { useEarnedStamps } from './StampBook';
 
 export default function Dashboard() {
   const p = useStore();
@@ -16,11 +18,15 @@ export default function Dashboard() {
     srs,
     grammarDone,
     examBest,
+    bentoCount,
+    lastBentoDate,
+    sfxEnabled,
     theme,
     showFurigana,
     ttsRate,
     toggleTheme,
     toggleFurigana,
+    toggleSfx,
     setTtsRate,
     importData,
     resetProgress,
@@ -28,6 +34,8 @@ export default function Dashboard() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const earnedStamps = useEarnedStamps();
+  const bentoDoneToday = lastBentoDate === todayStr();
 
   const practiced = (list: typeof HIRAGANA) => list.filter((k) => (kanaStats[k.kana]?.correct ?? 0) >= 1).length;
   const due = Object.values(srs).filter((i) => isDue(i)).length;
@@ -86,6 +94,32 @@ export default function Dashboard() {
     <div className="page">
       <h1 className="hero">こんにちは <span className="muted">— let's study.</span></h1>
 
+      {/* Guided Daily 5-Minute Bento CTA */}
+      <div className="bento-banner">
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <span className="tag" style={{ fontWeight: 600 }}>
+              {bentoDoneToday ? '✓ TODAY’S BENTO COMPLETED' : '🍱 GUIDED DAILY WORKOUT'}
+            </span>
+            <span className="muted small">· {bentoCount} Bentos finished · {earnedStamps.length}/{STAMPS.length} Stamps</span>
+          </div>
+          <h2 style={{ margin: '0.25rem 0 0.2rem', fontSize: '1.35rem' }}>
+            Today&apos;s 5-Minute Bento <span className="jp muted">(今日の弁当)</span>
+          </h2>
+          <p className="muted small nomargin">
+            1-click daily routine: 5 rapid-fire warm-ups → due SRS cards → 1 Kanji trace + street sign decoder.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <Link to="/bento" className="chip on" style={{ padding: '0.65rem 1.3rem', fontWeight: 600 }}>
+            {bentoDoneToday ? '🍱 Practice Another Bento →' : '🍱 Start Today’s Bento (5 min) →'}
+          </Link>
+          <Link to="/stamps" className="chip">
+            印 Stamp Book ({earnedStamps.length}/{STAMPS.length})
+          </Link>
+        </div>
+      </div>
+
       {(due > 0 || nextStep) && (
         <div className="next-row">
           {due > 0 && <Link to="/review" className="next-card accent">復習 <b>{due}</b> cards due →</Link>}
@@ -99,10 +133,11 @@ export default function Dashboard() {
         <div className="stat"><b>{practiced(KATAKANA)}/{KATAKANA.length}</b><span>katakana</span></div>
         <div className="stat"><b>{Object.values(srs).filter((i) => i.kind === 'kanji').length}/{KANJI.length}</b><span>kanji in deck</span></div>
         <div className="stat"><b>{Object.keys(grammarDone).length}/{LESSONS.length}</b><span>lessons</span></div>
-        <div className="stat"><b>{Object.keys(completedStories).length}/{STORIES.length}</b><span>stories</span></div>
+        <div className="stat"><b>{earnedStamps.length}/{STAMPS.length}</b><span>eki-stamps 印</span></div>
       </div>
 
       <div className="grid">
+        <Link to="/bento" className="tile"><span className="big">弁</span>Daily Bento<small>5-min guided loop</small></Link>
         <Link to="/kana" className="tile"><span className="big">あ</span>Kana Dojo<small>Typing &amp; Yōon drills</small></Link>
         <Link to="/kanji" className="tile"><span className="big">漢</span>Kanji<small>103 N5 · Search &amp; write</small></Link>
         <Link to="/conjugate" className="tile"><span className="big">活</span>Conjugation<small>Verbs &amp; adjectives</small></Link>
@@ -110,6 +145,7 @@ export default function Dashboard() {
         <Link to="/grammar" className="tile"><span className="big">文</span>Grammar<small>Unlock chapters</small></Link>
         <Link to="/stories" className="tile"><span className="big">物語</span>Stories<small>Read &amp; listen</small></Link>
         <Link to="/speaking" className="tile"><span className="big">話</span>Speaking<small>Role-play dialogues</small></Link>
+        <Link to="/stamps" className="tile"><span className="big">印</span>Stamp Book<small>{earnedStamps.length}/{STAMPS.length} Goshuin &amp; Eki</small></Link>
         <Link to="/exam" className="tile"><span className="big">試</span>Mock Exam<small>{examBest !== null ? `Best: ${examBest}%` : 'Timed N5 test'}</small></Link>
       </div>
 
@@ -121,6 +157,9 @@ export default function Dashboard() {
           </button>
           <button className={showFurigana ? 'chip on' : 'chip'} onClick={toggleFurigana}>
             ふりがな Furigana: {showFurigana ? 'ON' : 'OFF'}
+          </button>
+          <button className={sfxEnabled ? 'chip on' : 'chip'} onClick={toggleSfx}>
+            🔔 Sound Effects: {sfxEnabled ? 'ON' : 'OFF'}
           </button>
           <span className="muted small" style={{ alignSelf: 'center', marginLeft: '0.3rem' }}>
             🔊 Audio Speed:

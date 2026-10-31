@@ -36,11 +36,15 @@ interface State {
   grammarDone: Record<string, number>; // lesson id -> best score %
   scenesDone: Record<string, number>;
   examBest: number | null;
+  bentoCount: number;
+  lastBentoDate: string | null;
+  unlockedStamps: Record<string, string>; // stampId -> YYYY-MM-DD
   streak: number;
   lastStudy: string | null;
   showFurigana: boolean;
   theme: ThemeMode;
   ttsRate: number;
+  sfxEnabled: boolean;
   recordKana: (kana: string, ok: boolean) => void;
   saveWord: (w: Word) => void;
   addCard: (item: Omit<SrsItem, 'card'>) => void;
@@ -49,17 +53,20 @@ interface State {
   completeLesson: (id: string, score: number) => void;
   completeScene: (id: string, score: number) => void;
   completeExam: (score: number) => void;
+  completeBento: () => void;
+  unlockStamp: (id: string) => void;
   toggleFurigana: () => void;
   toggleTheme: () => void;
+  toggleSfx: () => void;
   setTtsRate: (rate: number) => void;
   importData: (data: Partial<State>) => void;
   resetProgress: () => void;
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+export const todayStr = () => new Date().toISOString().slice(0, 10);
 
 function bumpStreak(s: State): Partial<State> {
-  const t = today();
+  const t = todayStr();
   if (s.lastStudy === t) return {};
   const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
   return { lastStudy: t, streak: s.lastStudy === y ? s.streak + 1 : 1 };
@@ -80,11 +87,15 @@ const initialData = {
   grammarDone: {} as Record<string, number>,
   scenesDone: {} as Record<string, number>,
   examBest: null as number | null,
+  bentoCount: 0,
+  lastBentoDate: null as string | null,
+  unlockedStamps: {} as Record<string, string>,
   streak: 0,
   lastStudy: null as string | null,
   showFurigana: true,
   theme: 'dark' as ThemeMode,
   ttsRate: 0.9,
+  sfxEnabled: true,
 };
 
 export const useStore = create<State>()(
@@ -132,8 +143,26 @@ export const useStore = create<State>()(
         set((s) => ({ ...bumpStreak(s), scenesDone: { ...s.scenesDone, [id]: Math.max(score, s.scenesDone[id] ?? 0) } })),
       completeExam: (score) =>
         set((s) => ({ ...bumpStreak(s), examBest: Math.max(score, s.examBest ?? 0) })),
+      completeBento: () =>
+        set((s) => {
+          const t = todayStr();
+          return {
+            ...bumpStreak(s),
+            bentoCount: s.bentoCount + 1,
+            lastBentoDate: t,
+            unlockedStamps: {
+              ...s.unlockedStamps,
+              ueno: s.unlockedStamps.ueno ?? t,
+            },
+          };
+        }),
+      unlockStamp: (id) =>
+        set((s) => ({
+          unlockedStamps: { ...s.unlockedStamps, [id]: s.unlockedStamps[id] ?? todayStr() },
+        })),
       toggleFurigana: () => set((s) => ({ showFurigana: !s.showFurigana })),
       toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+      toggleSfx: () => set((s) => ({ sfxEnabled: !s.sfxEnabled })),
       setTtsRate: (ttsRate) => set({ ttsRate }),
       importData: (data) =>
         set((s) => ({
@@ -145,6 +174,9 @@ export const useStore = create<State>()(
           grammarDone: data.grammarDone ?? s.grammarDone,
           scenesDone: data.scenesDone ?? s.scenesDone,
           examBest: data.examBest ?? s.examBest,
+          bentoCount: data.bentoCount ?? s.bentoCount,
+          lastBentoDate: data.lastBentoDate ?? s.lastBentoDate,
+          unlockedStamps: data.unlockedStamps ?? s.unlockedStamps,
           streak: data.streak ?? s.streak,
           lastStudy: data.lastStudy ?? s.lastStudy,
         })),
@@ -153,11 +185,12 @@ export const useStore = create<State>()(
           ...initialData,
           theme: s.theme,
           ttsRate: s.ttsRate,
+          sfxEnabled: s.sfxEnabled,
         })),
     }),
     {
       name: 'n5-study',
-      version: 5,
+      version: 6,
       migrate: (old: unknown) => {
         const s = (old ?? {}) as Partial<State>;
         const srs: Record<string, SrsItem> = s.srs ?? {};
@@ -172,8 +205,12 @@ export const useStore = create<State>()(
           grammarDone: s.grammarDone ?? {},
           scenesDone: s.scenesDone ?? {},
           examBest: s.examBest ?? null,
+          bentoCount: s.bentoCount ?? 0,
+          lastBentoDate: s.lastBentoDate ?? null,
+          unlockedStamps: s.unlockedStamps ?? {},
           theme: s.theme ?? 'dark',
           ttsRate: s.ttsRate ?? 0.9,
+          sfxEnabled: s.sfxEnabled ?? true,
         } as State;
       },
     },

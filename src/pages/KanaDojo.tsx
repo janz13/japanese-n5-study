@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BASIC_ROWS, DAKUTEN_ROWS, HIRAGANA, KATAKANA, ROWS, YOON_ROWS, type Kana } from '../data/kana';
 import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
+import { playDing, playMiss } from '../lib/sfx';
 
 type Script = 'hiragana' | 'katakana' | 'both';
 
@@ -22,7 +23,7 @@ function matchesRomaji(input: string, k: Kana) {
 }
 
 export default function KanaDojo() {
-  const { kanaStats, recordKana } = useStore();
+  const { kanaStats, recordKana, sfxEnabled } = useStore();
   const [script, setScript] = useState<Script>('hiragana');
   const [rows, setRows] = useState<string[]>(ROWS);
   const [current, setCurrent] = useState<Kana | null>(null);
@@ -48,6 +49,7 @@ export default function KanaDojo() {
     recordKana(current.kana, ok);
     setSession((s) => ({ ok: s.ok + (ok ? 1 : 0), total: s.total + 1 }));
     setFlash(ok ? 'ok' : 'bad');
+    if (sfxEnabled) (ok ? playDing : playMiss)();
     speak(current.kana, 0.85);
     if (ok) {
       setReveal(null);
