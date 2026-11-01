@@ -309,7 +309,7 @@ export default function DriveMode() {
     idle: '⏸ Paused — Press Play for Hands-Free Audio',
     host_intro: '🎙️ Host Prompt (English Cue)…',
     user_turn: `🗣️ YOUR TURN! Speak Aloud (${countdown}s)…`,
-    jp_normal: '🇯🇵 Native Speaker (Normal Speed)…',
+    jp_normal: '🗾 Native Speaker (Normal Speed)…',
     jp_slow: '🐢 Shadowing Breakdown (Slow 0.72x)…',
     jp_final: '✨ Final Native Repeat / Answer…',
   };
@@ -493,7 +493,7 @@ export default function DriveMode() {
           <br />
           2. <b>🗣️ Speak Aloud Window ({pauseSecs}s)</b>: Say the Japanese phrase out loud during the pause (the Japanese text stays blurred until the model voice speaks).
           <br />
-          3. <b>🇯🇵 Native Model + Slow Shadow + Natural Repeat</b>: Hear the native pronunciation at normal speed (`0.9x`), slow breakdown (`0.72x`), and final natural speed (`0.95x`), then automatically advance to the next track!
+          3. <b>🗾 Native Model + Slow Shadow + Natural Repeat</b>: Hear the native pronunciation at normal speed (`0.9x`), slow breakdown (`0.72x`), and final natural speed (`0.95x`), then automatically advance to the next track!
         </p>
       </div>
     </div>

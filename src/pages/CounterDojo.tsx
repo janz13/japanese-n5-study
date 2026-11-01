@@ -102,7 +102,7 @@ export default function CounterDojo() {
 
       <div className="controls">
         <button className={filter === 'all' ? 'chip on' : 'chip'} onClick={() => setFilter('all')}>
-          All ({COUNTERS.length})
+          🔢 All ({COUNTERS.length})
         </button>
         <button className={filter === 'traps' ? 'chip on' : 'chip'} onClick={() => setFilter('traps')}>
           ⚡ Sound Changes &amp; Traps ({COUNTERS.filter((c) => c.irregular).length})

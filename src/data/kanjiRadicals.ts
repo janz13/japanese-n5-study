@@ -53,7 +53,7 @@ export const KANJI_BREAKDOWNS: Record<string, KanjiBreakdown> = {
   国: { radical: '囗', radicalName: 'Enclosure (くにがまえ)', parts: ['囗 (border)', '玉 (jewel)'], mnemonic: 'A precious treasure (玉) protected inside national borders (囗): country.' },
   外: { radical: '夕', radicalName: 'Evening (ゆうべ)', parts: ['夕 (evening)', 'ト (divination crack)'], mnemonic: 'Stepping outside (外) under the evening (夕) sky.' },
   買: { radical: '貝', radicalName: 'Shell / Money (かい)', parts: ['罒 (net)', '貝 (cowrie shell money)'], mnemonic: 'Using shell money (貝) to net (罒) goods at the market: to buy.' },
-  食: { radical: '食', radicalName: 'Food (しょく)', parts: ['𠆢 (roof/lid)', '良 (good)'], mnemonic: 'Gathering under a roof over good (良) ingredients to eat.' },
+  食: { radical: '食', radicalName: 'Food (しょく)', parts: ['人 (roof/gathering)', '良 (good)'], mnemonic: 'Gathering under a roof (人) over good (良) ingredients to eat.' },
   飲: { radical: '食', radicalName: 'Food/Drink (しょくへん)', parts: ['飠 (food/drink)', '欠 (open mouth)'], mnemonic: 'Opening your mouth wide (欠) to drink (飲).' },
   館: { radical: '食', radicalName: 'Food (しょくへん)', parts: ['飠 (hospitality)', '官 (official building)'], mnemonic: 'A large public hall or inn (館) offering hospitality.' },
   花: { radical: '艹', radicalName: 'Grass / Plant (くさかんむり)', parts: ['艹 (plant)', '化 (transform)'], mnemonic: 'A plant (艹) that transforms (化) into a blooming flower.' },
@@ -71,7 +71,7 @@ export const KANJI_BREAKDOWNS: Record<string, KanjiBreakdown> = {
   起: { radical: '走', radicalName: 'Run / Rise (そうにょう)', parts: ['走 (rise / move)', '己 (oneself)'], mnemonic: 'Raising yourself (己) up out of bed: to wake up (起きる).' },
   始: { radical: '女', radicalName: 'Woman (おんなへん)', parts: ['女 (origin)', '台 (pedestal)'], mnemonic: 'Setting the foundation on a pedestal (台) to begin (始める).' },
   終: { radical: '糸', radicalName: 'Thread (いとへん)', parts: ['糸 (thread)', '冬 (winter)'], mnemonic: 'Tying off the end of a thread (糸) at the close of winter (冬): to end.' },
-  旅: { radical: '方', radicalName: 'Direction / Flag (ほうへん)', parts: ['方 (banner)', '𠂉 (travelers)'], mnemonic: 'People gathering under a guide’s banner (方) to set off on a trip (旅).' },
+  旅: { radical: '方', radicalName: 'Direction / Flag (ほうへん)', parts: ['方 (banner)', '人 (travelers)', '衣 (cloak)'], mnemonic: 'People (人) in travel cloaks (衣) gathering under a guide’s banner (方) to set off on a trip (旅).' },
   温: { radical: '氵', radicalName: 'Water (さんずい)', parts: ['氵 (water)', '日 (sun)', '皿 (basin)'], mnemonic: 'Water (氵) heated by the sun (日) in a bath basin (皿): warm / hot spring (温泉).' },
 };
 

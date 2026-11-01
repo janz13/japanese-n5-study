@@ -1,6 +1,7 @@
 export interface TicketButton {
   id: string;
   row: 'dining' | 'main' | 'topping' | 'side';
+  icon: string;
   kanji: string;
   kana: string;
   en: string;
@@ -19,26 +20,26 @@ export interface ShokkenkiMission {
 
 export const TICKET_BUTTONS: TicketButton[] = [
   // Row 1: Dine-in vs Takeout
-  { id: 'dine_in', row: 'dining', kanji: '店内（お召し上がり）', kana: 'てんない おめしあがり', en: 'Dine-In (Eat here)', price: 0 },
-  { id: 'take_out', row: 'dining', kanji: '持ち帰り（弁当）', kana: 'もちかえり', en: 'Take-Out (To go)', price: 0 },
+  { id: 'dine_in', row: 'dining', icon: '🍽️', kanji: '店内（お召し上がり）', kana: 'てんない おめしあがり', en: 'Dine-In (Eat here)', price: 0 },
+  { id: 'take_out', row: 'dining', icon: '📦', kanji: '持ち帰り（弁当）', kana: 'もちかえり', en: 'Take-Out (To go)', price: 0 },
 
   // Row 2: Main bowls
-  { id: 'tonkotsu_reg', row: 'main', kanji: '豚骨ラーメン 並盛', kana: 'とんこつ ラーメン なみもり', en: 'Tonkotsu Ramen (Regular)', price: 800 },
-  { id: 'tonkotsu_lg', row: 'main', kanji: '豚骨ラーメン 大盛', kana: 'とんこつ ラーメン おおもり', en: 'Tonkotsu Ramen (Large)', price: 950 },
-  { id: 'shoyu_reg', row: 'main', kanji: '醤油ラーメン 並盛', kana: 'しょうゆ ラーメン なみもり', en: 'Soy Sauce Ramen (Regular)', price: 780 },
-  { id: 'miso_sp', row: 'main', kanji: '特製 味噌ラーメン', kana: 'とくせい みそ ラーメン', en: 'Special Miso Ramen', price: 1050 },
+  { id: 'tonkotsu_reg', row: 'main', icon: '🍜', kanji: '豚骨ラーメン 並盛', kana: 'とんこつ ラーメン なみもり', en: 'Tonkotsu Ramen (Regular)', price: 800 },
+  { id: 'tonkotsu_lg', row: 'main', icon: '🍜', kanji: '豚骨ラーメン 大盛', kana: 'とんこつ ラーメン おおもり', en: 'Tonkotsu Ramen (Large)', price: 950 },
+  { id: 'shoyu_reg', row: 'main', icon: '🍜', kanji: '醤油ラーメン 並盛', kana: 'しょうゆ ラーメン なみもり', en: 'Soy Sauce Ramen (Regular)', price: 780 },
+  { id: 'miso_sp', row: 'main', icon: '🍲', kanji: '特製 味噌ラーメン', kana: 'とくせい みそ ラーメン', en: 'Special Miso Ramen', price: 1050 },
 
   // Row 3: Toppings & Customizations
-  { id: 'ajitama', row: 'topping', kanji: '半熟 味玉', kana: 'はんじゅく あじたま', en: 'Soft-Boiled Seasoned Egg', price: 120 },
-  { id: 'kaedama', row: 'topping', kanji: '替玉（麺追加）', kana: 'かえだま', en: 'Kaedama (Extra Noodle Refill)', price: 150 },
-  { id: 'chashu', row: 'topping', kanji: '焼豚（チャーシュー）増し', kana: 'チャーシュー まし', en: 'Extra Roasted Pork Slices', price: 250 },
-  { id: 'no_negi', row: 'topping', kanji: 'ねぎ抜き', kana: 'ねぎぬき', en: 'No Green Onions', price: 0 },
+  { id: 'ajitama', row: 'topping', icon: '🥚', kanji: '半熟 味玉', kana: 'はんじゅく あじたま', en: 'Soft-Boiled Seasoned Egg', price: 120 },
+  { id: 'kaedama', row: 'topping', icon: '🍥', kanji: '替玉（麺追加）', kana: 'かえだま', en: 'Kaedama (Extra Noodle Refill)', price: 150 },
+  { id: 'chashu', row: 'topping', icon: '🍖', kanji: '焼豚（チャーシュー）増し', kana: 'チャーシュー まし', en: 'Extra Roasted Pork Slices', price: 250 },
+  { id: 'no_negi', row: 'topping', icon: '🚫', kanji: 'ねぎ抜き', kana: 'ねぎぬき', en: 'No Green Onions', price: 0 },
 
   // Row 4: Sides & Drinks
-  { id: 'gyoza', row: 'side', kanji: '焼き餃子（五個）', kana: 'やきぎょうざ ごこ', en: 'Pan-Fried Gyoza (5 pcs)', price: 350 },
-  { id: 'rice_sm', row: 'side', kanji: '白ご飯（小）', kana: 'しろごはん しょう', en: 'White Rice (Small)', price: 150 },
-  { id: 'nama_beer', row: 'side', kanji: '生ビール（中ジョッキ）', kana: 'なまビール', en: 'Draft Beer (Medium Mug)', price: 500 },
-  { id: 'free_water', row: 'side', kanji: 'お冷や（セルフ水）', kana: 'おひや', en: 'Cold Water (Self-Serve)', price: 0 },
+  { id: 'gyoza', row: 'side', icon: '🍙', kanji: '焼き餃子（五個）', kana: 'やきぎょうざ ごこ', en: 'Pan-Fried Gyoza (5 pcs)', price: 350 },
+  { id: 'rice_sm', row: 'side', icon: '🍚', kanji: '白ご飯（小）', kana: 'しろごはん しょう', en: 'White Rice (Small)', price: 150 },
+  { id: 'nama_beer', row: 'side', icon: '🍺', kanji: '生ビール（中ジョッキ）', kana: 'なまビール', en: 'Draft Beer (Medium Mug)', price: 500 },
+  { id: 'free_water', row: 'side', icon: '💧', kanji: 'お冷や（セルフ水）', kana: 'おひや', en: 'Cold Water (Self-Serve)', price: 0 },
 ];
 
 export const SHOKKENKI_MISSIONS: ShokkenkiMission[] = [

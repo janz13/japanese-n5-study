@@ -25,9 +25,23 @@ type SearchCategory =
   | 'Sound Word'
   | 'Pitch Accent';
 
+const CATEGORY_ICONS: Record<'all' | SearchCategory, string> = {
+  all: '🔍',
+  Kanji: '🀄',
+  Vocab: '📖',
+  Grammar: '📐',
+  'Sign & Menu': '🎫',
+  Counter: '🔢',
+  'Verb Pair': '🔄',
+  'Sound Word': '✨',
+  'Pitch Accent': '🎵',
+  Module: '🧭',
+};
+
 interface SearchEntry {
   id: string;
   category: SearchCategory;
+  icon?: string;
   jp: string;
   reading: string;
   en: string;
@@ -331,7 +345,7 @@ export default function CommandPalette({
                 setSelectedIdx(0);
               }}
             >
-              {c === 'all' ? `All (${allEntries.length})` : c}
+              {CATEGORY_ICONS[c]} {c === 'all' ? `All (${allEntries.length})` : c}
             </button>
           ))}
         </div>
@@ -348,6 +362,7 @@ export default function CommandPalette({
           {results.map((r, idx) => {
             const inSrs = !!srs[r.id];
             const isSelected = idx === selectedIdx;
+            const rowIcon = r.icon ?? CATEGORY_ICONS[r.category];
             return (
               <div
                 key={r.id}
@@ -367,7 +382,9 @@ export default function CommandPalette({
               >
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                    <span className="tag" style={{ fontSize: '0.72rem' }}>{r.category}</span>
+                    <span className="tag" style={{ fontSize: '0.72rem' }}>
+                      {rowIcon} {r.category}
+                    </span>
                     <b className="jp" style={{ fontSize: '1.08rem' }}>{r.jp}</b>
                     <span className="muted small jp">{r.reading}</span>
                   </div>

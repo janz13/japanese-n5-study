@@ -209,7 +209,7 @@ function generateVocabQuestions(level: ExamLevel, seen: Set<string>): GeneratedE
     { id: 'ctx-stamp', p: () => `郵便局で 手紙に はる（　）を 買いました。`, opts: ['きって', 'きっぷ', 'ざっし', 'しんぶん'], exp: 'きって (切手) = postage stamp.' },
     { id: 'ctx-elev', p: () => `荷物が おもいですから、（　）で 5階へ あがりました。`, opts: ['エレベーター', 'タクシー', 'カレンダー', 'テーブル'], exp: 'エレベーター = elevator.' },
     { id: 'ctx-umbrella', p: () => `外は 雨が ふっていますから、（　）を さして 歩きます。`, opts: ['かさ', 'くつ', 'ぼうし', 'かばん'], exp: '傘を さす (かさを さす) = hold up an umbrella.' },
-    { id: 'ctx-wash', p: () => `ご飯を 食べる 前に、石けんで 手を（　）ください。`, opts: ['あらって', 'みがいて', 'きって', '운転して'], exp: '手を 洗う (あらう) = wash hands.' },
+    { id: 'ctx-wash', p: () => `ご飯を 食べる 前に、石けんで 手を（　）ください。`, opts: ['あらって', 'みがいて', 'きって', 'うたって'], exp: '手を 洗う (あらう) = wash hands.' },
     { id: 'ctx-teeth', p: () => `毎晩 寝る 前に、かならず 歯（は）を（　）。`, opts: ['みがきます', 'あらいます', 'きります', 'かぶります'], exp: '歯を みがく = brush teeth.' },
     { id: 'ctx-fever', p: () => `きのうから 頭が 痛くて、すこし（　）が あります。`, opts: ['熱（ねつ）', '薬（くすり）', '予約（よやく）', '元気（げんき）'], exp: '熱が あります = have a fever.' },
     { id: 'ctx-reserve', p: () => `来週の 旅行の 前に、ホテルの 部屋を（　）しました。`, opts: ['予約（よやく）', '案内（あんない）', '紹介（しょうかい）', '洗濯（せんたく）'], exp: '予約する = book/reserve in advance.' },

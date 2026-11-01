@@ -152,7 +152,7 @@ export default function DailyBento() {
           🍵 3. Discovery
         </div>
         <div className={`bento-step ${dish === 4 ? 'active' : ''}`}>
-          💮 Stamp
+          🔖 Stamp
         </div>
       </div>
 
@@ -297,7 +297,7 @@ export default function DailyBento() {
             )}
             <div className="controls" style={{ marginTop: '1.2rem' }}>
               <button className="chip on" onClick={finishBento}>
-                💮 Complete Today's Bento →
+                🔖 Complete Today's Bento →
               </button>
             </div>
           </div>
@@ -317,7 +317,7 @@ export default function DailyBento() {
             <StampSvg stamp={uenoStamp} unlocked={true} />
           </div>
           <p className="ok-text small">
-            💮 Stamped: <b>{uenoStamp.nameEn}</b> in your Goshuincho!
+            🔖 Stamped: <b>{uenoStamp.nameEn}</b> in your Goshuincho!
           </p>
           <div className="controls center">
             <Link className="chip on" to="/stamps">📖 Open Stamp Book (御朱印帳) →</Link>

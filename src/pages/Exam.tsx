@@ -317,7 +317,7 @@ export default function Exam() {
           </span>
           {!submitted && (
             <button className="chip on" style={{ padding: '0.28rem 0.85rem', fontSize: '0.82rem' }} onClick={submit}>
-              💮 Submit &amp; Grade Exam ({answeredCount}/{total})
+              🎓 Submit &amp; Grade Exam ({answeredCount}/{total})
             </button>
           )}
         </div>
@@ -671,7 +671,7 @@ export default function Exam() {
             {answeredCount}/{total} answered {flaggedCount > 0 ? `(${flaggedCount} flagged)` : ''}
           </span>
           <button className="chip on" onClick={submit}>
-            💮 Submit JLPT {level} Exam ({answeredCount}/{total})
+            🎓 Submit JLPT {level} Exam ({answeredCount}/{total})
           </button>
         </div>
       )}

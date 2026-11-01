@@ -14,13 +14,13 @@ export interface CounterItem {
 }
 
 export const COUNTER_GROUPS: Record<CounterGroup, { label: string; desc: string }> = {
-  tsu: { label: '〜つ (General)', desc: 'Native Japanese counter for 1–10 general objects' },
-  nin: { label: '〜人 (People)', desc: 'Counting people (watch 1, 2, and 4!)' },
-  hon: { label: '〜本 (Long)', desc: 'Bottles, pens, umbrellas, trees, trains (h → p / b changes)' },
-  mai: { label: '〜枚 (Flat)', desc: 'Paper, tickets, plates, shirts (no sound changes!)' },
-  hiki: { label: '〜匹 (Animals)', desc: 'Small animals, cats, dogs, fish (h → p / b changes)' },
-  kai: { label: '〜階 (Floors)', desc: 'Building floors (k → kk / g changes)' },
-  day: { label: '〜日 (Calendar Days)', desc: 'Days of the month (1st–10th, 14th, 20th, 24th)' },
+  tsu: { label: '📦 〜つ (General)', desc: 'Native Japanese counter for 1–10 general objects' },
+  nin: { label: '👥 〜人 (People)', desc: 'Counting people (watch 1, 2, and 4!)' },
+  hon: { label: '✏️ 〜本 (Long)', desc: 'Bottles, pens, umbrellas, trees, trains (h → p / b changes)' },
+  mai: { label: '🎫 〜枚 (Flat)', desc: 'Paper, tickets, plates, shirts (no sound changes!)' },
+  hiki: { label: '🐱 〜匹 (Animals)', desc: 'Small animals, cats, dogs, fish (h → p / b changes)' },
+  kai: { label: '🏢 〜階 (Floors)', desc: 'Building floors (k → kk / g changes)' },
+  day: { label: '📅 〜日 (Calendar Days)', desc: 'Days of the month (1st–10th, 14th, 20th, 24th)' },
 };
 
 export const COUNTERS: CounterItem[] = [

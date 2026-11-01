@@ -469,7 +469,7 @@ export default function Dashboard() {
               [
                 ['beginner', '🌱 Complete Beginner'],
                 ['travel', '✈️ Japan Travel Survival'],
-                ['n5', '💮 JLPT N5 Exam Prep'],
+                ['n5', '🎓 JLPT N5 Exam Prep'],
                 ['n4', '🚀 JLPT N4 Bridge'],
               ] as const
             ).map(([id, label]) => (
@@ -501,9 +501,9 @@ export default function Dashboard() {
           )}
           {studyTrack === 'n5' && (
             <>
-              <Link to="/exam" className="chip on">Step 1: 💮 Take 67-Q JLPT N5 Simulation →</Link>
-              <Link to="/particles" className="chip on">Step 2: 助 Conquer Particle Traps →</Link>
-              <Link to="/counters" className="chip on">Step 3: 数 Drill Irregular Counters &amp; Dates →</Link>
+              <Link to="/exam" className="chip on">Step 1: 🎓 Take 67-Q JLPT N5 Simulation →</Link>
+              <Link to="/particles" className="chip on">Step 2: 🎯 Conquer Particle Traps →</Link>
+              <Link to="/counters" className="chip on">Step 3: 🔢 Drill Irregular Counters &amp; Dates →</Link>
             </>
           )}
           {studyTrack === 'n4' && (
@@ -517,21 +517,21 @@ export default function Dashboard() {
       </div>
 
       <div className="grid">
-        <Link to="/bento" className="tile"><span className="big">弁</span>Daily Bento<small>5-min guided loop</small></Link>
-        <Link to="/kana" className="tile"><span className="big">あ</span>Kana Dojo<small>Typing &amp; Yōon drills</small></Link>
-        <Link to="/kanji" className="tile"><span className="big">漢</span>Kanji<small>150 N5/N4 · Radicals &amp; write</small></Link>
-        <Link to="/conjugate" className="tile"><span className="big">活</span>Verbs &amp; Pairs<small>Inflections &amp; 自動詞/他動詞</small></Link>
-        <Link to="/counters" className="tile"><span className="big">数</span>Counters<small>助数詞 · Dates &amp; numbers</small></Link>
-        <Link to="/particles" className="tile"><span className="big">助</span>Particles &amp; 擬音語<small>は/が · ペコペコ/ゴロゴロ</small></Link>
-        <Link to="/review" className="tile"><span className="big">復</span>Review<small>{due} due · {Object.keys(srs).length} total</small></Link>
-        <Link to="/grammar" className="tile"><span className="big">文</span>Grammar<small>10 N5/N4 lessons &amp; Keigo</small></Link>
-        <Link to="/stories" className="tile"><span className="big">物語</span>Stories<small>10 graded chapters</small></Link>
-        <Link to="/speaking" className="tile"><span className="big">話</span>Speaking<small>10 role-play scenarios</small></Link>
-        <Link to="/listening" className="tile"><span className="big">聴</span>Listening &amp; Pitch<small>聴解 &amp; 高低アクセント</small></Link>
-        <Link to="/drive" className="tile"><span className="big">音</span>Drive Mode<small>Hands-free podcast</small></Link>
-        <Link to="/signs" className="tile"><span className="big">看板</span>Signs &amp; 食券機<small>Street signs &amp; Ramen machine</small></Link>
-        <Link to="/stamps" className="tile"><span className="big">印</span>Stamp Book<small>{earnedStampCount}/{STAMPS.length} Goshuin &amp; Eki</small></Link>
-        <Link to="/exam" className="tile"><span className="big">試</span>Mock Exam<small>{examBest !== null ? `Best: ${examBest}%` : '67-Q N5/N4 simulator'}</small></Link>
+        <Link to="/bento" className="tile"><span className="big">🍱 弁</span>Daily Bento<small>5-min guided loop</small></Link>
+        <Link to="/kana" className="tile"><span className="big">✍️ あ</span>Kana Dojo<small>Typing &amp; Yōon drills</small></Link>
+        <Link to="/kanji" className="tile"><span className="big">🀄 漢</span>Kanji<small>150 N5/N4 · Radicals &amp; write</small></Link>
+        <Link to="/conjugate" className="tile"><span className="big">🔄 活</span>Verbs &amp; Pairs<small>Inflections &amp; 自動詞/他動詞</small></Link>
+        <Link to="/counters" className="tile"><span className="big">🔢 数</span>Counters<small>助数詞 · Dates &amp; numbers</small></Link>
+        <Link to="/particles" className="tile"><span className="big">🎯 助</span>Particles &amp; 擬音語<small>は/が · ペコペコ/ゴロゴロ</small></Link>
+        <Link to="/review" className="tile"><span className="big">🗂️ 復</span>Review<small>{due} due · {Object.keys(srs).length} total</small></Link>
+        <Link to="/grammar" className="tile"><span className="big">📐 文</span>Grammar<small>10 N5/N4 lessons &amp; Keigo</small></Link>
+        <Link to="/stories" className="tile"><span className="big">📖 物語</span>Stories<small>10 graded chapters</small></Link>
+        <Link to="/speaking" className="tile"><span className="big">🎤 話</span>Speaking<small>10 role-play scenarios</small></Link>
+        <Link to="/listening" className="tile"><span className="big">🎧 聴</span>Listening &amp; Pitch<small>聴解 &amp; 高低アクセント</small></Link>
+        <Link to="/drive" className="tile"><span className="big">📻 音</span>Drive Mode<small>Hands-free podcast</small></Link>
+        <Link to="/signs" className="tile"><span className="big">🍜 看板</span>Signs &amp; 食券機<small>Street signs &amp; Ramen machine</small></Link>
+        <Link to="/stamps" className="tile"><span className="big">🔖 印</span>Stamp Book<small>{earnedStampCount}/{STAMPS.length} Goshuin &amp; Eki</small></Link>
+        <Link to="/exam" className="tile"><span className="big">🎓 試</span>Mock Exam<small>{examBest !== null ? `Best: ${examBest}%` : '67-Q N5/N4 simulator'}</small></Link>
       </div>
 
       <h2>設定 <span className="muted">Settings &amp; Data</span></h2>

@@ -140,7 +140,7 @@ export default function StampBook() {
                     pressStamp(st);
                   }}
                 >
-                  🖃 Press Stamp
+                  🔖 Press Stamp
                 </button>
               ) : (
                 <span className="ok-text small" style={{ marginTop: '0.4rem' }}>✓ Stamped</span>
@@ -162,7 +162,7 @@ export default function StampBook() {
             </div>
             {!earned[selected.id] && (
               <button className="chip on" onClick={() => pressStamp(selected)}>
-                🖃 Stamp in Book
+                🔖 Stamp in Book
               </button>
             )}
           </div>

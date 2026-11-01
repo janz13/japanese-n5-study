@@ -35,22 +35,22 @@ interface NavItem {
 }
 
 const LINKS: NavItem[] = [
-  { to: '/', icon: '家', label: 'Home', end: true },
-  { to: '/bento', icon: '弁', label: 'Bento' },
-  { to: '/kana', icon: 'あ', label: 'Kana' },
-  { to: '/kanji', icon: '漢', label: 'Kanji' },
-  { to: '/conjugate', icon: '活', label: 'Verbs' },
-  { to: '/counters', icon: '数', label: 'Counters' },
-  { to: '/particles', icon: '助', label: 'Particles' },
-  { to: '/review', icon: '復', label: 'Review' },
-  { to: '/grammar', icon: '文', label: 'Grammar' },
-  { to: '/stories', icon: '物', label: 'Stories' },
-  { to: '/speaking', icon: '話', label: 'Speak' },
-  { to: '/listening', icon: '聴', label: 'Listen' },
-  { to: '/drive', icon: '音', label: 'Drive' },
-  { to: '/signs', icon: '看', label: 'Signs' },
-  { to: '/stamps', icon: '印', label: 'Stamps' },
-  { to: '/exam', icon: '試', label: 'Exam' },
+  { to: '/', icon: '🏠', label: 'Home (家)', end: true },
+  { to: '/bento', icon: '🍱', label: 'Bento (弁)' },
+  { to: '/kana', icon: '✍️', label: 'Kana (あ)' },
+  { to: '/kanji', icon: '🀄', label: 'Kanji (漢)' },
+  { to: '/conjugate', icon: '🔄', label: 'Verbs (活)' },
+  { to: '/counters', icon: '🔢', label: 'Counters (数)' },
+  { to: '/particles', icon: '🎯', label: 'Particles (助)' },
+  { to: '/review', icon: '🗂️', label: 'Review (復)' },
+  { to: '/grammar', icon: '📐', label: 'Grammar (文)' },
+  { to: '/stories', icon: '📖', label: 'Stories (物)' },
+  { to: '/speaking', icon: '🎤', label: 'Speak (話)' },
+  { to: '/listening', icon: '🎧', label: 'Listen (聴)' },
+  { to: '/drive', icon: '📻', label: 'Drive (音)' },
+  { to: '/signs', icon: '🍜', label: 'Signs (看)' },
+  { to: '/stamps', icon: '🔖', label: 'Stamps (印)' },
+  { to: '/exam', icon: '🎓', label: 'Exam (試)' },
 ];
 
 const NAV_GROUPS: { id: string; label: string; icon: string; items: NavItem[] }[] = [
@@ -59,21 +59,21 @@ const NAV_GROUPS: { id: string; label: string; icon: string; items: NavItem[] }[
     label: 'Daily',
     icon: '🍱',
     items: [
-      { to: '/bento', icon: '弁', label: 'Daily Bento', shortLabel: 'Bento' },
-      { to: '/review', icon: '復', label: 'FSRS Review', shortLabel: 'Review' },
-      { to: '/stamps', icon: '印', label: 'Stamp Book', shortLabel: 'Stamps' },
+      { to: '/bento', icon: '🍱', label: '弁 Daily Bento', shortLabel: 'Bento' },
+      { to: '/review', icon: '🗂️', label: '復 FSRS Review', shortLabel: 'Review' },
+      { to: '/stamps', icon: '🔖', label: '印 Stamp Book', shortLabel: 'Stamps' },
     ],
   },
   {
     id: 'drills',
     label: 'Drills',
-    icon: '🥋',
+    icon: '⚡',
     items: [
-      { to: '/kana', icon: 'あ', label: 'Kana Dojo', shortLabel: 'Kana' },
-      { to: '/kanji', icon: '漢', label: 'Kanji Studio', shortLabel: 'Kanji' },
-      { to: '/conjugate', icon: '活', label: 'Verb & Pair Dojo', shortLabel: 'Verbs' },
-      { to: '/counters', icon: '数', label: 'Counter Dojo', shortLabel: 'Counters' },
-      { to: '/particles', icon: '助', label: 'Particle Dojo', shortLabel: 'Particles' },
+      { to: '/kana', icon: '✍️', label: 'あ Kana Dojo', shortLabel: 'Kana' },
+      { to: '/kanji', icon: '🀄', label: '漢 Kanji Studio', shortLabel: 'Kanji' },
+      { to: '/conjugate', icon: '🔄', label: '活 Verb & Pair Dojo', shortLabel: 'Verbs' },
+      { to: '/counters', icon: '🔢', label: '数 Counter Dojo', shortLabel: 'Counters' },
+      { to: '/particles', icon: '🎯', label: '助 Particle Dojo', shortLabel: 'Particles' },
     ],
   },
   {
@@ -81,12 +81,12 @@ const NAV_GROUPS: { id: string; label: string; icon: string; items: NavItem[] }[
     label: 'Immersion',
     icon: '🏮',
     items: [
-      { to: '/drive', icon: '音', label: 'Hands-Free Drive Podcast', shortLabel: 'Drive' },
-      { to: '/grammar', icon: '文', label: 'Grammar', shortLabel: 'Grammar' },
-      { to: '/stories', icon: '物', label: 'Graded Stories', shortLabel: 'Stories' },
-      { to: '/speaking', icon: '話', label: 'Speaking', shortLabel: 'Speak' },
-      { to: '/listening', icon: '聴', label: 'Listening', shortLabel: 'Listen' },
-      { to: '/signs', icon: '看', label: 'Sign Decoder', shortLabel: 'Signs' },
+      { to: '/drive', icon: '📻', label: '音 Hands-Free Drive Podcast', shortLabel: 'Drive' },
+      { to: '/grammar', icon: '📐', label: '文 Grammar', shortLabel: 'Grammar' },
+      { to: '/stories', icon: '📖', label: '物 Graded Stories', shortLabel: 'Stories' },
+      { to: '/speaking', icon: '🎤', label: '話 Speaking', shortLabel: 'Speak' },
+      { to: '/listening', icon: '🎧', label: '聴 Listening', shortLabel: 'Listen' },
+      { to: '/signs', icon: '🍜', label: '看 Sign Decoder', shortLabel: 'Signs' },
     ],
   },
 ];
@@ -197,7 +197,7 @@ function HeaderNav({
           className={({ isActive }) => `nav-group-btn ${isActive ? 'active' : ''}`}
           style={{ textDecoration: 'none' }}
         >
-          💮 Exam
+          🎓 Exam
         </NavLink>
       </nav>
 
@@ -286,10 +286,10 @@ export default function App() {
               ))}
             </div>
           ))}
-          <div className="drawer-section-title">💮 Official Exam</div>
+          <div className="drawer-section-title">🎓 Official Exam</div>
           <NavLink to="/exam" className="drawer-link">
-            <span className="jp">試</span>
-            <span>JLPT Mock Exam</span>
+            <span className="jp">🎓</span>
+            <span>試 JLPT Mock Exam</span>
           </NavLink>
         </nav>
       )}

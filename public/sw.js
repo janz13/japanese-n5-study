@@ -1,5 +1,13 @@
-const CACHE = 'n5-study-v2';
-const PRECACHE_URLS = ['./', './index.html', './manifest.webmanifest', './favicon.svg'];
+const CACHE = 'n5-study-v3';
+const PRECACHE_URLS = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './favicon.svg',
+  './apple-touch-icon.png',
+  './icon-192.png',
+  './icon-512.png',
+];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(

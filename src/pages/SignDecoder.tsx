@@ -68,7 +68,7 @@ export default function SignDecoder() {
         </div>
         <div className="controls">
           <button className={mode === 'signs' ? 'chip on' : 'chip'} onClick={() => setMode('signs')}>
-            🪧 Street &amp; Shop Signs ({SIGNS.length})
+            🏮 Street &amp; Shop Signs ({SIGNS.length})
           </button>
           <button className={mode === 'shokkenki' ? 'chip on' : 'chip'} onClick={() => setMode('shokkenki')}>
             🎫 Ramen Ticket Machine (食券機)
@@ -199,7 +199,10 @@ export default function SignDecoder() {
                           }}
                         >
                           <div className="row-between" style={{ width: '100%' }}>
-                            <b className="jp" style={{ fontSize: '1.02rem' }}>{btn.kanji}</b>
+                            <b className="jp" style={{ fontSize: '1.02rem' }}>
+                              <span style={{ marginRight: '0.35rem' }}>{btn.icon}</span>
+                              {btn.kanji}
+                            </b>
                             <span className="tag" style={{ fontWeight: 700 }}>
                               {btn.price === 0 ? '¥0' : `¥${btn.price}`}
                             </span>
@@ -235,7 +238,7 @@ export default function SignDecoder() {
                     const b = TICKET_BUTTONS.find((x) => x.id === id)!;
                     return (
                       <span key={id} className="chip on" style={{ fontSize: '0.82rem' }}>
-                        {b.kanji} (¥{b.price})
+                        {b.icon} {b.kanji} (¥{b.price})
                       </span>
                     );
                   })

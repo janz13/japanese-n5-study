@@ -170,7 +170,7 @@ export const SIGNS: StreetSign[] = [
   {
     id: 'eigyouchuu',
     category: 'street',
-    place: '🪧 Shop Door Sign',
+    place: '🏮 Shop Door Sign',
     sign: '営業中',
     reading: 'えいぎょうちゅう',
     question: 'Can you go into this shop right now?',

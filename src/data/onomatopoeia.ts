@@ -15,7 +15,7 @@ export interface OnomatopoeiaItem {
 }
 
 export const ONOMATO_CATEGORIES: Record<OnomatoCategory, string> = {
-  body: '🩺 Body & Hunger',
+  body: '🏥 Body & Hunger',
   feelings: '💓 Feelings & Fluency',
   weather: '☔ Weather & Shine',
   daily: '🏃 Daily Pace & Rest',

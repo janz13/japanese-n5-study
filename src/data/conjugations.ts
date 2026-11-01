@@ -2,19 +2,19 @@ export type WordGroup = 'ichidan' | 'godan' | 'irregular' | 'i-adj' | 'na-adj';
 export type ConjForm = 'polite' | 'te' | 'negative' | 'past' | 'politePast';
 
 export const FORM_LABELS: Record<ConjForm, { jp: string; en: string }> = {
-  polite: { jp: '丁寧形 (〜ます / 〜です)', en: 'Polite Present' },
-  te: { jp: 'て形 (〜て / 〜で)', en: 'Te-form (connecting)' },
-  negative: { jp: 'ない形 (〜ない)', en: 'Plain Negative' },
-  past: { jp: 'た形 (〜た / 〜かった)', en: 'Plain Past' },
-  politePast: { jp: '過去丁寧 (〜ました)', en: 'Polite Past' },
+  polite: { jp: '🎩 丁寧形 (〜ます / 〜です)', en: 'Polite Present' },
+  te: { jp: '🔗 て形 (〜て / 〜で)', en: 'Te-form (connecting)' },
+  negative: { jp: '🚫 ない形 (〜ない)', en: 'Plain Negative' },
+  past: { jp: '⏪ た形 (〜た / 〜かった)', en: 'Plain Past' },
+  politePast: { jp: '🎩⏪ 過去丁寧 (〜ました)', en: 'Polite Past' },
 };
 
 export const GROUP_LABELS: Record<WordGroup, string> = {
-  ichidan: 'Ichidan (る-verbs)',
-  godan: 'Godan (う-verbs)',
-  irregular: 'Irregular Verbs',
-  'i-adj': 'い-Adjectives',
-  'na-adj': 'な-Adjectives',
+  ichidan: '🟢 Ichidan (る-verbs)',
+  godan: '🔵 Godan (う-verbs)',
+  irregular: '⚡ Irregular Verbs',
+  'i-adj': '🟡 い-Adjectives',
+  'na-adj': '🟣 な-Adjectives',
 };
 
 export interface ConjugationTarget {
