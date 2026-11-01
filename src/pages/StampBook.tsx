@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { STAMPS, type StampDef } from '../data/stamps';
 import { todayStr, useStore } from '../lib/store';
-import { playFanfare } from '../lib/sfx';
 import { speak } from '../lib/tts';
 
 export function useEarnedStamps() {
@@ -86,22 +85,34 @@ export function StampSvg({ stamp, unlocked, date }: { stamp: StampDef; unlocked:
   );
 }
 
+function stampToMission(id: string): { to: string; label: string } {
+  switch (id) {
+    case 'ueno':
+      return { to: '/bento', label: '🍱 Complete 5-Min Bento to Earn' };
+    case 'tokyo-eki':
+      return { to: '/kana', label: '✍️ Practice 5 Kana to Earn' };
+    case 'narita':
+      return { to: '/stories/ch1-arrival', label: '📖 Complete Ch. 1 to Earn' };
+    case 'ginza':
+      return { to: '/stories/ch2-cafe', label: '📖 Complete Ch. 2 to Earn' };
+    case 'asakusa':
+      return { to: '/stories/ch3-asakusa', label: '📖 Complete Ch. 3 to Earn' };
+    case 'akihabara':
+      return { to: '/review', label: '🗂️ Add 5 Cards to SRS to Earn' };
+    case 'shinjuku':
+      return { to: '/exam', label: '🎓 Take Mock Exam to Earn' };
+    case 'kyoto':
+      return { to: '/stories/ch4-weekend', label: '📖 Complete Ch. 4 to Earn' };
+    default:
+      return { to: '/bento', label: '🍱 Study to Earn' };
+  }
+}
+
 export default function StampBook() {
   const earned = useEarnedStamps();
-  const { unlockStamp } = useStore();
   const [selected, setSelected] = useState<StampDef>(STAMPS[0]);
-  const [justPressed, setJustPressed] = useState<string | null>(null);
 
   const count = Object.keys(earned).length;
-
-  const pressStamp = (st: StampDef) => {
-    unlockStamp(st.id);
-    setSelected(st);
-    setJustPressed(st.id);
-    playFanfare();
-    speak(st.kanji);
-    setTimeout(() => setJustPressed(null), 600);
-  };
 
   return (
     <div className="page">
@@ -110,19 +121,18 @@ export default function StampBook() {
         <span className="chip on">{count} / {STAMPS.length} Collected</span>
       </div>
       <p className="muted">
-        Collect traditional Japanese temple seals (御朱印) and train station stamps (駅スタンプ) as you complete lessons, stories, and Daily Bentos—or press any seal below to preview its ink.
+        Collect authentic Japanese temple seals (御朱印) and train station stamps (駅スタンプ) by completing your Daily Bento, practicing Kana, reading graded stories, and sitting for the JLPT Mock Exam.
       </p>
 
       <div className="stamp-grid">
         {STAMPS.map((st) => {
           const isUnlocked = !!earned[st.id];
           const isActive = selected.id === st.id;
+          const mission = stampToMission(st.id);
           return (
             <div
               key={st.id}
-              className={`stamp-card ${isUnlocked ? 'unlocked' : 'locked-stamp'} ${isActive ? 'active-stamp' : ''} ${
-                justPressed === st.id ? 'stamp-pop' : ''
-              }`}
+              className={`stamp-card ${isUnlocked ? 'unlocked' : 'locked-stamp'} ${isActive ? 'active-stamp' : ''}`}
               onClick={() => {
                 setSelected(st);
                 speak(st.kanji);
@@ -132,16 +142,14 @@ export default function StampBook() {
               <div className="stamp-title">{st.nameEn}</div>
               <small className="muted">{st.location}</small>
               {!isUnlocked ? (
-                <button
+                <Link
+                  to={mission.to}
                   className="chip small"
-                  style={{ marginTop: '0.4rem' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    pressStamp(st);
-                  }}
+                  style={{ marginTop: '0.4rem', textDecoration: 'none' }}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  🔖 Press Stamp
-                </button>
+                  🔒 {mission.label.split(' to Earn')[0]}
+                </Link>
               ) : (
                 <span className="ok-text small" style={{ marginTop: '0.4rem' }}>✓ Stamped</span>
               )}
@@ -150,32 +158,49 @@ export default function StampBook() {
         })}
       </div>
 
-      {selected && (
-        <div className="gp" style={{ marginTop: '1.5rem' }}>
-          <div className="row-between">
-            <div>
-              <span className="tag">{selected.kind === 'goshuin' ? '御朱印 Temple Goshuin' : '駅スタンプ Station Stamp'}</span>
-              <h2 className="nomargin">
-                <span className="jp">{selected.kanji}</span> ({selected.subKanji}) — {selected.nameEn}
-              </h2>
-              <p className="muted small">{selected.location}</p>
+      {selected && (() => {
+        const isUnlocked = !!earned[selected.id];
+        const mission = stampToMission(selected.id);
+        return (
+          <div className="gp" style={{ marginTop: '1.5rem' }}>
+            <div className="row-between">
+              <div>
+                <span className="tag">{selected.kind === 'goshuin' ? '御朱印 Temple Goshuin' : '駅スタンプ Station Stamp'}</span>
+                <h2 className="nomargin">
+                  <span className="jp">{selected.kanji}</span> ({selected.subKanji}) — {selected.nameEn}
+                </h2>
+                <p className="muted small">{selected.location}</p>
+              </div>
+              <div>
+                {isUnlocked ? (
+                  <span className="chip ok" style={{ fontWeight: 600 }}>
+                    ✓ Stamped {earned[selected.id] ? `(${earned[selected.id]})` : ''}
+                  </span>
+                ) : (
+                  <Link className="chip on" to={mission.to}>
+                    {mission.label} →
+                  </Link>
+                )}
+              </div>
             </div>
-            {!earned[selected.id] && (
-              <button className="chip on" onClick={() => pressStamp(selected)}>
-                🔖 Stamp in Book
-              </button>
-            )}
+            <p>{selected.culturalNote}</p>
+            <p className="small muted">
+              <b>How to earn:</b> {selected.requirement}
+            </p>
+            <div className="controls">
+              {!isUnlocked ? (
+                <Link className="chip on" to={mission.to}>
+                  🚀 Start Mission: {mission.label} →
+                </Link>
+              ) : (
+                <button className="chip" onClick={() => speak(selected.kanji)}>
+                  🔊 Hear Name Pronunciation
+                </button>
+              )}
+            </div>
           </div>
-          <p>{selected.culturalNote}</p>
-          <p className="small muted">
-            <b>How to earn:</b> {selected.requirement}
-          </p>
-          <div className="controls">
-            <Link className="chip on" to="/bento">🍱 Start Today's 5-Min Bento →</Link>
-            <Link className="chip" to="/stories">📖 Go to Stories →</Link>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
