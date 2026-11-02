@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Rating, type Grade } from 'ts-fsrs';
 import { toHiragana } from 'wanakana';
@@ -51,8 +51,18 @@ interface WarmupPrompt {
 
 import { SIGNS } from '../data/signs';
 export default function DailyBento() {
-  const { srs, addCard, reviewCard, recordKana, completeBento, bentoCount } = useStore();
+  const { srs, addCard, reviewCard, recordKana, completeBento, bentoCount, kanaStats } = useStore();
   const [dish, setDish] = useState<1 | 2 | 3 | 4>(1);
+
+  // 5-minute informational pace timer (purely helpful, never cuts user off)
+  const [secondsLeft, setSecondsLeft] = useState(300);
+  useEffect(() => {
+    if (dish >= 4) return;
+    const t = setInterval(() => {
+      setSecondsLeft((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [dish]);
 
   // Seed = date hash + bentoCount so each session within the same day is different
   const todaySeed = useMemo(() => {
@@ -61,12 +71,23 @@ export default function DailyBento() {
     return dayHash(iso) + bentoCount * 7919; // large prime offset per session
   }, [bentoCount]);
 
-  // Dish 1: 3 Kana + 2 Verb Conjugations = 5 Warm-up prompts (seeded daily)
+  // Dish 1: 3 Kana (prioritizing user's weak kana) + 2 Verb Conjugations = 5 Warm-up prompts
   const warmups = useMemo<WarmupPrompt[]>(() => {
-    const kPool = seededShuffle(HIRAGANA, todaySeed).slice(0, 3);
+    // Check for struggling kana (wrong >= 1 and wrong >= correct)
+    const weakKana = HIRAGANA.filter((k) => {
+      const s = kanaStats[k.kana];
+      return s && s.wrong > 0 && s.wrong >= s.correct;
+    });
+
+    const chosenWeak = weakKana.slice(0, 2);
+    const nonWeak = HIRAGANA.filter((k) => !chosenWeak.some((w) => w.kana === k.kana));
+    const fillerKana = seededShuffle(nonWeak, todaySeed).slice(0, 3 - chosenWeak.length);
+    const kPool = [...chosenWeak, ...fillerKana];
+
     const cPool = seededShuffle(CONJUGATIONS, todaySeed + 1).slice(0, 2);
 
     const kPrompts: WarmupPrompt[] = kPool.map((k, ki) => {
+      const isWeak = chosenWeak.some((w) => w.kana === k.kana);
       const distractors = seededShuffle(
         HIRAGANA.filter((x) => x.romaji !== k.romaji),
         todaySeed + 100 + ki,
@@ -74,7 +95,7 @@ export default function DailyBento() {
         .slice(0, 2)
         .map((x) => x.romaji);
       return {
-        label: 'Kana Warm-up',
+        label: isWeak ? 'Kana Warm-up · 🎯 Weak Spot Focus' : 'Kana Warm-up',
         display: k.kana,
         sub: 'Type or tap romaji',
         answers: [k.romaji, ...(k.alts ?? [])],
@@ -96,16 +117,38 @@ export default function DailyBento() {
     });
 
     return [...kPrompts, ...cPrompts];
-  }, [todaySeed]);
+  }, [todaySeed, kanaStats]);
 
   const [wIdx, setWIdx] = useState(0);
   const [wInput, setWInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Dish 2: Up to 5 due SRS cards — or a daily-rotating slice of ALL 150 kanji
+  // Dish 2: Up to 5 due SRS cards (balanced mix by kind) — or a daily-rotating slice of ALL 150 kanji
   const memoryCards = useMemo(() => {
     const dueList = Object.values(srs).filter((i) => isDue(i));
-    if (dueList.length >= 3) return dueList.slice(0, 5);
+    if (dueList.length >= 3) {
+      // Balanced interleaving across card kinds (kanji, word, grammar)
+      const byKind: Record<string, SrsItem[]> = {};
+      dueList.forEach((c) => {
+        byKind[c.kind] = byKind[c.kind] ?? [];
+        byKind[c.kind].push(c);
+      });
+      const kinds = Object.keys(byKind);
+      if (kinds.length > 1) {
+        const mixed: SrsItem[] = [];
+        let p = 0;
+        while (mixed.length < 5 && mixed.length < dueList.length) {
+          for (const k of kinds) {
+            if (byKind[k][p] && mixed.length < 5) {
+              mixed.push(byKind[k][p]);
+            }
+          }
+          p++;
+        }
+        return mixed;
+      }
+      return dueList.slice(0, 5);
+    }
     // Rotate through the full kanji list so each day gets a different group of 5
     const shuffled = seededShuffle(KANJI, todaySeed + 500);
     const fallback: Omit<SrsItem, 'card'>[] = shuffled.slice(0, 5).map((k) => ({
@@ -178,10 +221,30 @@ export default function DailyBento() {
 
   const uenoStamp = STAMPS.find((s) => s.id === 'ueno')!;
 
+  const timerMin = Math.floor(secondsLeft / 60);
+  const timerSec = String(secondsLeft % 60).padStart(2, '0');
+
   return (
     <div className="page">
       <div className="row-between">
-        <h1>今日の弁当 <span className="muted">Today's 5-Minute Bento</span></h1>
+        <div>
+          <h1>今日の弁当 <span className="muted">Today's 5-Minute Bento</span></h1>
+          {dish < 4 && (
+            <span
+              className="chip"
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: secondsLeft === 0 ? 'var(--bad)' : secondsLeft <= 60 ? '#f39c12' : 'inherit',
+                borderColor: secondsLeft === 0 ? 'var(--bad)' : secondsLeft <= 60 ? '#f39c12' : undefined,
+                marginTop: '0.2rem',
+                display: 'inline-block',
+              }}
+            >
+              ⏱ {secondsLeft > 0 ? `${timerMin}:${timerSec} Pace` : '0:00 (Take your time!)'}
+            </span>
+          )}
+        </div>
         <Link to="/" className="muted small">← Dashboard</Link>
       </div>
 

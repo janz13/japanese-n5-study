@@ -36,6 +36,8 @@ export default function Review() {
   const [typedInput, setTypedInput] = useState('');
   const [typedResult, setTypedResult] = useState<'ok' | 'bad' | null>(null);
   const [done, setDone] = useState(0);
+  const [sessionAgain, setSessionAgain] = useState(0);
+  const [sessionStart] = useState(() => Date.now());
 
   // Deck Browser state
   const [showBrowser, setShowBrowser] = useState(false);
@@ -106,6 +108,7 @@ export default function Review() {
     setTypedInput('');
     setTypedResult(null);
     setDone((d) => d + 1);
+    if (g === Rating.Again) setSessionAgain((n) => n + 1);
   };
 
   const flipCard = () => {
@@ -321,30 +324,46 @@ export default function Review() {
         </div>
       )}
 
-      {!item ? (
-        <div className="card-box center">
-          <div className="big-emoji">🎉</div>
-          <p>All caught up! {done ? `${done} reviews done.` : ''}</p>
-          {nextDue && <p className="muted">Next card due {nextDue.toLocaleString()}</p>}
-          <div className="controls">
-            <button className="chip on" onClick={refreshQueue}>Refresh Queue</button>
-            {counts.leech > 0 && (
-              <button
-                className="chip"
-                onClick={() => {
-                  const leechIds = items.filter(isLeechOrHard).map((c) => c.id);
-                  setQueue(leechIds);
-                }}
-              >
-                🔥 Cram {counts.leech} Leech / Missed Cards
-              </button>
+      {!item ? (() => {
+        const elapsedSec = Math.floor((Date.now() - sessionStart) / 1000);
+        const elapsed = `${Math.floor(elapsedSec / 60)}:${String(elapsedSec % 60).padStart(2, '0')}`;
+        return (
+          <div className="card-box center">
+            <div className="big-emoji">🎉</div>
+            {done > 0 ? (
+              <>
+                <p style={{ fontWeight: 600, fontSize: '1.15rem', margin: '0.3rem 0 0.6rem' }}>Session Complete!</p>
+                <div style={{ display: 'grid', gap: '0.35rem', textAlign: 'left', width: 'fit-content', margin: '0 auto 0.8rem' }}>
+                  <span>✅ <b>{done}</b> cards reviewed</span>
+                  <span>⏱ <b>{elapsed}</b></span>
+                  <span className="ok-text">🎯 <b>{done - sessionAgain}</b>/{done} correct</span>
+                  {sessionAgain > 0 && <span className="bad-text">🔥 <b>{sessionAgain}</b> lapsed</span>}
+                </div>
+              </>
+            ) : (
+              <p>All caught up!</p>
             )}
-            {counts.word === 0 && (
-              <button className="chip" onClick={seedVocabAndGrammar}>+ Add Story Vocab &amp; Grammar</button>
-            )}
+            {nextDue && <p className="muted">Next card due {nextDue.toLocaleString()}</p>}
+            <div className="controls">
+              <button className="chip on" onClick={refreshQueue}>Refresh Queue</button>
+              {counts.leech > 0 && (
+                <button
+                  className="chip"
+                  onClick={() => {
+                    const leechIds = items.filter(isLeechOrHard).map((c) => c.id);
+                    setQueue(leechIds);
+                  }}
+                >
+                  🔥 Cram {counts.leech} Leech / Missed Cards
+                </button>
+              )}
+              {counts.word === 0 && (
+                <button className="chip" onClick={seedVocabAndGrammar}>+ Add Story Vocab &amp; Grammar</button>
+              )}
+            </div>
           </div>
-        </div>
-      ) : (
+        );
+      })() : (
         <>
           <div
             className="card-box"

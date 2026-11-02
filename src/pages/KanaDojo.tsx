@@ -140,13 +140,60 @@ export default function KanaDojo() {
         </div>
       </div>
 
+      {/* Accuracy Heatmap Legend & Drill Weak */}
+      <div className="row-between" style={{ marginTop: '1.5rem', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.6rem' }}>
+        <div className="controls nomargin" style={{ gap: '0.45rem', alignItems: 'center' }}>
+          <span className="muted small">Mastery:</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', border: '1px solid var(--border)' }} />
+            <span className="muted">Unseen</span>
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--accent)' }} />
+            <span className="muted">Learning</span>
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--ok)' }} />
+            <span className="muted">Mastered</span>
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--bad)' }} />
+            <span className="muted">Struggling</span>
+          </span>
+        </div>
+        {(() => {
+          const src = script === 'katakana' ? KATAKANA : script === 'both' ? [...HIRAGANA, ...KATAKANA] : HIRAGANA;
+          const weakKana = src.filter((k) => {
+            const s = kanaStats[k.kana];
+            return s && s.wrong > 0 && s.wrong >= s.correct;
+          });
+          return weakKana.length > 0 ? (
+            <button
+              className="chip on"
+              onClick={() => {
+                const weakRows = [...new Set(weakKana.map((k) => k.row))];
+                setRows(weakRows);
+              }}
+            >
+              🎯 Drill {weakKana.length} Struggling Kana
+            </button>
+          ) : null;
+        })()}
+      </div>
+
       <h2>Basic, Dakuten &amp; Handakuten ({basicAndDakuten.length})</h2>
       <div className="chart">
         {basicAndDakuten.map((k) => {
           const s = kanaStats[k.kana];
+          const isStruggling = s && s.wrong > 0 && s.wrong >= s.correct;
           const level = !s || s.correct === 0 ? 0 : s.correct >= 3 && s.correct > s.wrong * 2 ? 2 : 1;
           return (
-            <button key={k.kana} className={`cell l${level}`} onClick={() => speak(k.kana)}>
+            <button
+              key={k.kana}
+              className={`cell l${level}`}
+              style={isStruggling ? { boxShadow: 'inset 0 -3px 0 var(--bad)' } : undefined}
+              onClick={() => speak(k.kana)}
+            >
               <span>{k.kana}</span>
               <small>{k.romaji}</small>
             </button>
@@ -158,9 +205,15 @@ export default function KanaDojo() {
       <div className="chart">
         {yoonList.map((k) => {
           const s = kanaStats[k.kana];
+          const isStruggling = s && s.wrong > 0 && s.wrong >= s.correct;
           const level = !s || s.correct === 0 ? 0 : s.correct >= 3 && s.correct > s.wrong * 2 ? 2 : 1;
           return (
-            <button key={k.kana} className={`cell l${level}`} onClick={() => speak(k.kana)}>
+            <button
+              key={k.kana}
+              className={`cell l${level}`}
+              style={isStruggling ? { boxShadow: 'inset 0 -3px 0 var(--bad)' } : undefined}
+              onClick={() => speak(k.kana)}
+            >
               <span>{k.kana}</span>
               <small>{k.romaji}</small>
             </button>

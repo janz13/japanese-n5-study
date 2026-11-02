@@ -238,6 +238,86 @@ export default function Exam() {
             <b>📜 合否結果通知書履歴 · Past Exam Certificates ({examHistory.length})</b>
             <span className="muted small">Tracks your scaled score trajectory &amp; weak Mondai</span>
           </div>
+
+          {/* Score Trajectory Sparkline */}
+          {examHistory.length >= 2 && (() => {
+            const chron = [...examHistory].reverse().slice(-10);
+            const w = 480;
+            const h = 90;
+            const padX = 35;
+            const padY = 16;
+            const passY = h - padY - (80 / 180) * (h - padY * 2);
+
+            const points = chron.map((c, idx) => {
+              const x = padX + (idx / (chron.length - 1)) * (w - padX * 2);
+              const y = h - padY - (Math.min(180, c.totalPts) / 180) * (h - padY * 2);
+              return { x, y, c };
+            });
+
+            const polylinePoints = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+
+            return (
+              <div style={{ margin: '0.8rem 0 0.6rem', padding: '0.6rem 0.8rem', background: 'var(--surface2)', borderRadius: '10px' }}>
+                <div className="row-between" style={{ marginBottom: '0.3rem' }}>
+                  <span className="muted small">📈 Score Trajectory (Last {chron.length} Attempts)</span>
+                  <span className="small muted">Passing threshold: 80 / 180</span>
+                </div>
+                <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height: '80px', overflow: 'visible' }}>
+                  {/* Pass line at 80/180 */}
+                  <line
+                    x1={padX}
+                    y1={passY}
+                    x2={w - padX}
+                    y2={passY}
+                    stroke="var(--ok)"
+                    strokeWidth="1.5"
+                    strokeDasharray="4 3"
+                    opacity="0.6"
+                  />
+                  <text x={w - padX + 5} y={passY + 3} fill="var(--ok)" fontSize="9" opacity="0.8">
+                    80
+                  </text>
+
+                  {/* Trend line */}
+                  <polyline
+                    points={polylinePoints}
+                    fill="none"
+                    stroke="var(--accent)"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  {/* Data points */}
+                  {points.map(({ x, y, c }, i) => (
+                    <g key={i}>
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r="4.5"
+                        fill={c.passed ? 'var(--ok)' : 'var(--bad)'}
+                        stroke="var(--surface)"
+                        strokeWidth="1.5"
+                      >
+                        <title>{`${c.date}: ${c.totalPts}/180 (${c.passed ? 'Passed' : 'Failed'})`}</title>
+                      </circle>
+                      <text
+                        x={x}
+                        y={y - 8}
+                        textAnchor="middle"
+                        fill="currentColor"
+                        fontSize="9.5"
+                        fontWeight="600"
+                      >
+                        {c.totalPts}
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+              </div>
+            );
+          })()}
+
           <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.6rem', maxHeight: '260px', overflowY: 'auto' }}>
             {examHistory.map((cert) => (
               <div

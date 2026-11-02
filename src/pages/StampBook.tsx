@@ -29,6 +29,23 @@ export function useEarnedStamps() {
   return map;
 }
 
+export function useStampProgress(): Record<string, { current: number; target: number }> {
+  const s = useStore();
+  const kanaCount = Object.values(s.kanaStats).filter((k) => k.correct >= 1).length;
+  const srsCount = Object.keys(s.srs).length;
+
+  return {
+    narita: { current: ('ch1-arrival' in s.completedStories || 'g1' in s.grammarDone) ? 1 : 0, target: 1 },
+    'tokyo-eki': { current: Math.min(kanaCount, 5), target: 5 },
+    ueno: { current: Math.min(s.bentoCount, 1), target: 1 },
+    ginza: { current: ('ch2-cafe' in s.completedStories || 's2' in s.scenesDone || 'g2' in s.grammarDone) ? 1 : 0, target: 1 },
+    asakusa: { current: ('ch3-asakusa' in s.completedStories || 'g3' in s.grammarDone) ? 1 : 0, target: 1 },
+    akihabara: { current: Math.min(srsCount, 5), target: 5 },
+    shinjuku: { current: s.examBest !== null ? 1 : 0, target: 1 },
+    kyoto: { current: ('ch4-weekend' in s.completedStories || 'g4' in s.grammarDone) ? 1 : 0, target: 1 },
+  };
+}
+
 export function StampSvg({ stamp, unlocked, date }: { stamp: StampDef; unlocked: boolean; date?: string }) {
   const ink = unlocked ? (stamp.kind === 'goshuin' ? '#d13b2e' : '#c44536') : 'var(--muted)';
   return (
@@ -110,6 +127,7 @@ function stampToMission(id: string): { to: string; label: string } {
 
 export default function StampBook() {
   const earned = useEarnedStamps();
+  const progress = useStampProgress();
   const [selected, setSelected] = useState<StampDef>(STAMPS[0]);
 
   const count = Object.keys(earned).length;
@@ -142,14 +160,37 @@ export default function StampBook() {
               <div className="stamp-title">{st.nameEn}</div>
               <small className="muted">{st.location}</small>
               {!isUnlocked ? (
-                <Link
-                  to={mission.to}
-                  className="chip small"
-                  style={{ marginTop: '0.4rem', textDecoration: 'none' }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  🔒 {mission.label.split(' to Earn')[0]}
-                </Link>
+                <>
+                  <Link
+                    to={mission.to}
+                    className="chip small"
+                    style={{ marginTop: '0.4rem', textDecoration: 'none' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    🔒 {mission.label.split(' to Earn')[0]}
+                  </Link>
+                  {(() => {
+                    const p = progress[st.id];
+                    return p && p.target > 1 ? (
+                      <div style={{ width: '85%', margin: '0.35rem auto 0' }}>
+                        <div style={{ background: 'var(--surface2)', borderRadius: '6px', height: '5px', overflow: 'hidden' }}>
+                          <div
+                            style={{
+                              background: 'var(--accent)',
+                              height: '100%',
+                              width: `${(p.current / p.target) * 100}%`,
+                              borderRadius: '6px',
+                              transition: 'width 0.3s ease',
+                            }}
+                          />
+                        </div>
+                        <span className="muted" style={{ fontSize: '0.65rem' }}>
+                          {p.current}/{p.target}
+                        </span>
+                      </div>
+                    ) : null;
+                  })()}
+                </>
               ) : (
                 <span className="ok-text small" style={{ marginTop: '0.4rem' }}>✓ Stamped</span>
               )}
@@ -161,6 +202,7 @@ export default function StampBook() {
       {selected && (() => {
         const isUnlocked = !!earned[selected.id];
         const mission = stampToMission(selected.id);
+        const selProg = progress[selected.id];
         return (
           <div className="gp" style={{ marginTop: '1.5rem' }}>
             <div className="row-between">
@@ -186,6 +228,11 @@ export default function StampBook() {
             <p>{selected.culturalNote}</p>
             <p className="small muted">
               <b>How to earn:</b> {selected.requirement}
+              {!isUnlocked && selProg && selProg.target > 1 && (
+                <span style={{ marginLeft: '0.6rem', fontWeight: 600, color: 'var(--accent)' }}>
+                  (Progress: {selProg.current} / {selProg.target})
+                </span>
+              )}
             </p>
             <div className="controls">
               {!isUnlocked ? (
