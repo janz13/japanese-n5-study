@@ -44,6 +44,10 @@ export interface ExamCertificate {
 
 interface State {
   kanaStats: Record<string, KanaStat>;
+  kanjiStats: Record<string, KanaStat>;
+  conjLessonsDone: Record<string, boolean>;
+  campaignClearedSagas: Record<number, number>;
+  campaignCompletedStages: Record<string, boolean>;
   savedWords: Word[];
   srs: Record<string, SrsItem>;
   completedStories: Record<string, number>; // id -> best score %
@@ -61,6 +65,10 @@ interface State {
   ttsRate: number;
   sfxEnabled: boolean;
   recordKana: (kana: string, ok: boolean) => void;
+  recordKanji: (kanji: string, ok: boolean) => void;
+  completeConjLesson: (id: string) => void;
+  completeCampaignStage: (stageId: string) => void;
+  completeCampaignSaga: (sagaNum: number, score: number) => void;
   saveWord: (w: Word) => void;
   addCard: (item: Omit<SrsItem, 'card'>) => void;
   removeCard: (id: string) => void;
@@ -98,6 +106,10 @@ export const isDue = (i: SrsItem, now = Date.now()) => new Date(i.card.due).getT
 
 const initialData = {
   kanaStats: {} as Record<string, KanaStat>,
+  kanjiStats: {} as Record<string, KanaStat>,
+  conjLessonsDone: {} as Record<string, boolean>,
+  campaignClearedSagas: {} as Record<number, number>,
+  campaignCompletedStages: {} as Record<string, boolean>,
   savedWords: [] as Word[],
   srs: {} as Record<string, SrsItem>,
   completedStories: {} as Record<string, number>,
@@ -131,6 +143,35 @@ export const useStore = create<State>()(
             },
           };
         }),
+      recordKanji: (kanji, ok) =>
+        set((s) => {
+          const prev = s.kanjiStats[kanji] ?? { correct: 0, wrong: 0 };
+          return {
+            ...bumpStreak(s),
+            kanjiStats: {
+              ...s.kanjiStats,
+              [kanji]: ok ? { ...prev, correct: prev.correct + 1 } : { ...prev, wrong: prev.wrong + 1 },
+            },
+          };
+        }),
+      completeConjLesson: (id) =>
+        set((s) => ({
+          ...bumpStreak(s),
+          conjLessonsDone: { ...s.conjLessonsDone, [id]: true },
+        })),
+      completeCampaignStage: (stageId) =>
+        set((s) => ({
+          ...bumpStreak(s),
+          campaignCompletedStages: { ...s.campaignCompletedStages, [stageId]: true },
+        })),
+      completeCampaignSaga: (sagaNum, score) =>
+        set((s) => ({
+          ...bumpStreak(s),
+          campaignClearedSagas: {
+            ...s.campaignClearedSagas,
+            [sagaNum]: Math.max(score, s.campaignClearedSagas[sagaNum] ?? 0),
+          },
+        })),
       saveWord: (w) =>
         set((s) => {
           const id = `w:${w.t}`;
@@ -197,6 +238,10 @@ export const useStore = create<State>()(
         set((s) => ({
           ...s,
           kanaStats: data.kanaStats ?? s.kanaStats,
+          kanjiStats: data.kanjiStats ?? s.kanjiStats,
+          conjLessonsDone: data.conjLessonsDone ?? s.conjLessonsDone,
+          campaignClearedSagas: data.campaignClearedSagas ?? s.campaignClearedSagas,
+          campaignCompletedStages: data.campaignCompletedStages ?? s.campaignCompletedStages,
           savedWords: data.savedWords ?? s.savedWords,
           srs: data.srs ?? s.srs,
           completedStories: data.completedStories ?? s.completedStories,
@@ -219,7 +264,7 @@ export const useStore = create<State>()(
     }),
     {
       name: 'n5-study',
-      version: 6,
+      version: 7,
       migrate: (old: unknown) => {
         const s = (old ?? {}) as Partial<State>;
         const srs: Record<string, SrsItem> = s.srs ?? {};
@@ -231,6 +276,10 @@ export const useStore = create<State>()(
           ...initialData,
           ...s,
           srs,
+          kanjiStats: s.kanjiStats ?? {},
+          conjLessonsDone: s.conjLessonsDone ?? {},
+          campaignClearedSagas: s.campaignClearedSagas ?? {},
+          campaignCompletedStages: s.campaignCompletedStages ?? {},
           grammarDone: s.grammarDone ?? {},
           scenesDone: s.scenesDone ?? {},
           examBest: s.examBest ?? null,

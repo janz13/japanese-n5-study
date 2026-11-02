@@ -7,6 +7,8 @@ import { isDue, useStore } from './lib/store';
 import { stopSpeaking } from './lib/tts';
 
 // Lazy-load secondary routes so initial bundle load is ultra-fast
+const Campaign = lazy(() => import('./pages/Campaign'));
+const KanjiDojo = lazy(() => import('./pages/KanjiDojo'));
 const DailyBento = lazy(() => import('./pages/DailyBento'));
 const SignDecoder = lazy(() => import('./pages/SignDecoder'));
 const Listening = lazy(() => import('./pages/Listening'));
@@ -59,6 +61,7 @@ const NAV_GROUPS: { id: string; label: string; icon: string; items: NavItem[] }[
     label: 'Daily',
     icon: '🍱',
     items: [
+      { to: '/campaign', icon: '🗺️', label: '旅 Campaign Mode', shortLabel: 'Campaign' },
       { to: '/bento', icon: '🍱', label: '弁 Daily Bento', shortLabel: 'Bento' },
       { to: '/review', icon: '🗂️', label: '復 FSRS Review', shortLabel: 'Review' },
       { to: '/stamps', icon: '🔖', label: '印 Stamp Book', shortLabel: 'Stamps' },
@@ -70,7 +73,8 @@ const NAV_GROUPS: { id: string; label: string; icon: string; items: NavItem[] }[
     icon: '⚡',
     items: [
       { to: '/kana', icon: '✍️', label: 'あ Kana Dojo', shortLabel: 'Kana' },
-      { to: '/kanji', icon: '🀄', label: '漢 Kanji Studio', shortLabel: 'Kanji' },
+      { to: '/kanji-dojo', icon: '⚡', label: '漢 Pure Kanji Dojo', shortLabel: 'Kanji Dojo' },
+      { to: '/kanji', icon: '🀄', label: '字 Kanji Studio', shortLabel: 'Kanji' },
       { to: '/conjugate', icon: '🔄', label: '活 Verb & Pair Dojo', shortLabel: 'Verbs' },
       { to: '/counters', icon: '🔢', label: '数 Counter Dojo', shortLabel: 'Counters' },
       { to: '/particles', icon: '🎯', label: '助 Particle Dojo', shortLabel: 'Particles' },
@@ -182,6 +186,15 @@ function HeaderNav({
             </div>
           );
         })}
+
+        <NavLink
+          to="/campaign"
+          className={({ isActive }) => `nav-group-btn ${isActive ? 'active' : ''}`}
+          style={{ textDecoration: 'none' }}
+          title="Guided Step-by-Step Odyssey: Zero to N4"
+        >
+          🗺️ Campaign
+        </NavLink>
 
         <NavLink
           to="/drive"
@@ -298,6 +311,8 @@ export default function App() {
         <Suspense fallback={<div className="page muted center" style={{ paddingTop: '3rem' }}>読み込み中… Loading…</div>}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/campaign" element={<Campaign />} />
+            <Route path="/kanji-dojo" element={<KanjiDojo />} />
             <Route path="/bento" element={<DailyBento />} />
             <Route path="/kana" element={<KanaDojo />} />
             <Route path="/kanji" element={<KanjiList />} />

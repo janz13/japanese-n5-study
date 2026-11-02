@@ -12,6 +12,7 @@ import { VERB_PAIRS, type VerbPair } from '../data/verbPairs';
 import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
 import { playDing, playMiss } from '../lib/sfx';
+import ConjugationLessonViewer from '../components/ConjugationLessonViewer';
 
 const ALL_GROUPS: WordGroup[] = ['ichidan', 'godan', 'irregular', 'i-adj', 'na-adj'];
 const ALL_FORMS: ConjForm[] = ['polite', 'te', 'negative', 'past', 'politePast'];
@@ -42,7 +43,7 @@ function matchesTarget(input: string, word: ConjugatableWord, form: ConjForm) {
 
 export default function ConjugationDojo() {
   const { srs, addCard, sfxEnabled } = useStore();
-  const [dojoMode, setDojoMode] = useState<'conjugate' | 'pairs'>('conjugate');
+  const [dojoMode, setDojoMode] = useState<'lessons' | 'conjugate' | 'pairs'>('lessons');
   const [groups, setGroups] = useState<WordGroup[]>(ALL_GROUPS);
   const [forms, setForms] = useState<ConjForm[]>(['polite', 'te', 'negative', 'past']);
   const [current, setCurrent] = useState<PromptItem | null>(null);
@@ -167,6 +168,12 @@ export default function ConjugationDojo() {
         </div>
         <div className="controls">
           <button
+            className={dojoMode === 'lessons' ? 'chip on' : 'chip'}
+            onClick={() => setDojoMode('lessons')}
+          >
+            📖 Fundamental Lessons (4)
+          </button>
+          <button
             className={dojoMode === 'conjugate' ? 'chip on' : 'chip'}
             onClick={() => setDojoMode('conjugate')}
           >
@@ -181,7 +188,9 @@ export default function ConjugationDojo() {
         </div>
       </div>
 
-      {dojoMode === 'conjugate' ? (
+      {dojoMode === 'lessons' ? (
+        <ConjugationLessonViewer onSwitchToDrill={() => setDojoMode('conjugate')} />
+      ) : dojoMode === 'conjugate' ? (
         <>
           <div className="controls" style={{ marginTop: '0.8rem' }}>
             <span className="muted small" style={{ alignSelf: 'center' }}>Groups:</span>

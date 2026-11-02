@@ -51,6 +51,8 @@ interface SearchEntry {
 }
 
 const MODULE_ENTRIES: SearchEntry[] = [
+  { id: 'm-campaign', category: 'Module', jp: '学習キャンペーン', reading: 'Campaign Mode', en: 'Structured 6-Saga journey from Zero to N4 with Boss fights', to: '/campaign' },
+  { id: 'm-kanji-dojo', category: 'Module', jp: '純粋漢字道場', reading: 'Pure Kanji Dojo', en: 'WaniKani-style fast typing drill for Meanings, Readings & Vocab', to: '/kanji-dojo' },
   { id: 'm-bento', category: 'Module', jp: '今日の弁当', reading: 'Daily Bento', en: '5-minute guided daily workout', to: '/bento' },
   { id: 'm-drive', category: 'Module', jp: 'ドライブ・モード', reading: 'Hands-Free Drive Podcast', en: 'Eyes-free Pimsleur shadowing & JLPT drama', to: '/drive' },
   { id: 'm-exam', category: 'Module', jp: '日本語能力試験', reading: 'Official JLPT Exam Simulator', en: '67-Q Full & 15-Q Express non-repeating N5/N4 mock exam', to: '/exam' },

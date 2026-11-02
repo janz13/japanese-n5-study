@@ -244,31 +244,37 @@ export default function Dashboard() {
     <div className="page">
       <h1 className="hero">こんにちは <span className="muted">— let's study.</span></h1>
 
-      {/* Guided Daily 5-Minute Bento CTA */}
+      {/* Guided Daily 5-Minute Bento & Campaign CTA Banner */}
       <div className="bento-banner">
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <span className="tag" style={{ background: 'var(--accent)', color: '#000', fontWeight: 700 }}>
+              🗺️ ZERO TO N4 CAMPAIGN ACTIVE
+            </span>
             <span className="tag" style={{ fontWeight: 600 }}>
               {bentoDoneToday ? '✓ TODAY’S BENTO COMPLETED' : '🍱 GUIDED DAILY WORKOUT'}
             </span>
             <span className="muted small">· {bentoCount} Bentos finished · {earnedStampCount}/{STAMPS.length} Stamps</span>
           </div>
           <h2 style={{ margin: '0.25rem 0 0.2rem', fontSize: '1.35rem' }}>
-            Today&apos;s 5-Minute Bento <span className="jp muted">(今日の弁当)</span>
+            Today&apos;s 5-Minute Bento <span className="jp muted">(今日の弁当)</span> &amp; Campaign
           </h2>
           <p className="muted small nomargin">
             1-click daily routine: 5 rapid-fire warm-ups → due SRS cards → 1 Kanji trace + street sign decoder.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <Link to="/bento" className="chip on" style={{ padding: '0.65rem 1.3rem', fontWeight: 600 }}>
-            {bentoDoneToday ? '🍱 Practice Another Bento →' : '🍱 Start Today’s Bento (5 min) →'}
+          <Link to="/campaign" className="chip on" style={{ padding: '0.65rem 1.3rem', fontWeight: 700, background: 'var(--accent)', color: '#000' }}>
+            🗺️ Open Campaign Map →
           </Link>
-          <Link to="/drive" className="chip on" style={{ padding: '0.65rem 1.1rem' }}>
-            📻 Hands-Free Drive Mode
+          <Link to="/bento" className="chip on" style={{ padding: '0.65rem 1.1rem', fontWeight: 600 }}>
+            {bentoDoneToday ? '🍱 Another Bento →' : '🍱 Start Bento (5 min) →'}
+          </Link>
+          <Link to="/kanji-dojo" className="chip">
+            ⚡ Pure Kanji Dojo
           </Link>
           <Link to="/stamps" className="chip">
-            印 Stamp Book ({earnedStampCount}/{STAMPS.length})
+            印 Stamps ({earnedStampCount}/{STAMPS.length})
           </Link>
         </div>
       </div>
@@ -517,10 +523,16 @@ export default function Dashboard() {
       </div>
 
       <div className="grid">
+        <Link to="/campaign" className="tile" style={{ borderTop: '3px solid var(--accent)' }}>
+          <span className="big">🗺️ 旅</span>Campaign<small>Zero to N4 Odyssey</small>
+        </Link>
         <Link to="/bento" className="tile"><span className="big">🍱 弁</span>Daily Bento<small>5-min guided loop</small></Link>
         <Link to="/kana" className="tile"><span className="big">✍️ あ</span>Kana Dojo<small>Typing &amp; Yōon drills</small></Link>
-        <Link to="/kanji" className="tile"><span className="big">🀄 漢</span>Kanji<small>150 N5/N4 · Radicals &amp; write</small></Link>
-        <Link to="/conjugate" className="tile"><span className="big">🔄 活</span>Verbs &amp; Pairs<small>Inflections &amp; 自動詞/他動詞</small></Link>
+        <Link to="/kanji-dojo" className="tile" style={{ borderTop: '3px solid #ec4899' }}>
+          <span className="big">⚡ 漢</span>Kanji Dojo<small>Meaning, read &amp; vocab</small>
+        </Link>
+        <Link to="/kanji" className="tile"><span className="big">🀄 漢</span>Kanji Studio<small>150 N5/N4 · Radicals &amp; trace</small></Link>
+        <Link to="/conjugate" className="tile"><span className="big">🔄 活</span>Verbs &amp; Lessons<small>Mental models &amp; 自動/他動</small></Link>
         <Link to="/counters" className="tile"><span className="big">🔢 数</span>Counters<small>助数詞 · Dates &amp; numbers</small></Link>
         <Link to="/particles" className="tile"><span className="big">🎯 助</span>Particles &amp; 擬音語<small>は/が · ペコペコ/ゴロゴロ</small></Link>
         <Link to="/review" className="tile"><span className="big">🗂️ 復</span>Review<small>{due} due · {Object.keys(srs).length} total</small></Link>
