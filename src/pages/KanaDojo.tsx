@@ -19,6 +19,9 @@ function pick(pool: Kana[], stats: Record<string, { correct: number; wrong: numb
 
 function matchesRomaji(input: string, k: Kana) {
   const clean = input.trim().toLowerCase();
+  if (k.kana === 'ん' || k.kana === 'ン') {
+    return clean === 'nn';
+  }
   return clean === k.romaji || (k.alts?.includes(clean) ?? false);
 }
 

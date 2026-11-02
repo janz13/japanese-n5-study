@@ -70,8 +70,8 @@ function build(chars: string, isKata: boolean): Kana[] {
   let i = 0;
   for (const [row, group, romas] of base) {
     for (const r of romas) {
-      const romaji = r === 'dji' ? 'ji' : r === 'dzu' ? 'zu' : r;
-      out.push({ kana: chars[i++], romaji, alts: ALTS[romaji], row, group });
+      const romaji = r === 'dji' ? 'ji' : r === 'dzu' ? 'zu' : r === 'n' ? 'nn' : r;
+      out.push({ kana: chars[i++], romaji, alts: ALTS[romaji] ?? (r === 'n' ? ['nn'] : undefined), row, group });
     }
   }
   for (const [row, romas, hList, kList] of yoonSpec) {

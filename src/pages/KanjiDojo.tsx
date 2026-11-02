@@ -149,7 +149,7 @@ export default function KanjiDojo() {
 
   const handleInputChange = (v: string) => {
     if (currentItem?.expectedInputType === 'kana') {
-      const hira = toHiragana(v);
+      const hira = toHiragana(v, { IMEMode: true });
       setInput(hira);
       if (currentItem && checkAnswer(hira, currentItem)) {
         submit(hira);
