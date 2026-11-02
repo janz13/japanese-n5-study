@@ -51,15 +51,15 @@ interface WarmupPrompt {
 
 import { SIGNS } from '../data/signs';
 export default function DailyBento() {
-  const { srs, addCard, reviewCard, recordKana, completeBento } = useStore();
+  const { srs, addCard, reviewCard, recordKana, completeBento, bentoCount } = useStore();
   const [dish, setDish] = useState<1 | 2 | 3 | 4>(1);
 
-  // Stable per-day seed: e.g. "2026-11-02" → deterministic hash
+  // Seed = date hash + bentoCount so each session within the same day is different
   const todaySeed = useMemo(() => {
     const d = new Date();
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return dayHash(iso);
-  }, []);
+    return dayHash(iso) + bentoCount * 7919; // large prime offset per session
+  }, [bentoCount]);
 
   // Dish 1: 3 Kana + 2 Verb Conjugations = 5 Warm-up prompts (seeded daily)
   const warmups = useMemo<WarmupPrompt[]>(() => {
