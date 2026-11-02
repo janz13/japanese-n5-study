@@ -12,6 +12,34 @@ import { isDue, useStore, type SrsItem } from '../lib/store';
 import { speak } from '../lib/tts';
 import { playDing, playFanfare } from '../lib/sfx';
 
+/** Simple date-seeded PRNG so every Bento dish is different each calendar day
+ *  but deterministic within the same day (reload-safe). */
+function dayHash(dateStr: string): number {
+  let h = 0;
+  for (let i = 0; i < dateStr.length; i++) {
+    h = ((h << 5) - h + dateStr.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+/** Seeded LCG — returns next state and a value in [0, max). */
+function seededRandom(seed: number, max: number): [number, number] {
+  const next = ((seed * 1664525 + 1013904223) & 0x7fffffff);
+  return [next, next % max];
+}
+
+/** Seeded Fisher–Yates shuffle — returns a new array, never mutates the input. */
+function seededShuffle<T>(arr: readonly T[], seed: number): T[] {
+  const out = [...arr];
+  let s = seed;
+  for (let i = out.length - 1; i > 0; i--) {
+    let j: number;
+    [s, j] = seededRandom(s, i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 interface WarmupPrompt {
   label: string;
   display: string;
@@ -26,14 +54,23 @@ export default function DailyBento() {
   const { srs, addCard, reviewCard, recordKana, completeBento } = useStore();
   const [dish, setDish] = useState<1 | 2 | 3 | 4>(1);
 
-  // Dish 1: 3 Kana + 2 Verb Conjugations = 5 Warm-up prompts
-  const warmups = useMemo<WarmupPrompt[]>(() => {
-    const kPool = [...HIRAGANA].sort(() => Math.random() - 0.5).slice(0, 3);
-    const cPool = [...CONJUGATIONS].sort(() => Math.random() - 0.5).slice(0, 2);
+  // Stable per-day seed: e.g. "2026-11-02" → deterministic hash
+  const todaySeed = useMemo(() => {
+    const d = new Date();
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return dayHash(iso);
+  }, []);
 
-    const kPrompts: WarmupPrompt[] = kPool.map((k) => {
-      const distractors = HIRAGANA.filter((x) => x.romaji !== k.romaji)
-        .sort(() => Math.random() - 0.5)
+  // Dish 1: 3 Kana + 2 Verb Conjugations = 5 Warm-up prompts (seeded daily)
+  const warmups = useMemo<WarmupPrompt[]>(() => {
+    const kPool = seededShuffle(HIRAGANA, todaySeed).slice(0, 3);
+    const cPool = seededShuffle(CONJUGATIONS, todaySeed + 1).slice(0, 2);
+
+    const kPrompts: WarmupPrompt[] = kPool.map((k, ki) => {
+      const distractors = seededShuffle(
+        HIRAGANA.filter((x) => x.romaji !== k.romaji),
+        todaySeed + 100 + ki,
+      )
         .slice(0, 2)
         .map((x) => x.romaji);
       return {
@@ -42,7 +79,7 @@ export default function DailyBento() {
         sub: 'Type or tap romaji',
         answers: [k.romaji, ...(k.alts ?? [])],
         audio: k.kana,
-        options: [k.romaji, ...distractors].sort(() => Math.random() - 0.5),
+        options: seededShuffle([k.romaji, ...distractors], todaySeed + 200 + ki),
       };
     });
 
@@ -54,22 +91,24 @@ export default function DailyBento() {
         sub: `${w.reading} (${w.en})`,
         answers: [t.romaji, t.kana, t.kanji],
         audio: t.kana,
-        options: [t.kanji, w.forms.polite.kanji, w.forms.negative.kanji].sort(() => Math.random() - 0.5),
+        options: seededShuffle([t.kanji, w.forms.polite.kanji, w.forms.negative.kanji], todaySeed + 300),
       };
     });
 
     return [...kPrompts, ...cPrompts];
-  }, []);
+  }, [todaySeed]);
 
   const [wIdx, setWIdx] = useState(0);
   const [wInput, setWInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Dish 2: Up to 5 due SRS cards (or starter N5 cards if none due)
+  // Dish 2: Up to 5 due SRS cards — or a daily-rotating slice of ALL 150 kanji
   const memoryCards = useMemo(() => {
     const dueList = Object.values(srs).filter((i) => isDue(i));
     if (dueList.length >= 3) return dueList.slice(0, 5);
-    const fallback: Omit<SrsItem, 'card'>[] = KANJI.slice(0, 5).map((k) => ({
+    // Rotate through the full kanji list so each day gets a different group of 5
+    const shuffled = seededShuffle(KANJI, todaySeed + 500);
+    const fallback: Omit<SrsItem, 'card'>[] = shuffled.slice(0, 5).map((k) => ({
       id: `k:${k.k}`,
       kind: 'kanji',
       front: k.k,
@@ -77,14 +116,20 @@ export default function DailyBento() {
       back: k.meaning,
     }));
     return fallback;
-  }, [srs]);
+  }, [srs, todaySeed]);
 
   const [mIdx, setMIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
-  // Dish 3: Featured Kanji + Real-World Street Sign Decoder
-  const featuredKanji = useMemo(() => KANJI[Math.floor(Math.random() * 20)], []);
-  const streetSign = useMemo(() => SIGNS[Math.floor(Math.random() * SIGNS.length)], []);
+  // Dish 3: Featured Kanji (rotates through ALL 150) + Street Sign (rotates through ALL signs)
+  const featuredKanji = useMemo(() => {
+    const idx = todaySeed % KANJI.length;
+    return KANJI[idx];
+  }, [todaySeed]);
+  const streetSign = useMemo(() => {
+    const idx = (todaySeed + 77) % SIGNS.length;
+    return SIGNS[idx];
+  }, [todaySeed]);
   const [signChoice, setSignChoice] = useState<number | null>(null);
 
   const curWarmup = warmups[wIdx];
