@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { CONJUGATION_LESSONS, type ConjugationLesson } from '../data/conjugationLessons';
+import {
+  CONJUGATION_LESSONS,
+  resolveConjLessonId,
+  type ConjugationLesson,
+} from '../data/conjugationLessons';
 import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
 import { playDing, playFanfare } from '../lib/sfx';
@@ -14,22 +18,11 @@ export default function ConjugationLessonViewer({
   onComplete?: () => void;
 }) {
   const { conjLessonsDone, completeConjLesson, sfxEnabled } = useStore();
-  const [activeLessonId, setActiveLessonId] = useState<string>(() => {
-    if (initialLessonId) {
-      const found = CONJUGATION_LESSONS.find(
-        (l) => l.id === initialLessonId || l.id === `lesson-${initialLessonId}`,
-      );
-      if (found) return found.id;
-    }
-    return CONJUGATION_LESSONS[0].id;
-  });
+  const [activeLessonId, setActiveLessonId] = useState<string>(() => resolveConjLessonId(initialLessonId));
 
   useEffect(() => {
     if (initialLessonId) {
-      const found = CONJUGATION_LESSONS.find(
-        (l) => l.id === initialLessonId || l.id === `lesson-${initialLessonId}`,
-      );
-      if (found) setActiveLessonId(found.id);
+      setActiveLessonId(resolveConjLessonId(initialLessonId));
     }
   }, [initialLessonId]);
 

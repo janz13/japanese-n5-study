@@ -382,4 +382,68 @@ export const LESSONS: Lesson[] = [
       { type: 'order', en: 'I will guide you (Humble).', tokens: ['私が', 'ご案内', 'いたします'] },
     ],
   },
+  {
+    id: 'g11',
+    chapter: 11,
+    title: 'N4 · Passive & Causative (受身・使役)',
+    points: [
+      {
+        pattern: 'V-られる / V-(あ)れる (受身形)',
+        meaning: 'passive voice (be done to / suffered from)',
+        explain:
+          'Expresses actions received from someone else. Group 1: u → a + れる (書く → 書かれる, 叱る → 叱られる). Group 2: drop る + られる (食べる → 食べられる). Group 3: する → される, くる → こられる. Also expresses "suffering passive" (迷惑の受身): 雨に降られた (I was rained on).',
+        examples: [
+          { jp: '先生に 褒められました。', en: 'I was praised by my teacher.', audio: 'せんせいに ほめられました。' },
+          { jp: '電車で 足を 踏まれました。', en: 'My foot was stepped on on the train.', audio: 'でんしゃで あしを ふまれました。' },
+        ],
+      },
+      {
+        pattern: 'V-させる / V-(あ)せる (使役形)',
+        meaning: 'causative voice (make / let someone do)',
+        explain:
+          'Expresses making or letting someone do something. Group 1: u → a + せる (読む → 読ませる, 行く → 行かせる). Group 2: drop る + させる (食べる → 食べさせる). Group 3: する → させる, くる → こさせる. Person directed is marked with に (or を for intransitive verbs).',
+        examples: [
+          { jp: '母は 子供に 野菜を 食べさせます。', en: 'The mother makes her child eat vegetables.', audio: 'ははは こどもに やさいを たべさせます。' },
+          { jp: '先生は 学生を 走らせました。', en: 'The teacher made the students run.', audio: 'せんせいは がくせいを はしらせました。' },
+        ],
+      },
+      {
+        pattern: 'V-させられる / V-(あ)せられる (使役受身)',
+        meaning: 'causative-passive (be made/forced to do)',
+        explain:
+          'Combines causative + passive: "forced to do something against one’s will". Group 1 contracted form is common: 行かされる, 歌わされる. Group 2: 食べさせられる. Group 3: させられる, こさせられる.',
+        examples: [
+          { jp: 'カラオケで 歌を 歌わせられました。', en: 'I was made to sing a song at karaoke.', audio: 'カラオケで うたを うたわせられました。' },
+        ],
+      },
+    ],
+    exercises: [
+      {
+        type: 'mcq',
+        prompt: '昨日、雨に（　）大変でした。',
+        en: 'Yesterday, I got rained on and had a tough time (Suffering passive).',
+        options: ['降られて', '降らせて', '降って'],
+        answer: 0,
+      },
+      {
+        type: 'mcq',
+        prompt: '部長に 英語の 資料を（　）。',
+        en: 'The manager made me prepare English documents (Causative).',
+        options: ['作らされました', '作らせられました', '作られました'],
+        answer: 1,
+      },
+      {
+        type: 'mcq',
+        prompt: '母に 部屋の 掃除を（　）。',
+        en: 'I was forced by my mom to clean the room (Causative-Passive).',
+        options: ['させられました', 'されました', 'させました'],
+        answer: 0,
+      },
+      {
+        type: 'order',
+        en: 'I was praised by the teacher.',
+        tokens: ['先生に', 'たくさん', '褒められました'],
+      },
+    ],
+  },
 ];

@@ -10,6 +10,7 @@ import {
   type WordGroup,
 } from '../data/conjugations';
 import { VERB_PAIRS, type VerbPair } from '../data/verbPairs';
+import { CONJUGATION_LESSONS } from '../data/conjugationLessons';
 import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
 import { playDing, playMiss } from '../lib/sfx';
@@ -204,7 +205,7 @@ export default function ConjugationDojo() {
             className={dojoMode === 'lessons' ? 'chip on' : 'chip'}
             onClick={() => setDojoMode('lessons')}
           >
-            📖 Fundamental Lessons (4)
+            📖 Fundamental Lessons ({CONJUGATION_LESSONS.length})
           </button>
           <button
             className={dojoMode === 'conjugate' ? 'chip on' : 'chip'}

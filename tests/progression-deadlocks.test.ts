@@ -5,6 +5,7 @@ import { useStore } from '../src/lib/store.ts';
 import { CAMPAIGN_SAGAS, getCampaignStage } from '../src/data/campaign.ts';
 import { STORIES } from '../src/data/stories.ts';
 import { LESSONS } from '../src/data/grammar.ts';
+import { CONJUGATION_LESSONS, resolveConjLessonId } from '../src/data/conjugationLessons.ts';
 
 console.log('======================================================================');
 console.log('🧪 TESTING 7 PROGRESSION BUGS & LOCK DEADLOCK FIXES');
@@ -144,6 +145,138 @@ const s6_4 = getCampaignStage('s6-4')!.stage;
 assert.equal(s6_4.targetRoute, '/listening?tab=pitch', 's6-4 must link to listening pitch');
 console.log('✓ Test 6 PASSED: All 7 multi-tab dojo links specify exact tab and script query parameters.\n');
 
+// -----------------------------------------------------------------------------
+// Test 7: Conjugation Sub-Lesson ID Resolution (Missions 13, 14, 15)
+// -----------------------------------------------------------------------------
+console.log('[Test 7] Testing Conjugation sub-lesson ID resolution...');
+assert.equal(resolveConjLessonId('lesson-1'), 'c-groups', 'lesson-1 resolves to c-groups');
+assert.equal(resolveConjLessonId('lesson-3'), 'c-te-form', 'lesson-3 resolves to c-te-form');
+assert.equal(resolveConjLessonId('lesson-4'), 'c-adjectives', 'lesson-4 resolves to c-adjectives');
+assert.equal(resolveConjLessonId('lesson-5'), 'c-passive-causative', 'lesson-5 resolves to c-passive-causative');
+assert.equal(resolveConjLessonId('3'), 'c-te-form', 'Numeric "3" resolves to c-te-form');
+assert.equal(resolveConjLessonId('4'), 'c-adjectives', 'Numeric "4" resolves to c-adjectives');
+assert.equal(resolveConjLessonId('5'), 'c-passive-causative', 'Numeric "5" resolves to c-passive-causative');
+assert.equal(resolveConjLessonId('te-form'), 'c-te-form', 'Keyword "te-form" resolves to c-te-form');
+assert.equal(resolveConjLessonId('passive'), 'c-passive-causative', 'Keyword "passive" resolves to c-passive-causative');
+assert.equal(resolveConjLessonId('causative'), 'c-passive-causative', 'Keyword "causative" resolves to c-passive-causative');
+console.log('✓ Test 7 PASSED: Sub-lesson query parameters resolve directly to correct lesson IDs.\n');
+
+// -----------------------------------------------------------------------------
+// Test 8: Fast-Track Jump to Saga 4 Atomic Scoping (Locks Later Chapters)
+// -----------------------------------------------------------------------------
+console.log('[Test 8] Testing Fast-Track Placement atomic scoping...');
+// Simulate prior session where user had completed everything up to Saga 6
+useStore.setState({
+  campaignClearedSagas: { 1: 100, 2: 100, 3: 100, 4: 100, 5: 100, 6: 100 },
+  campaignCompletedStages: { 's1-1': true, 's4-1': true, 's5-1': true, 's6-1': true },
+  grammarDone: { g1: 100, g2: 100, g3: 100, g4: 100, g5: 100, g6: 100, g7: 100, g8: 100 },
+  completedStories: {
+    'ch1-arrival': 100,
+    'ch2-cafe': 100,
+    'ch3-asakusa': 100,
+    'ch4-weekend': 100,
+    'ch5-shinkansen': 100,
+    'ch6-akihabara': 100,
+  },
+});
+
+// Now simulate user choosing "Jump to Saga 4" (handleSkipToSaga(4))
+const targetSaga = 4;
+const store = useStore.getState();
+const nextClearedSagas: Record<number, number> = {};
+for (let i = 1; i < targetSaga; i++) {
+  nextClearedSagas[i] = 100;
+}
+const nextCompletedStages: Record<string, boolean> = { ...store.campaignCompletedStages };
+for (const saga of CAMPAIGN_SAGAS) {
+  if (saga.sagaNumber < targetSaga) {
+    saga.stages.forEach((st) => {
+      nextCompletedStages[st.id] = true;
+    });
+  } else {
+    saga.stages.forEach((st) => {
+      delete nextCompletedStages[st.id];
+    });
+  }
+}
+
+const backfillMapSaga4: Record<number, { lessons: string[]; stories: string[] }> = {
+  4: { lessons: ['g1', 'g2', 'g3'], stories: ['ch1-arrival', 'ch2-cafe', 'ch3-asakusa'] },
+};
+const toBackfill4 = backfillMapSaga4[4];
+const nextGrammarDone: Record<string, number> = { ...store.grammarDone };
+for (const l of LESSONS) {
+  delete nextGrammarDone[l.id];
+}
+toBackfill4.lessons.forEach((lid) => {
+  nextGrammarDone[lid] = 100;
+});
+const nextCompletedStories: Record<string, number> = { ...store.completedStories };
+for (const s of STORIES) {
+  delete nextCompletedStories[s.id];
+}
+toBackfill4.stories.forEach((sid) => {
+  nextCompletedStories[sid] = 100;
+});
+
+useStore.setState({
+  campaignClearedSagas: nextClearedSagas,
+  campaignCompletedStages: nextCompletedStages,
+  grammarDone: nextGrammarDone,
+  completedStories: nextCompletedStories,
+});
+
+const stateAfterJump4 = useStore.getState();
+
+// Verify Sagas
+assert.equal(stateAfterJump4.campaignClearedSagas[1], 100, 'Saga 1 is cleared');
+assert.equal(stateAfterJump4.campaignClearedSagas[2], 100, 'Saga 2 is cleared');
+assert.equal(stateAfterJump4.campaignClearedSagas[3], 100, 'Saga 3 is cleared');
+assert.equal(stateAfterJump4.campaignClearedSagas[4], undefined, 'Saga 4 is NOT cleared');
+assert.equal(stateAfterJump4.campaignClearedSagas[5], undefined, 'Saga 5 is NOT cleared');
+assert.equal(stateAfterJump4.campaignClearedSagas[6], undefined, 'Saga 6 is NOT cleared');
+
+// Verify Stories
+assert.equal(storyUnlocked(1, stateAfterJump4), true, 'Story 1 is unlocked');
+assert.equal(storyUnlocked(2, stateAfterJump4), true, 'Story 2 is unlocked');
+assert.equal(storyUnlocked(3, stateAfterJump4), true, 'Story 3 is unlocked');
+assert.equal(storyUnlocked(4, stateAfterJump4), true, 'Story 4 is unlocked for study');
+assert.equal(storyUnlocked(5, stateAfterJump4), false, 'Story 5 MUST BE LOCKED');
+assert.equal(storyUnlocked(6, stateAfterJump4), false, 'Story 6 MUST BE LOCKED');
+assert.equal(storyUnlocked(7, stateAfterJump4), false, 'Story 7 MUST BE LOCKED');
+assert.equal(storyUnlocked(8, stateAfterJump4), false, 'Story 8 MUST BE LOCKED');
+
+// Verify Grammar
+assert.equal(lessonUnlocked(1, stateAfterJump4), true, 'Lesson 1 is unlocked');
+assert.equal(lessonUnlocked(2, stateAfterJump4), true, 'Lesson 2 is unlocked');
+assert.equal(lessonUnlocked(3, stateAfterJump4), true, 'Lesson 3 is unlocked');
+assert.equal(lessonUnlocked(4, stateAfterJump4), true, 'Lesson 4 is unlocked for study');
+assert.equal(lessonUnlocked(5, stateAfterJump4), false, 'Lesson 5 MUST BE LOCKED');
+assert.equal(lessonUnlocked(6, stateAfterJump4), false, 'Lesson 6 MUST BE LOCKED');
+assert.equal(lessonUnlocked(8, stateAfterJump4), false, 'Lesson 8 MUST BE LOCKED');
+
+console.log('✓ Test 8 PASSED: Fast-track jump to Saga 4 cleanly locks chapters 5-10 and lessons 5-11.\n');
+
+// -----------------------------------------------------------------------------
+// Test 9: Verification of New N4 Grammar Lesson 11 & Conjugation Lesson 5
+// -----------------------------------------------------------------------------
+console.log('[Test 9] Testing N4 Grammar Lesson 11 and Conjugation Lesson 5 data integrity...');
+const g11 = LESSONS.find((l) => l.id === 'g11');
+assert.ok(g11, 'Grammar Lesson g11 exists');
+assert.equal(g11.chapter, 11, 'g11 has chapter 11');
+assert.ok(g11.points.some((p) => p.pattern.includes('受身形')), 'g11 covers Passive voice');
+assert.ok(g11.points.some((p) => p.pattern.includes('使役形')), 'g11 covers Causative voice');
+assert.ok(g11.points.some((p) => p.pattern.includes('使役受身')), 'g11 covers Causative-Passive voice');
+assert.equal(g11.exercises.length, 4, 'g11 has 4 interactive exercises');
+
+const c5 = CONJUGATION_LESSONS.find((l) => l.id === 'c-passive-causative');
+assert.ok(c5, 'Conjugation Lesson c-passive-causative exists');
+assert.equal(c5.level, 'N4', 'c5 is an N4 lesson');
+assert.equal(c5.interactiveMorph.steps.length, 5, 'c5 has 5 interactive morph steps for 食べる');
+assert.equal(c5.quiz.length, 3, 'c5 has 3 verification quiz questions');
+
+console.log('✓ Test 9 PASSED: g11 and c-passive-causative are fully integrated and valid.\n');
+
 console.log('======================================================================');
-console.log('🎉 ALL 7 PROGRESSION BUG AND LOCK DEADLOCK TESTS PASSED (100%)!');
+console.log('🎉 ALL 9 PROGRESSION AND LESSON TESTS PASSED (100%)!');
 console.log('======================================================================');

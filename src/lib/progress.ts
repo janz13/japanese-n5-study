@@ -31,7 +31,9 @@ export function lessonUnlocked(chapter: number, p: Progress) {
   // Saga 3 clears -> unlocks through g4
   // Saga 4 clears -> unlocks through g7
   // Saga 5 clears -> unlocks through g9
+  // Saga 6 clears -> unlocks through g11
   const cleared = p.campaignClearedSagas ?? {};
+  if ((cleared[6] ?? 0) >= 70 && chapter <= 11) return true;
   if ((cleared[5] ?? 0) >= 70 && chapter <= 9) return true;
   if ((cleared[4] ?? 0) >= 70 && chapter <= 7) return true;
   if ((cleared[3] ?? 0) >= 70 && chapter <= 4) return true;

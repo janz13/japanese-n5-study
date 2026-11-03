@@ -293,4 +293,123 @@ export const CONJUGATION_LESSONS: ConjugationLesson[] = [
       },
     ],
   },
+  {
+    id: 'c-passive-causative',
+    title: 'Passive & Causative Inflections (受身・使役)',
+    titleJp: '受身形・使役形・使役受身形の作り方',
+    level: 'N4',
+    description: 'Master the three key N4 verb transformations: Passive (action done to subject), Causative (make/let someone do), and Causative-Passive (forced to do).',
+    keyRule: 'Group 1 Godan shifts "u" to "a" sound + れる / せる. Group 2 Ichidan drops る + られる / させる. Group 3: する → される / させる, くる → こられる / こさせる.',
+    sections: [
+      {
+        heading: '1. 受身形 (Passive: 〜られる / 〜あれる)',
+        body: 'Use passive voice when the subject receives the action or suffers from an unwanted event (迷惑の受身). Group 1 (Godan) shifts the final vowel to the "a" row and adds れる (書く → 書かれる, 叱る → 叱られる). For verbs ending in う, use わ: 言う → 言われる! Group 2 drops る and adds られる (食べる → 食べられる).',
+        examples: [
+          { kanji: '褒められる', kana: 'ほめられる', en: 'to be praised (Group 2)', breakdown: 'ほめ(る) + られる' },
+          { kanji: '叱られる', kana: 'しかられる', en: 'to be scolded (Group 1)', breakdown: 'しか(る→ら) + れる' },
+          { kanji: '雨に降られる', kana: 'あめにふられる', en: 'to get rained on (Suffering passive)', breakdown: 'ふ(る→ら) + れる' },
+        ],
+        tip: '⚠️ WATCH OUT: Group 2 passive (食べられる) looks identical to its potential form (can eat)! Use the sentence particle context to disambiguate: 魚が食べられる (can eat fish) vs. 魚に食べられる (eaten by a fish).',
+      },
+      {
+        heading: '2. 使役形 (Causative: 〜させる / 〜あせる)',
+        body: 'Use causative when a person in authority makes or lets someone perform an action. Group 1 shifts final vowel to "a" row and adds せる (読む → 読ませる, 行く → 行かせる). For う-ending verbs: 買う → 買わせる. Group 2 drops る and snaps on させる (食べる → 食べさせる).',
+        examples: [
+          { kanji: '食べさせる', kana: 'たべさせる', en: 'make/let eat (Group 2)', breakdown: 'たべ(る) + させる' },
+          { kanji: '読ませる', kana: 'よませる', en: 'make/let read (Group 1)', breakdown: 'よ(む→ま) + せる' },
+          { kanji: '来させる', kana: 'こさせる', en: 'make/let come (Group 3)', breakdown: 'くる → こさせる' },
+        ],
+      },
+      {
+        heading: '3. 使役受身形 (Causative-Passive: 〜させられる / 〜あせられる)',
+        body: 'The infamous "double transformation": forced against one’s will to do something! Group 1 Godan verbs often contract: 歌う → 歌わせられる (formal) → 歌わされる (common everyday spoken contraction). Group 2 Ichidan always uses させられる (食べさせられる).',
+        examples: [
+          { kanji: '歌わされる', kana: 'うたわされる', en: 'forced to sing (Group 1 spoken contraction)', breakdown: 'うた(う→わ) + される' },
+          { kanji: '食べさせられる', kana: 'たべさせられる', en: 'forced to eat (Group 2)', breakdown: 'たべ(る) + させられる' },
+          { kanji: '待たされる', kana: 'またされる', en: 'kept waiting / forced to wait', breakdown: 'ま(つ→た) + される' },
+        ],
+      },
+    ],
+    interactiveMorph: {
+      wordDict: '食べる',
+      wordReading: 'たべる',
+      wordMeaning: 'to eat (Group 2 Ichidan)',
+      group: 'ichidan',
+      steps: [
+        { label: 'Dictionary Base', stem: 'たべ', suffix: 'る', fullKanji: '食べる', fullKana: 'たべる', romaji: 'taberu', explanation: 'Base dictionary form: to eat.' },
+        { label: '受身形 (Passive)', stem: 'たべ', suffix: 'られる', fullKanji: '食べられる', fullKana: 'たべられる', romaji: 'taberareru', explanation: 'Drop る + られる: to be eaten.' },
+        { label: '使役形 (Causative)', stem: 'たべ', suffix: 'させる', fullKanji: '食べさせる', fullKana: 'たべさせる', romaji: 'tabesaseru', explanation: 'Drop る + させる: make/let someone eat.' },
+        { label: '使役受身形 (Causative-Passive)', stem: 'たべ', suffix: 'させられる', fullKanji: '食べさせられる', fullKana: 'たべさせられる', romaji: 'tabesaserareru', explanation: 'Drop る + させられる: forced/made to eat.' },
+        { label: 'Polite Passive (〜られます)', stem: 'たべ', suffix: 'られます', fullKanji: '食べられます', fullKana: 'たべられます', romaji: 'taberaremasu', explanation: 'Polite passive: is eaten / was eaten.' },
+      ],
+    },
+    quiz: [
+      {
+        q: 'What is the passive form of 叱る (しかる / to scold - Group 1)?',
+        options: ['しかれる', 'しかられる', 'しかさせられる'],
+        answer: 1,
+        explanation: 'Group 1 shifts "ru" to "ra" + れる: しかられる (to be scolded).',
+      },
+      {
+        q: 'How do you say "made/let read" using 読む (よむ - Group 1)?',
+        options: ['よまれる', 'よませる', 'よみさせる'],
+        answer: 1,
+        explanation: 'Group 1 shifts "mu" to "ma" + せる: 読ませる (よませる).',
+      },
+      {
+        q: 'What is the irregular passive form of 来る (くる)?',
+        options: ['こられる', 'きられる', 'くられる'],
+        answer: 0,
+        explanation: 'The kanji 来 changes reading to "こ" for both passive and causative: こられる (passive) and こさせる (causative).',
+      },
+    ],
+  },
 ];
+
+export function resolveConjLessonId(query?: string): string {
+  if (!query) return CONJUGATION_LESSONS[0]?.id || 'c-groups';
+  const clean = query.trim().toLowerCase();
+
+  // 1. Direct match on ID
+  const direct = CONJUGATION_LESSONS.find((l) => l.id.toLowerCase() === clean);
+  if (direct) return direct.id;
+
+  // 2. Numeric / index-based match (e.g. "1", "3", "4", "5", "lesson-1", "lesson-3", "l3")
+  const numMatch = clean.match(/^(?:lesson-?|l)?(\d+)$/);
+  if (numMatch) {
+    const idx = parseInt(numMatch[1], 10) - 1;
+    if (idx >= 0 && idx < CONJUGATION_LESSONS.length) {
+      return CONJUGATION_LESSONS[idx].id;
+    }
+  }
+
+  // 3. Keyword / slug match
+  if (clean.includes('te')) {
+    const found = CONJUGATION_LESSONS.find((l) => l.id === 'c-te-form');
+    if (found) return found.id;
+  }
+  if (clean.includes('adj')) {
+    const found = CONJUGATION_LESSONS.find((l) => l.id === 'c-adjectives');
+    if (found) return found.id;
+  }
+  if (clean.includes('godan') || clean.includes('wheel')) {
+    const found = CONJUGATION_LESSONS.find((l) => l.id === 'c-godan-wheel');
+    if (found) return found.id;
+  }
+  if (clean.includes('passive') || clean.includes('causative')) {
+    const found = CONJUGATION_LESSONS.find((l) => l.id === 'c-passive-causative');
+    if (found) return found.id;
+  }
+  if (clean.includes('group')) {
+    const found = CONJUGATION_LESSONS.find((l) => l.id === 'c-groups');
+    if (found) return found.id;
+  }
+
+  // 4. Substring in title or id
+  const partial = CONJUGATION_LESSONS.find(
+    (l) => l.id.toLowerCase().includes(clean) || l.title.toLowerCase().includes(clean),
+  );
+  if (partial) return partial.id;
+
+  return CONJUGATION_LESSONS[0]?.id || 'c-groups';
+}

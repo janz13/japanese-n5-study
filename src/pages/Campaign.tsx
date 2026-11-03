@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CAMPAIGN_SAGAS, type CampaignSaga } from '../data/campaign';
+import { STORIES } from '../data/stories';
+import { LESSONS } from '../data/grammar';
 import { useStore } from '../lib/store';
 import { playFanfare, playMiss } from '../lib/sfx';
 
@@ -14,8 +16,6 @@ export default function Campaign() {
     campaignCompletedStages,
     completeCampaignStage,
     completeCampaignSaga,
-    completeLesson,
-    completeStory,
     sfxEnabled,
   } = useStore();
 
@@ -86,15 +86,29 @@ export default function Campaign() {
   };
 
   const handleSkipToSaga = (targetSaga: number) => {
+    const store = useStore.getState();
+
+    // 1. Cleared Sagas: strictly keep only 1..(targetSaga - 1)
+    const nextClearedSagas: Record<number, number> = {};
     for (let i = 1; i < targetSaga; i++) {
-      completeCampaignSaga(i, 100);
-      const saga = CAMPAIGN_SAGAS.find((s) => s.sagaNumber === i);
-      if (saga) {
-        saga.stages.forEach((st) => completeCampaignStage(st.id));
+      nextClearedSagas[i] = 100;
+    }
+
+    // 2. Completed Stages: mark < targetSaga complete, delete >= targetSaga
+    const nextCompletedStages: Record<string, boolean> = { ...store.campaignCompletedStages };
+    for (const saga of CAMPAIGN_SAGAS) {
+      if (saga.sagaNumber < targetSaga) {
+        saga.stages.forEach((st) => {
+          nextCompletedStages[st.id] = true;
+        });
+      } else {
+        saga.stages.forEach((st) => {
+          delete nextCompletedStages[st.id];
+        });
       }
     }
 
-    // Backfill stories and grammar lessons for all skipped sagas
+    // 3. Backfill stories and grammar lessons for all skipped sagas
     const backfillMap: Record<number, { lessons: string[]; stories: string[] }> = {
       2: { lessons: ['g1'], stories: ['ch1-arrival'] },
       3: { lessons: ['g1', 'g2'], stories: ['ch1-arrival', 'ch2-cafe'] },
@@ -117,11 +131,32 @@ export default function Campaign() {
       },
     };
 
-    const toBackfill = backfillMap[targetSaga];
-    if (toBackfill) {
-      toBackfill.lessons.forEach((lid) => completeLesson(lid, 100));
-      toBackfill.stories.forEach((sid) => completeStory(sid, 100));
+    const toBackfill = backfillMap[targetSaga] || { lessons: [], stories: [] };
+
+    // Prune previous grammarDone and backfill exact lessons
+    const nextGrammarDone: Record<string, number> = { ...store.grammarDone };
+    for (const l of LESSONS) {
+      delete nextGrammarDone[l.id];
     }
+    toBackfill.lessons.forEach((lid) => {
+      nextGrammarDone[lid] = 100;
+    });
+
+    // Prune previous completedStories and backfill exact stories
+    const nextCompletedStories: Record<string, number> = { ...store.completedStories };
+    for (const s of STORIES) {
+      delete nextCompletedStories[s.id];
+    }
+    toBackfill.stories.forEach((sid) => {
+      nextCompletedStories[sid] = 100;
+    });
+
+    useStore.setState({
+      campaignClearedSagas: nextClearedSagas,
+      campaignCompletedStages: nextCompletedStages,
+      grammarDone: nextGrammarDone,
+      completedStories: nextCompletedStories,
+    });
 
     setActiveSagaNum(targetSaga);
     setPlacementOpen(false);
