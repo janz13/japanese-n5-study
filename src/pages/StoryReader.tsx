@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { STORIES, type Token } from '../data/stories';
 import { useStore } from '../lib/store';
 import { speak, stopSpeaking } from '../lib/tts';
 import { storyUnlocked } from '../lib/progress';
+import { playFanfare } from '../lib/sfx';
+import { useCampaignMission } from '../lib/useCampaignMission';
+import CampaignBanner from '../components/CampaignBanner';
 
 const plain = (tokens: Token[]) => tokens.map((t) => t.r ?? t.t).join('');
 
@@ -62,15 +65,38 @@ export default function StoryReader() {
   const story = STORIES.find((s) => s.id === id);
   const state = useStore();
   const { showFurigana, toggleFurigana, saveWord, srs, completeStory, ttsRate, setTtsRate } = state;
+  const {
+    isCampaignMode,
+    stage,
+    saga,
+    completeMission,
+    returnToCampaign,
+  } = useCampaignMission();
   const [gloss, setGloss] = useState<Token | null>(null);
   const [playing, setPlaying] = useState<number | null>(null);
   const [showEn, setShowEn] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [forceOpen, setForceOpen] = useState(false);
   const [savedScore, setSavedScore] = useState(false);
+  const campaignCompletedRef = useRef(false);
+
+  const allAnswered = story ? Object.keys(answers).length === story.questions.length : false;
+  const score = story && story.questions.length > 0
+    ? Math.round(
+        (story.questions.filter((q, i) => answers[i] === q.answer).length / story.questions.length) * 100,
+      )
+    : 0;
+
+  useEffect(() => {
+    if (isCampaignMode && allAnswered && !campaignCompletedRef.current) {
+      campaignCompletedRef.current = true;
+      completeMission();
+      if (state.sfxEnabled) playFanfare();
+    }
+  }, [isCampaignMode, allAnswered, completeMission, state.sfxEnabled]);
 
   if (!story) return <div className="page">Story not found. <Link to="/stories">Back</Link></div>;
-  if (!forceOpen && !storyUnlocked(story.chapter, state)) {
+  if (!isCampaignMode && !forceOpen && !storyUnlocked(story.chapter, state)) {
     return (
       <div className="page">
         <p>
@@ -104,13 +130,11 @@ export default function StoryReader() {
     speak(plain(story.paragraphs[i]), ttsRate, () => setPlaying(null));
   };
 
-  const allAnswered = Object.keys(answers).length === story.questions.length;
-  const score = Math.round(
-    (story.questions.filter((q, i) => answers[i] === q.answer).length / story.questions.length) * 100,
-  );
-
   return (
     <div className="page reader">
+      {isCampaignMode && stage && (
+        <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
+      )}
       <Link to="/stories" className="muted">← Stories</Link>
       <h1>{story.title} <span className="muted">{story.titleEn}</span></h1>
       <div className="controls">
@@ -229,11 +253,56 @@ export default function StoryReader() {
         <div className="result">
           <span>Score: {score}%</span>
           {!savedScore ? (
-            <button className="chip on" onClick={() => { completeStory(story.id, score); setSavedScore(true); }}>
+            <button
+              className="chip on"
+              onClick={() => {
+                completeStory(story.id, score);
+                setSavedScore(true);
+                if (isCampaignMode) {
+                  completeMission();
+                }
+              }}
+            >
               Mark complete
             </button>
           ) : (
-            <Link className="chip on" to="/stories">✓ Completed — Back to Stories</Link>
+            <div style={{ display: 'inline-flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              {isCampaignMode && (
+                <button
+                  type="button"
+                  className="chip on"
+                  style={{
+                    background: 'var(--accent)',
+                    color: '#000',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                  onClick={returnToCampaign}
+                >
+                  🗺️ Return to Campaign Map →
+                </button>
+              )}
+              <Link className={isCampaignMode ? 'chip' : 'chip on'} to="/stories">
+                ✓ Completed — Back to Stories
+              </Link>
+            </div>
+          )}
+
+          {isCampaignMode && !savedScore && (
+            <button
+              type="button"
+              className="chip on"
+              style={{
+                marginLeft: '0.6rem',
+                background: 'var(--accent)',
+                color: '#000',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+              onClick={returnToCampaign}
+            >
+              🗺️ Return to Campaign Map →
+            </button>
           )}
         </div>
       )}

@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CAMPAIGN_SAGAS, type CampaignSaga } from '../data/campaign';
 import { useStore } from '../lib/store';
 import { playFanfare, playMiss } from '../lib/sfx';
 
 export default function Campaign() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sagaQuery = searchParams.get('saga');
+
   const {
     campaignClearedSagas,
     campaignCompletedStages,
@@ -15,12 +18,27 @@ export default function Campaign() {
   } = useStore();
 
   const [activeSagaNum, setActiveSagaNum] = useState<number>(() => {
+    if (sagaQuery) {
+      const parsed = parseInt(sagaQuery, 10);
+      if (parsed >= 1 && parsed <= CAMPAIGN_SAGAS.length) return parsed;
+    }
     // Find first unfinished saga or default to 1
     for (const saga of CAMPAIGN_SAGAS) {
       if (!campaignClearedSagas[saga.sagaNumber]) return saga.sagaNumber;
     }
     return 1;
   });
+
+  const [prevSagaQuery, setPrevSagaQuery] = useState(sagaQuery);
+  if (sagaQuery !== prevSagaQuery) {
+    setPrevSagaQuery(sagaQuery);
+    if (sagaQuery) {
+      const parsed = parseInt(sagaQuery, 10);
+      if (parsed >= 1 && parsed <= CAMPAIGN_SAGAS.length && parsed !== activeSagaNum) {
+        setActiveSagaNum(parsed);
+      }
+    }
+  }
 
   const [bossOpen, setBossOpen] = useState<boolean>(false);
   const [bossSaga, setBossSaga] = useState<CampaignSaga | null>(null);
@@ -266,8 +284,8 @@ export default function Campaign() {
                     className="chip on"
                     style={{ padding: '0.45rem 1rem', fontWeight: 600 }}
                     onClick={() => {
-                      completeCampaignStage(stage.id);
-                      navigate(stage.targetRoute);
+                      const sep = stage.targetRoute.includes('?') ? '&' : '?';
+                      navigate(`${stage.targetRoute}${sep}mission=${stage.id}`);
                     }}
                   >
                     {stage.actionPrompt}

@@ -14,6 +14,8 @@ import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
 import { playDing, playMiss } from '../lib/sfx';
 import ConjugationLessonViewer from '../components/ConjugationLessonViewer';
+import { useCampaignMission } from '../lib/useCampaignMission';
+import CampaignBanner from '../components/CampaignBanner';
 
 const ALL_GROUPS: WordGroup[] = ['ichidan', 'godan', 'irregular', 'i-adj', 'na-adj'];
 const ALL_FORMS: ConjForm[] = ['polite', 'te', 'negative', 'past', 'politePast'];
@@ -44,7 +46,19 @@ function matchesTarget(input: string, word: ConjugatableWord, form: ConjForm) {
 
 export default function ConjugationDojo() {
   const { srs, addCard, sfxEnabled } = useStore();
-  const [dojoMode, setDojoMode] = useState<'lessons' | 'conjugate' | 'pairs'>('lessons');
+  const { isCampaignMode, stage, saga, targetTab, returnToCampaign } = useCampaignMission();
+  const [dojoMode, setDojoMode] = useState<'lessons' | 'conjugate' | 'pairs'>(() => {
+    if (targetTab === 'lessons' || targetTab === 'conjugate' || targetTab === 'pairs') {
+      return targetTab;
+    }
+    return 'lessons';
+  });
+
+  useEffect(() => {
+    if (targetTab === 'lessons' || targetTab === 'conjugate' || targetTab === 'pairs') {
+      setDojoMode(targetTab);
+    }
+  }, [targetTab]);
   const [groups, setGroups] = useState<WordGroup[]>(ALL_GROUPS);
   const [forms, setForms] = useState<ConjForm[]>(['polite', 'te', 'negative', 'past']);
   const [current, setCurrent] = useState<PromptItem | null>(null);
@@ -158,6 +172,9 @@ export default function ConjugationDojo() {
 
   return (
     <div className="page">
+      {isCampaignMode && stage && (
+        <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
+      )}
       <div className="row-between">
         <div>
           <h1 className="nomargin">

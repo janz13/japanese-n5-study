@@ -8,6 +8,10 @@ export interface CampaignStage {
   description: string;
   targetRoute: string;
   actionPrompt: string;
+  targetItems?: string[];
+  targetScript?: 'hiragana' | 'katakana' | 'both';
+  targetCategory?: string;
+  targetTab?: string;
 }
 
 export interface BossQuestion {
@@ -54,6 +58,8 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Learn the foundational 5 vowels of the Japanese sound system.',
         targetRoute: '/kana',
         actionPrompt: 'Practice in Kana Dojo →',
+        targetItems: ['あ', 'い', 'う', 'え', 'お'],
+        targetScript: 'hiragana',
       },
       {
         id: 's1-2',
@@ -62,9 +68,10 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         titleJp: '数字と数え方',
         icon: '🔢',
         category: 'Kanji',
-        description: 'Read and write numbers 1 to 10 in Kanji with their Onyomi and Kunyomi readings.',
+        description: 'Read and write numbers 1 to 5 in Kanji with their Onyomi and Kunyomi readings.',
         targetRoute: '/kanji-dojo',
         actionPrompt: 'Drill in Kanji Dojo →',
+        targetItems: ['一', '二', '三', '四', '五'],
       },
       {
         id: 's1-3',
@@ -76,6 +83,7 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Form your very first Japanese sentences using the topic marker は and polite copula です.',
         targetRoute: '/grammar/g1',
         actionPrompt: 'Read Lesson 1 →',
+        targetCategory: 'Grammar',
       },
       {
         id: 's1-4',
@@ -87,15 +95,22 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Read about Ana stepping off the airplane at Haneda Airport in Tokyo.',
         targetRoute: '/stories/ch1-arrival',
         actionPrompt: 'Read Story Ch.1 →',
+        targetCategory: 'Immersion',
       },
     ],
     boss: {
       title: 'Gatekeeper Challenge: Haneda Airport Customs (羽田空港)',
-      description: 'Answer 4 questions correctly to pass airport customs and unlock Saga 2.',
-      minPassScore: 3,
+      description: 'Answer at least 7 of 10 checkpoint questions to pass airport customs and unlock Saga 2.',
+      minPassScore: 7,
       questions: [
         {
-          q: 'Which character represents the sound "ka"?',
+          q: 'Which character represents the foundational vowel sound "u"?',
+          options: ['あ', 'う', 'お', 'え'],
+          answer: 1,
+          explanation: 'う is the vowel sound "u". あ is "a", お is "o", え is "e".',
+        },
+        {
+          q: 'Which character represents the consonant sound "ka"?',
           options: ['か', 'さ', 'た', 'な'],
           answer: 0,
           explanation: 'か is "ka". さ is "sa", た is "ta", な is "na".',
@@ -104,7 +119,19 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
           q: 'How do you say "I am a student" in polite Japanese?',
           options: ['わたし は がくせい です。', 'わたし が がくせい だ。', 'がくせい は わたし です。'],
           answer: 0,
-          explanation: 'わたし (I) + は (topic) + がくせい (student) + です (am/is).',
+          explanation: 'わたし (I) + は (topic marker) + がくせい (student) + です (polite copula).',
+        },
+        {
+          q: 'Fill in the blank for origin: アメリカ（　）来ました。 ("I came from America.")',
+          options: ['に', 'から', 'を'],
+          answer: 1,
+          explanation: '〜から marks the starting point or place of origin.',
+        },
+        {
+          q: 'What is the reading of the kanji number 八?',
+          options: ['ろく', 'なな', 'はち'],
+          answer: 2,
+          explanation: '八 is 8, read as はち (hachi). 六 is ろく (6), 七 is なな/しち (7).',
         },
         {
           q: 'What is the reading of 三時?',
@@ -113,10 +140,28 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
           explanation: '三 (さん = 3) + 時 (じ = o’clock) = さんじ (3 o’clock).',
         },
         {
-          q: 'Which word means "good morning" among polite company?',
-          options: ['こんにちは', 'おはようございます', 'こんばんは'],
+          q: 'Fill in the blank for boarding: 電車（　）乗りました。 ("I boarded the train.")',
+          options: ['に', 'を', 'から'],
+          answer: 0,
+          explanation: 'に marks the conveyance/vehicle you board or get onto (電車に乗ります).',
+        },
+        {
+          q: 'Fill in the blank for polite past: 空港は きれい（　）。 ("The airport was pretty.")',
+          options: ['です', 'でした', 'ました'],
           answer: 1,
-          explanation: 'おはようございます is polite good morning.',
+          explanation: 'でした is the polite past tense of the copula です.',
+        },
+        {
+          q: 'Which greeting is used when meeting someone for the very first time?',
+          options: ['はじめまして', 'こんばんは', 'さようなら'],
+          answer: 0,
+          explanation: 'はじめまして ("Nice to meet you") is exclusively used when introducing yourself for the first time.',
+        },
+        {
+          q: 'In Story Chapter 1, Ana steps off the airplane at the 空港 (くうこう). What does 空港 mean?',
+          options: ['Train station', 'Airport', 'Harbor'],
+          answer: 1,
+          explanation: '空港 (くうこう) means airport (literally "sky harbor").',
         },
       ],
     },
@@ -140,6 +185,8 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Read borrowed foreign words like コーヒー, ラーメン, and ホテル.',
         targetRoute: '/kana',
         actionPrompt: 'Switch to Katakana in Dojo →',
+        targetItems: ['ア', 'イ', 'ウ', 'エ', 'オ'],
+        targetScript: 'katakana',
       },
       {
         id: 's2-2',
@@ -151,6 +198,7 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Recognize vital city signs: 入口 (Entrance), 出口 (Exit), 非常口 (Emergency Exit).',
         targetRoute: '/signs',
         actionPrompt: 'Decode Signs →',
+        targetCategory: 'Immersion',
       },
       {
         id: 's2-3',
@@ -162,23 +210,25 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Practice purchasing ramen, egg toppings (味玉), and noodle refills (替玉) on real vending buttons.',
         targetRoute: '/signs',
         actionPrompt: 'Launch Shokkenki Simulator →',
+        targetCategory: 'Immersion',
       },
       {
         id: 's2-4',
         stageNumber: 4,
-        title: 'Story Chapter 2: Riding the Yamanote Train',
-        titleJp: '物語第2話：電車に乗る',
-        icon: '📖',
+        title: 'Story Chapter 2: Ordering at a Café',
+        titleJp: '物語第2話：きっさてんで',
+        icon: '☕',
         category: 'Immersion',
-        description: 'Follow Ana as she buys a train ticket (きっぷ) and boards the green Yamanote line.',
-        targetRoute: '/stories/ch2-train',
+        description: 'Follow Ana as she orders coffee at a Japanese café and practices polite ordering with ください.',
+        targetRoute: '/stories/ch2-cafe',
         actionPrompt: 'Read Story Ch.2 →',
+        targetCategory: 'Immersion',
       },
     ],
     boss: {
       title: 'Gatekeeper Challenge: Shibuya Ramen Shop Order (渋谷)',
-      description: 'Prove your ability to decode menu kanji, katakana tickets, and numbers.',
-      minPassScore: 3,
+      description: 'Prove your ability to decode menu kanji, katakana tickets, and numbers across 10 questions (score at least 7 to pass).',
+      minPassScore: 7,
       questions: [
         {
           q: 'Which katakana word represents "coffee"?',
@@ -187,22 +237,58 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
           explanation: 'コーヒー is coffee. コーラ is cola, ケーキ is cake.',
         },
         {
+          q: 'What is the reading of the loanword ラーメン?',
+          options: ['raamen', 'ruumen', 'raameru'],
+          answer: 0,
+          explanation: 'ラーメン is read as raamen (with the prolonged vowel bar ー).',
+        },
+        {
           q: 'What does the button [大盛] mean on a ramen ticket machine?',
           options: ['Regular size', 'Large portion / upsizing', 'Take-out box'],
           answer: 1,
           explanation: '大盛 (おおもり) means a large portion of noodles/rice.',
         },
         {
-          q: 'Which kanji combination means "Ticket Gate"?',
+          q: 'Which kanji combination means "Ticket Gate" at a Japanese train station?',
           options: ['改札口 (かいさつぐち)', '非常口 (ひじょうぐち)', '両替機 (りょうがえき)'],
           answer: 0,
-          explanation: '改札口 is the train ticket gate.',
+          explanation: '改札口 is the train ticket gate. 非常口 is emergency exit, 両替機 is coin changer.',
         },
         {
-          q: 'How much is 千五百円 (1,500 yen)?',
+          q: 'What does the green exit sign 非常口 (ひじょうぐち) designate?',
+          options: ['Emergency Exit', 'Restroom', 'Elevator'],
+          answer: 0,
+          explanation: '非常口 (ひじょうぐち) is the emergency exit sign seen in stations and buildings.',
+        },
+        {
+          q: 'If you want to dine inside the restaurant rather than take-out, which ticket button do you press?',
+          options: ['持ち帰り (もちかえり)', '店内 (お召し上がり)', 'ねぎ抜き (ねぎぬき)'],
+          answer: 1,
+          explanation: '店内（お召し上がり） means Dine-In / Eat inside the restaurant.',
+        },
+        {
+          q: 'What topping or extra does the button 替玉 (かえだま) order?',
+          options: ['Soft-boiled seasoned egg', 'Extra noodle refill', 'Bamboo shoots'],
+          answer: 1,
+          explanation: '替玉 (かえだま) is an extra serving of ramen noodles added to your leftover broth.',
+        },
+        {
+          q: 'How much is 千五百円 (せんごひゃくえん)?',
           options: ['150 yen', '1,500 yen', '15,000 yen'],
           answer: 1,
           explanation: '千 (1,000) + 五百 (500) + 円 (yen) = 1,500 yen.',
+        },
+        {
+          q: 'How do you say "One ramen, please" when ordering?',
+          options: ['ラーメン を 一つ ください。', 'ラーメン は 一人 ください。', 'ラーメン が 一本 です。'],
+          answer: 0,
+          explanation: 'Object + を + counter (一つ ひとつ) + ください is the standard polite ordering pattern.',
+        },
+        {
+          q: 'What rule does the red circle sign 禁煙 (きんえん) state?',
+          options: ['No Smoking', 'Cash Only', 'Staff Only'],
+          answer: 0,
+          explanation: '禁煙 (きんえん) strictly means No Smoking (禁 = prohibit, 煙 = smoke).',
         },
       ],
     },
@@ -226,6 +312,8 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Never confuse location of action (で) with destination/target of movement (に).',
         targetRoute: '/particles',
         actionPrompt: 'Train Particles →',
+        targetItems: ['は', 'を', 'に', 'で'],
+        targetCategory: 'ni-de-e',
       },
       {
         id: 's3-2',
@@ -237,6 +325,7 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Type meanings and readings for 日, 月, 火, 水, 木, 金, 土, 年, 時, 分.',
         targetRoute: '/kanji-dojo',
         actionPrompt: 'Start Kanji Dojo →',
+        targetItems: ['日', '月', '火', '水', '木', '金', '土', '年', '時', '分'],
       },
       {
         id: 's3-3',
@@ -248,6 +337,7 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Express daily habits: 朝ごはんを食べます (eat breakfast) and 図書館へ行きます (go to library).',
         targetRoute: '/grammar/g2',
         actionPrompt: 'Study Lesson 2 →',
+        targetCategory: 'Grammar',
       },
       {
         id: 's3-4',
@@ -259,36 +349,73 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Complete a full 4-course Bento workout: Kana warm-up, SRS review, Kanji trace, and sign test.',
         targetRoute: '/bento',
         actionPrompt: 'Open Daily Bento →',
+        targetCategory: 'Immersion',
       },
     ],
     boss: {
       title: 'Gatekeeper Challenge: Asakusa Sensoji Temple Tour (浅草)',
-      description: 'Demonstrate flawless particle usage and daily verb knowledge.',
-      minPassScore: 3,
+      description: 'Demonstrate flawless particle usage, daily verbs, and calendar kanji across 10 questions (score at least 7 to pass).',
+      minPassScore: 7,
       questions: [
         {
           q: 'Fill in the blank: レストラン（　）ラーメン を 食べます。',
           options: ['に', 'で', 'を'],
           answer: 1,
-          explanation: 'で marks the location where an active action takes place (eating at a restaurant).',
+          explanation: 'で marks the location where an active event or action takes place (eating at a restaurant).',
         },
         {
           q: 'Fill in the blank: 8時（　）学校 へ 行きます。',
           options: ['に', 'で', 'は'],
           answer: 0,
-          explanation: 'に marks a specific point in time (at 8 o’clock).',
+          explanation: 'に marks a specific point in clock time (at 8 o’clock).',
+        },
+        {
+          q: 'Fill in the blank: 毎朝 水（　）飲みます。',
+          options: ['を', 'に', 'で'],
+          answer: 0,
+          explanation: 'を marks the direct object of the verb (drinking water).',
         },
         {
           q: 'What is the reading of 水曜日?',
           options: ['かようび', 'すいようび', 'もくようび'],
           answer: 1,
-          explanation: '水曜日 (すいようび) is Wednesday.',
+          explanation: '水曜日 (すいようび) is Wednesday (水 = water).',
+        },
+        {
+          q: 'Which day of the week is 金曜日?',
+          options: ['Wednesday', 'Thursday', 'Friday'],
+          answer: 2,
+          explanation: '金曜日 (きんようび) is Friday (金 = gold/metal).',
+        },
+        {
+          q: 'What time duration does 30分 (さんじゅっぷん / さんぷん) mean?',
+          options: ['30 seconds', '30 minutes', '30 hours'],
+          answer: 1,
+          explanation: '分 (ふん/ぷん) counts minutes: 30分 = 30 minutes (半 はん = half hour).',
         },
         {
           q: 'What does 毎朝 (まいあさ) mean?',
           options: ['Every evening', 'Every morning', 'Every week'],
           answer: 1,
-          explanation: '毎朝 is every morning.',
+          explanation: '毎朝 (まいあさ) means every morning. 毎日 is every day, 毎晩 is every night.',
+        },
+        {
+          q: 'Fill in the blank: 駅の 前に 赤い 門が（　）。 ("There is a red gate in front of the station.")',
+          options: ['あります', 'います', 'します'],
+          answer: 0,
+          explanation: 'あります is used for the existence of inanimate objects (gates, buildings, items).',
+        },
+        {
+          q: 'Fill in the blank: あそこに 猫が（　）。 ("There is a cat over there.")',
+          options: ['あります', 'います', 'きます'],
+          answer: 1,
+          explanation: 'います is used for the existence of living beings (people and animals).',
+        },
+        {
+          q: 'Fill in the blank: 友だち（　）浅草へ 行きました。 ("I went to Asakusa with my friend.")',
+          options: ['と', 'で', 'を'],
+          answer: 0,
+          explanation: 'と functions as "with" when accompanied by a person or companion.',
         },
       ],
     },
@@ -312,6 +439,7 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Identify Ichidan, Godan, and Irregular verbs using the interactive morph slider.',
         targetRoute: '/conjugate',
         actionPrompt: 'Study Lesson 1 →',
+        targetTab: 'lessons',
       },
       {
         id: 's4-2',
@@ -323,6 +451,7 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Master connecting verbs and making polite requests with 〜てください.',
         targetRoute: '/conjugate',
         actionPrompt: 'Learn Te-Form →',
+        targetTab: 'lessons',
       },
       {
         id: 's4-3',
@@ -334,23 +463,25 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Conjugate present, negative, past, and past-negative for both adjective families.',
         targetRoute: '/conjugate',
         actionPrompt: 'Master Adjectives →',
+        targetTab: 'lessons',
       },
       {
         id: 's4-4',
         stageNumber: 4,
-        title: 'Story Chapter 4: Dining at an Izakaya',
-        titleJp: '物語第4話：居酒屋での注文',
+        title: 'Story Chapter 4: Weekend Plans',
+        titleJp: '物語第4話：しゅうまつの よてい',
         icon: '📖',
         category: 'Immersion',
-        description: 'Read natural dialogue ordering food and asking for recommendations with 〜てください.',
-        targetRoute: '/stories/ch4-izakaya',
+        description: 'Read about Ana making weekend plans to visit Kyoto, using 〜たい and listing activities with 〜たり.',
+        targetRoute: '/stories/ch4-weekend',
         actionPrompt: 'Read Story Ch.4 →',
+        targetCategory: 'Immersion',
       },
     ],
     boss: {
       title: 'Gatekeeper Challenge: Akihabara Electronics Negotiation (秋葉原)',
-      description: 'Pass the inflection boss fight by proving you can conjugate verbs and adjectives under pressure.',
-      minPassScore: 3,
+      description: 'Pass the inflection boss fight by proving you can conjugate verbs and adjectives across 10 questions (score at least 7 to pass).',
+      minPassScore: 7,
       questions: [
         {
           q: 'What is the te-form of 書く (かく / to write)?',
@@ -359,22 +490,58 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
           explanation: 'く shifts to いて: 書いて (かいて).',
         },
         {
-          q: 'What is the negative past form of 高い (たかい / expensive)?',
-          options: ['高くないでした', '高くなかった', '高かったじゃない'],
-          answer: 1,
-          explanation: 'Drop い + くなかった: 高くなかった (was not expensive).',
+          q: 'What is the te-form of 飲む (のむ / to drink)?',
+          options: ['のんで', 'のみて', 'のって'],
+          answer: 0,
+          explanation: 'む, ぶ, and ぬ shift to んで: 飲んで (のんで).',
         },
         {
-          q: 'Which verb is an irregular verb?',
-          options: ['食べる', '話す', 'する'],
-          answer: 2,
-          explanation: 'する and くる are the only two irregular verbs.',
+          q: 'What is the te-form of the irregular exception verb 行く (いく / to go)?',
+          options: ['いいて', 'いって (行って)', 'いぎて'],
+          answer: 1,
+          explanation: '行く is the famous exception: instead of "iite", it becomes 行って (いって).',
         },
         {
           q: 'What is the polite request form of 待つ (まつ / to wait)?',
           options: ['待ってください (まってください)', 'まちてください', 'またないで'],
           answer: 0,
-          explanation: 'つ shifts to って: 待ってください (please wait).',
+          explanation: 'つ shifts to って + ください: 待ってください (please wait).',
+        },
+        {
+          q: 'Which pair represents the ONLY two irregular verbs in standard Japanese?',
+          options: ['食べる and 飲む', 'する and 来る (くる)', '行く and 帰る'],
+          answer: 1,
+          explanation: 'する (to do) and 来る / くる (to come) are the only two irregular verbs in Japanese.',
+        },
+        {
+          q: 'Which verb is a notorious Group 1 Godan "trap" that ends in -eru but conjugates like a Godan verb?',
+          options: ['食べる (たべる)', '帰る (かえる)', '教える (おしえる)'],
+          answer: 1,
+          explanation: '帰る (かえる - to return home) ends in -eru but conjugates as Godan: 帰ります and 帰って.',
+        },
+        {
+          q: 'What is the plain negative form of 買う (かう / to buy)?',
+          options: ['かあない', 'かわない', 'かいません'],
+          answer: 1,
+          explanation: 'Verbs ending in pure う shift to わ in the A-row: 買わない (かわない).',
+        },
+        {
+          q: 'What is the negative past form of the い-adjective 高い (たかい / expensive)?',
+          options: ['高くないでした', '高くなかった', '高かったじゃない'],
+          answer: 1,
+          explanation: 'Drop final い + くなかった: 高くなかった (was not expensive).',
+        },
+        {
+          q: 'What is the past tense form of いい (good)?',
+          options: ['いかった', 'よかった', 'いいでした'],
+          answer: 1,
+          explanation: 'いい shifts to its original stem よ- for all conjugations: よかった (was good).',
+        },
+        {
+          q: 'Which of the following is actually a な-adjective despite ending in an "i" sound?',
+          options: ['おいしい', 'きれい', 'あつい'],
+          answer: 1,
+          explanation: 'きれい (綺麗) is a な-adjective! You say きれいな部屋 (clean room), not きれいくない.',
         },
       ],
     },
@@ -398,6 +565,8 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Master irregular calendar days (ついたち, ふつか, みっか) and people counters (ひとり, ふたり).',
         targetRoute: '/counters',
         actionPrompt: 'Drill Counters →',
+        targetCategory: 'day',
+        targetItems: ['day', 'nin'],
       },
       {
         id: 's5-2',
@@ -409,6 +578,7 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Understand topic contrast vs subject focus, plus iconic sound words like ペコペコ and ドキドキ.',
         targetRoute: '/particles',
         actionPrompt: 'Explore Nuances →',
+        targetCategory: 'wa-ga',
       },
       {
         id: 's5-3',
@@ -420,6 +590,7 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Speak real Japanese aloud and test your pronunciation with speech recognition.',
         targetRoute: '/speaking/s3',
         actionPrompt: 'Practice Speaking →',
+        targetCategory: 'Immersion',
       },
       {
         id: 's5-4',
@@ -431,36 +602,73 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Complete the full 67-question N5 exam with all 3 timed sections: Vocab, Grammar/Reading, and Listening.',
         targetRoute: '/exam',
         actionPrompt: 'Take Full N5 Exam →',
+        targetCategory: 'Boss',
       },
     ],
     boss: {
       title: 'Grand Milestone: JLPT N5 Official Benchmark',
-      description: 'Score 80/180 or higher on the official JLPT N5 mock exam.',
-      minPassScore: 4,
+      description: 'Demonstrate comprehensive JLPT N5 mastery across counters, particles, desires, and onomatopoeia across 10 questions (score at least 7 to pass).',
+      minPassScore: 7,
       questions: [
         {
           q: 'How do you say "two people" in Japanese?',
           options: ['ににん', 'ふたり', 'りょうにん'],
           answer: 1,
-          explanation: '二人 is irregularly read as ふたり (ひとり, ふたり, さんにん...).',
+          explanation: '二人 is irregularly read with native Japanese Wago as ふたり.',
+        },
+        {
+          q: 'How is "4 people" pronounced correctly in Japanese?',
+          options: ['よにん', 'よんにん', 'しにん'],
+          answer: 0,
+          explanation: '四人 is read as よにん (drops the ん from よん; never よんにん or しにん).',
+        },
+        {
+          q: 'What is the special calendar reading for the 1st day of the month?',
+          options: ['いちにち', 'ついたち', 'はじめのひ'],
+          answer: 1,
+          explanation: '1日 as a calendar date is irregularly read as ついたち.',
+        },
+        {
+          q: 'What is the special calendar reading for the 20th day of the month?',
+          options: ['にじゅうにち', 'はつか', 'ふたつひ'],
+          answer: 1,
+          explanation: '20日 as a calendar date is irregularly read as はつか.',
+        },
+        {
+          q: 'What is the reading for 1 long cylindrical object (一本)?',
+          options: ['いちほん', 'いっぽん', 'いちぼん'],
+          answer: 1,
+          explanation: '1 + hon shifts to a geminate p-sound: 一本 (いっぽん).',
         },
         {
           q: 'Fill in the blank for "I want to eat ramen": ラーメン が（　）。',
           options: ['食べたい です', '食べます', '食べた です'],
           answer: 0,
-          explanation: 'Verb stem + たい marks personal desire: 食べたいです.',
+          explanation: 'Verb stem (食べ) + たい です expresses personal desire.',
         },
         {
-          q: 'What sound does an empty, hungry stomach make?',
+          q: 'Fill in the blank: 私は 日本語（　）上手です。 ("I am skilled in Japanese.")',
+          options: ['を', 'が', 'で'],
+          answer: 1,
+          explanation: 'Adjectives of skill and preference like 上手 (skilled), 下手 (unskilled), and 好き (liked) take が.',
+        },
+        {
+          q: 'What sound-symbolic onomatopoeia describes a starving, empty stomach?',
           options: ['ゴロゴロ', 'ペコペコ', 'ニコニコ'],
           answer: 1,
-          explanation: 'お腹がペコペコ is hungry / starving.',
+          explanation: 'お腹がペコペコ means hungry / famished.',
         },
         {
-          q: 'What is the reading for 1st day of the month?',
-          options: ['いちにち', 'ついたち', 'はじめのひ'],
+          q: 'Which onomatopoeia describes a pounding heart from nervousness or excitement before an exam?',
+          options: ['ドキドキ', 'ピカピカ', 'ペラペラ'],
+          answer: 0,
+          explanation: '胸がドキドキする describes a rapidly pounding heart from anticipation or nerves.',
+        },
+        {
+          q: 'Fill in the blank for listing activities: 休みの日は 本を 読んだり、映画を（　）します。',
+          options: ['見て', '見たり', '見る'],
           answer: 1,
-          explanation: '1日 as calendar date is ついたち.',
+          explanation: '〜たり、〜たり します lists representative activities (読んだり、見たりします).',
         },
       ],
     },
@@ -484,6 +692,7 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Understand the difference between ドアが開く (door opens by itself) and ドアを開ける (someone opens the door).',
         targetRoute: '/conjugate',
         actionPrompt: 'Drill Verb Pairs →',
+        targetTab: 'pairs',
       },
       {
         id: 's6-2',
@@ -495,6 +704,7 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Express abilities: 漢字が読める (can read kanji) and 日本語が話せる (can speak Japanese).',
         targetRoute: '/grammar/g8',
         actionPrompt: 'Learn Potential Form →',
+        targetCategory: 'Grammar',
       },
       {
         id: 's6-3',
@@ -506,6 +716,7 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Learn when to use 〜たら for "if/when" and 〜なら for contextual advice.',
         targetRoute: '/grammar/g9',
         actionPrompt: 'Study Conditionals →',
+        targetCategory: 'Grammar',
       },
       {
         id: 's6-4',
@@ -517,38 +728,90 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         description: 'Train your ears on homophones like 箸 (chopsticks, Atamadaka [1]) vs 橋 (bridge, Odaka [2]).',
         targetRoute: '/listening',
         actionPrompt: 'Train Pitch Accent →',
+        targetCategory: 'Immersion',
       },
     ],
     boss: {
       title: 'Ultimate Boss Fight: JLPT N4 Readiness Trial',
-      description: 'Clear the N4 bridge checkpoint to prove you are ready for intermediate Japanese.',
-      minPassScore: 3,
+      description: 'Clear the N4 bridge checkpoint covering verb pairs, potential forms, conditionals, keigo, and pitch accent across 10 questions (score at least 7 to pass).',
+      minPassScore: 7,
       questions: [
         {
-          q: 'Which sentence correctly uses the intransitive verb 開く (あく)?',
+          q: 'Which sentence correctly uses the intransitive verb 開く (あく / to open)?',
           options: ['ドア を 開けます。', 'ドア が 開きます。', 'ドア に 開きます。'],
           answer: 1,
-          explanation: '自動詞 (intransitive) takes が: ドアが開きます (The door opens).',
+          explanation: '自動詞 (intransitive) takes が: ドアが開きます (The door opens by itself).',
         },
         {
-          q: 'What is the potential form of 飲む (のむ / to drink)?',
+          q: 'Fill in the blank with the transitive verb: 寒いから、窓（　）閉めて ください。 ("Because it is cold, please close the window.")',
+          options: ['を', 'が', 'に'],
+          answer: 0,
+          explanation: '他動詞 (transitive: 閉める) takes the direct object particle を.',
+        },
+        {
+          q: 'What is the potential form of the Godan verb 飲む (のむ / to drink)?',
           options: ['のまれる', 'のめる', 'のませる'],
           answer: 1,
-          explanation: 'Godan shifts to E-row + る: 飲める (のめる / can drink).',
+          explanation: 'Godan verbs shift to the E-row + る: 飲める (のめる / can drink).',
         },
         {
-          q: 'Fill in the blank for "If it rains, I will not go": 雨が降っ（　）、行きません。',
+          q: 'What is the potential form of the Ichidan verb 食べる (たべる / to eat)?',
+          options: ['食べられる (食べれる)', '食べさせる', '食べます'],
+          answer: 0,
+          explanation: 'Ichidan verbs drop る and add られる (colloquially 食べれる): 食べられる (can eat).',
+        },
+        {
+          q: 'What is the potential form of the irregular verb する (to do)?',
+          options: ['すれる', 'できる', 'させられる'],
+          answer: 1,
+          explanation: 'する irregular shifts entirely to できる (can do).',
+        },
+        {
+          q: 'Fill in the blank for universal conditional: 雨が降っ（　）、行きません。 ("If it rains, I will not go.")',
           options: ['たら', 'から', 'ので'],
           answer: 0,
-          explanation: '〜たら is the universal "if/when" conditional: 降ったら (if it rains).',
+          explanation: '〜たら is the versatile "if/when" conditional: 降ったら (if it rains).',
         },
         {
-          q: 'In Keigo, what is the humble form of 行く (to go) and 来る (to come)?',
+          q: 'Fill in the blank for contextual conditional: 京都へ行く（　）、新幹線が 便利です。 ("If you are going to Kyoto, the Shinkansen is convenient.")',
+          options: ['なら', 'たらば', 'と'],
+          answer: 0,
+          explanation: '〜なら is used to give advice or recommendations based on a topic just brought up.',
+        },
+        {
+          q: 'In Keigo, what is the humble form (謙譲語) for oneself going (行く) or coming (来る)?',
           options: ['いらっしゃいます', '参ります (まいります)', 'なさいます'],
           answer: 1,
-          explanation: '参ります (まいります) is the humble (Kenjougo) form for oneself going or coming.',
+          explanation: '参ります (まいります) is the humble (Kenjougo) form used when the speaker goes or comes.',
+        },
+        {
+          q: 'Which honorific verb (尊敬語) politely elevates a customer or superior viewing something (見る)?',
+          options: ['ご覧になります (ごらんに なります)', '拝見します (はいけん します)', '見せます'],
+          answer: 0,
+          explanation: 'ご覧になります is the honorific (Sonkeigo) form of 見る. 拝見します is humble (Kenjougo).',
+        },
+        {
+          q: 'In Tokyo pitch accent, how do the minimal pair words 雨 (rain) and 飴 (candy) differ?',
+          options: [
+            '雨 is 頭高 [1] (High → Low); 飴 is 平板 [0] (Low → High flat)',
+            'They have the exact same pitch contour',
+            '雨 is flat; 飴 starts high and drops',
+          ],
+          answer: 0,
+          explanation: '雨 (rain) starts HIGH and drops (Á-me-ga, [1]), while 飴 (candy) starts LOW and stays flat high (a-MÉ-GA, [0]).',
         },
       ],
     },
   },
 ];
+
+export function getCampaignStage(stageId: string): { stage: CampaignStage; saga: CampaignSaga } | null {
+  for (const saga of CAMPAIGN_SAGAS) {
+    const stage = saga.stages.find((s) => s.id === stageId);
+    if (stage) return { stage, saga };
+  }
+  return null;
+}
+
+export const findCampaignStage = getCampaignStage;
+

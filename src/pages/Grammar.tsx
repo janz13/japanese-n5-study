@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { LESSONS, type Exercise } from '../data/grammar';
 import { PASS, useStore } from '../lib/store';
 import { lessonUnlocked } from '../lib/progress';
 import { speak } from '../lib/tts';
+import { playFanfare } from '../lib/sfx';
+import { useCampaignMission } from '../lib/useCampaignMission';
+import CampaignBanner from '../components/CampaignBanner';
 
 export function GrammarList() {
   const p = useStore();
+  const { isCampaignMode, stage, saga, returnToCampaign } = useCampaignMission();
   const { srs, addCard } = p;
   const allPoints = LESSONS.flatMap((l) => l.points);
   const inDeck = allPoints.filter((pt) => srs[`g:${pt.pattern}`]).length;
@@ -24,6 +28,9 @@ export function GrammarList() {
 
   return (
     <div className="page">
+      {isCampaignMode && stage && (
+        <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
+      )}
       <h1>文法 <span className="muted">Grammar</span></h1>
       <p className="muted">Each lesson unlocks the next story chapter (pass with {PASS}%+).</p>
       <div className="controls">
@@ -120,18 +127,38 @@ function OrderEx({ ex, onAnswer }: { ex: Extract<Exercise, { type: 'order' }>; o
 export function GrammarLesson() {
   const { id } = useParams();
   const lesson = LESSONS.find((l) => l.id === id);
-  const { completeLesson, srs, addCard } = useStore();
+  const { completeLesson, srs, addCard, sfxEnabled } = useStore();
+  const {
+    isCampaignMode,
+    stage,
+    saga,
+    completeMission,
+    returnToCampaign,
+  } = useCampaignMission();
   const [answers, setAnswers] = useState<Record<number, boolean>>({});
   const [mcq, setMcq] = useState<Record<number, number>>({});
   const [saved, setSaved] = useState(false);
+  const campaignCompletedRef = useRef(false);
+
+  const n = lesson?.exercises.length ?? 0;
+  const doneAll = lesson ? Object.keys(answers).length === n : false;
+  const score = n > 0 ? Math.round((Object.values(answers).filter(Boolean).length / n) * 100) : 0;
+
+  useEffect(() => {
+    if (isCampaignMode && doneAll && score >= PASS && !campaignCompletedRef.current) {
+      campaignCompletedRef.current = true;
+      completeMission();
+      if (sfxEnabled) playFanfare();
+    }
+  }, [isCampaignMode, doneAll, score, completeMission, sfxEnabled]);
 
   if (!lesson) return <div className="page">Not found. <Link to="/grammar">Back</Link></div>;
-  const n = lesson.exercises.length;
-  const doneAll = Object.keys(answers).length === n;
-  const score = Math.round((Object.values(answers).filter(Boolean).length / n) * 100);
 
   return (
     <div className="page">
+      {isCampaignMode && stage && (
+        <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
+      )}
       <Link to="/grammar" className="muted">← Grammar</Link>
       <h1>{lesson.title}</h1>
       {lesson.points.map((pt) => {
@@ -211,9 +238,43 @@ export function GrammarLesson() {
               Save result
             </button>
           ) : score >= PASS ? (
-            <Link className="chip on" to="/stories">Go to Ch.{lesson.chapter} story →</Link>
+            <div style={{ display: 'inline-flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              {isCampaignMode && (
+                <button
+                  type="button"
+                  className="chip on"
+                  style={{
+                    background: 'var(--accent)',
+                    color: '#000',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                  onClick={returnToCampaign}
+                >
+                  🗺️ Return to Campaign Map →
+                </button>
+              )}
+              <Link className={isCampaignMode ? 'chip' : 'chip on'} to="/stories">Go to Ch.{lesson.chapter} story →</Link>
+            </div>
           ) : (
             <button className="chip" onClick={() => location.reload()}>Retry</button>
+          )}
+
+          {isCampaignMode && score >= PASS && !saved && (
+            <button
+              type="button"
+              className="chip on"
+              style={{
+                marginLeft: '0.6rem',
+                background: 'var(--accent)',
+                color: '#000',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+              onClick={returnToCampaign}
+            >
+              🗺️ Return to Campaign Map →
+            </button>
           )}
         </div>
       )}

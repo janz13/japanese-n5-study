@@ -15,16 +15,31 @@ import {
 import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
 import { playDing, playMiss } from '../lib/sfx';
+import { useCampaignMission } from '../lib/useCampaignMission';
+import CampaignBanner from '../components/CampaignBanner';
 
 const ALL_CATS = Object.keys(PARTICLE_CATEGORIES) as ParticleCategory[];
 const ALL_ONO_CATS = Object.keys(ONOMATO_CATEGORIES) as OnomatoCategory[];
 
 export default function ParticleDojo() {
   const { srs, addCard, sfxEnabled } = useStore();
+  const { isCampaignMode, stage, saga, targetCategory, returnToCampaign } = useCampaignMission();
   const [dojoTab, setDojoTab] = useState<'particles' | 'onomatopoeia'>('particles');
 
   // Particle Dojo State
-  const [cat, setCat] = useState<ParticleCategory | 'all'>('all');
+  const [cat, setCat] = useState<ParticleCategory | 'all'>(() => {
+    if (targetCategory && targetCategory in PARTICLE_CATEGORIES) {
+      return targetCategory as ParticleCategory;
+    }
+    return 'all';
+  });
+
+  useEffect(() => {
+    if (targetCategory && targetCategory in PARTICLE_CATEGORIES) {
+      setCat(targetCategory as ParticleCategory);
+    }
+  }, [targetCategory]);
+
   const [current, setCurrent] = useState<ParticlePrompt | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [showWhy, setShowWhy] = useState(false);
@@ -104,6 +119,9 @@ export default function ParticleDojo() {
 
   return (
     <div className="page">
+      {isCampaignMode && stage && (
+        <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
+      )}
       <div className="row-between">
         <div>
           <h1 className="nomargin">

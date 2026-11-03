@@ -4,6 +4,8 @@ import { COUNTERS, COUNTER_GROUPS, type CounterGroup, type CounterItem } from '.
 import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
 import { playDing, playMiss } from '../lib/sfx';
+import { useCampaignMission } from '../lib/useCampaignMission';
+import CampaignBanner from '../components/CampaignBanner';
 
 const ALL_GROUPS = Object.keys(COUNTER_GROUPS) as CounterGroup[];
 
@@ -18,7 +20,19 @@ function matchesCounter(input: string, item: CounterItem) {
 
 export default function CounterDojo() {
   const { srs, addCard, sfxEnabled } = useStore();
-  const [filter, setFilter] = useState<CounterGroup | 'all' | 'traps'>('all');
+  const { isCampaignMode, stage, saga, targetCategory, returnToCampaign } = useCampaignMission();
+  const [filter, setFilter] = useState<CounterGroup | 'all' | 'traps'>(() => {
+    if (targetCategory && targetCategory in COUNTER_GROUPS) {
+      return targetCategory as CounterGroup;
+    }
+    return 'all';
+  });
+
+  useEffect(() => {
+    if (targetCategory && targetCategory in COUNTER_GROUPS) {
+      setFilter(targetCategory as CounterGroup);
+    }
+  }, [targetCategory]);
   const [current, setCurrent] = useState<CounterItem | null>(null);
   const [input, setInput] = useState('');
   const [flash, setFlash] = useState<'ok' | 'bad' | null>(null);
@@ -95,6 +109,9 @@ export default function CounterDojo() {
 
   return (
     <div className="page">
+      {isCampaignMode && stage && (
+        <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
+      )}
       <h1>助数詞 <span className="muted">Counter &amp; Number Dojo</span></h1>
       <p className="muted">
         Master Japanese counters, calendar dates, and euphonic sound changes (いっぽん, さんぼん, ふたり, ようか, はつか).
