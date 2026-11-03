@@ -138,6 +138,7 @@ export default function KanaDojo() {
         {/* 1-Line Visual Memory Hook for Beginners */}
         {showMnemonic && current?.mnemonic && (
           <div
+            className="mnemonic-card"
             style={{
               background: 'var(--surface2)',
               borderLeft: '3px solid var(--accent)',
