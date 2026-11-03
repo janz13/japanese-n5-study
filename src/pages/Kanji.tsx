@@ -157,13 +157,31 @@ export function KanjiDetail() {
         </div>
       </div>
       <div className="kanji-head">
-        <span className="kanji-big">{kj.k}</span>
+        <span
+          className="kanji-big"
+          style={{ cursor: 'pointer' }}
+          title={`Click to hear ${kj.k} (${kj.sound})`}
+          onClick={() => speak(kj.sound)}
+        >
+          {kj.k}
+        </span>
         <div>
           <h2 className="nomargin">
             {kj.meaning} <span className="muted small">({kj.level} · {kj.strokes} strokes)</span>
           </h2>
-          <p><span className="muted">音</span> {kj.on}<br /><span className="muted">訓</span> {kj.kun}</p>
-          <p className="example" onClick={() => speak(kj.ex.r)}>
+          <p>
+            <span className="muted">音</span> {kj.on} · <span className="muted">訓</span> {kj.kun}{' '}
+            <button
+              type="button"
+              className="chip"
+              style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', marginLeft: '0.35rem' }}
+              onClick={() => speak(kj.sound)}
+              title={`Pronounce ${kj.k}`}
+            >
+              🔊 Hear Kanji
+            </button>
+          </p>
+          <p className="example" onClick={() => speak(kj.ex.r)} title={`Pronounce compound ${kj.ex.w}`}>
             🔊{' '}
             <ruby>
               {kj.ex.w}

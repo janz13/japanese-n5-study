@@ -6,27 +6,43 @@ import CommandPalette from './components/CommandPalette';
 import { isDue, useStore } from './lib/store';
 import { stopSpeaking } from './lib/tts';
 
-// Lazy-load secondary routes so initial bundle load is ultra-fast
-const Campaign = lazy(() => import('./pages/Campaign'));
-const KanjiDojo = lazy(() => import('./pages/KanjiDojo'));
-const DailyBento = lazy(() => import('./pages/DailyBento'));
-const SignDecoder = lazy(() => import('./pages/SignDecoder'));
-const Listening = lazy(() => import('./pages/Listening'));
-const DriveMode = lazy(() => import('./pages/DriveMode'));
-const KanaDojo = lazy(() => import('./pages/KanaDojo'));
-const ConjugationDojo = lazy(() => import('./pages/ConjugationDojo'));
-const CounterDojo = lazy(() => import('./pages/CounterDojo'));
-const ParticleDojo = lazy(() => import('./pages/ParticleDojo'));
-const Stories = lazy(() => import('./pages/Stories'));
-const StoryReader = lazy(() => import('./pages/StoryReader'));
-const Review = lazy(() => import('./pages/Review'));
-const Exam = lazy(() => import('./pages/Exam'));
-const KanjiList = lazy(() => import('./pages/Kanji').then((m) => ({ default: m.KanjiList })));
-const KanjiDetail = lazy(() => import('./pages/Kanji').then((m) => ({ default: m.KanjiDetail })));
-const GrammarList = lazy(() => import('./pages/Grammar').then((m) => ({ default: m.GrammarList })));
-const GrammarLesson = lazy(() => import('./pages/Grammar').then((m) => ({ default: m.GrammarLesson })));
-const SceneList = lazy(() => import('./pages/Speaking').then((m) => ({ default: m.SceneList })));
-const ScenePlayer = lazy(() => import('./pages/Speaking').then((m) => ({ default: m.ScenePlayer })));
+// Lazy-load secondary routes with auto-retry on chunk failure (prevents blank screen after new deployments)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazyWithRetry<T extends React.ComponentType<any>>(factory: () => Promise<{ default: T }>) {
+  return lazy(() =>
+    factory().catch((err) => {
+      const reloaded = sessionStorage.getItem('chunk_reload');
+      if (!reloaded) {
+        sessionStorage.setItem('chunk_reload', 'true');
+        window.location.reload();
+        return new Promise<{ default: T }>(() => {});
+      }
+      sessionStorage.removeItem('chunk_reload');
+      throw err;
+    }),
+  );
+}
+
+const Campaign = lazyWithRetry(() => import('./pages/Campaign'));
+const KanjiDojo = lazyWithRetry(() => import('./pages/KanjiDojo'));
+const DailyBento = lazyWithRetry(() => import('./pages/DailyBento'));
+const SignDecoder = lazyWithRetry(() => import('./pages/SignDecoder'));
+const Listening = lazyWithRetry(() => import('./pages/Listening'));
+const DriveMode = lazyWithRetry(() => import('./pages/DriveMode'));
+const KanaDojo = lazyWithRetry(() => import('./pages/KanaDojo'));
+const ConjugationDojo = lazyWithRetry(() => import('./pages/ConjugationDojo'));
+const CounterDojo = lazyWithRetry(() => import('./pages/CounterDojo'));
+const ParticleDojo = lazyWithRetry(() => import('./pages/ParticleDojo'));
+const Stories = lazyWithRetry(() => import('./pages/Stories'));
+const StoryReader = lazyWithRetry(() => import('./pages/StoryReader'));
+const Review = lazyWithRetry(() => import('./pages/Review'));
+const Exam = lazyWithRetry(() => import('./pages/Exam'));
+const KanjiList = lazyWithRetry(() => import('./pages/Kanji').then((m) => ({ default: m.KanjiList })));
+const KanjiDetail = lazyWithRetry(() => import('./pages/Kanji').then((m) => ({ default: m.KanjiDetail })));
+const GrammarList = lazyWithRetry(() => import('./pages/Grammar').then((m) => ({ default: m.GrammarList })));
+const GrammarLesson = lazyWithRetry(() => import('./pages/Grammar').then((m) => ({ default: m.GrammarLesson })));
+const SceneList = lazyWithRetry(() => import('./pages/Speaking').then((m) => ({ default: m.SceneList })));
+const ScenePlayer = lazyWithRetry(() => import('./pages/Speaking').then((m) => ({ default: m.ScenePlayer })));
 
 interface NavItem {
   to: string;
@@ -118,6 +134,7 @@ function HeaderNav({
     setOpenGroup(null);
     setDrawerOpen(false);
     stopSpeaking();
+    sessionStorage.removeItem('chunk_reload');
   }, [location.pathname, setDrawerOpen]);
 
   useEffect(() => {

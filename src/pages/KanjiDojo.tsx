@@ -77,7 +77,7 @@ export default function KanjiDojo() {
           expectedInputType: 'en',
           acceptableAnswers: meanings,
           displayAnswer: kj.meaning,
-          ttsAudio: kj.ex.r,
+          ttsAudio: kj.sound,
         });
       }
 
@@ -94,7 +94,7 @@ export default function KanjiDojo() {
           expectedInputType: 'kana',
           acceptableAnswers: [...onParts, ...kunClean],
           displayAnswer: `${kj.on} / ${kj.kun}`,
-          ttsAudio: kj.ex.r,
+          ttsAudio: kj.sound,
         });
       }
 
@@ -296,7 +296,7 @@ export default function KanjiDojo() {
                 speak(currentItem.ttsAudio);
               }}
             >
-              🔊 Hear Word
+              🔊 {currentItem.kind === 'vocab' ? 'Hear Vocab' : 'Hear Kanji'}
             </button>
             <button
               type="button"
