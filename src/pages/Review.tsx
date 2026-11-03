@@ -10,6 +10,14 @@ import { LESSONS } from '../data/grammar';
 
 type ReviewMode = 'recognition' | 'recall' | 'audio';
 
+function buildDueQueue(srs: Record<string, SrsItem>, cap: number): string[] {
+  const allDue = Object.values(srs).filter((i) => isDue(i));
+  const reviewCards = allDue.filter((i) => (i.card.reps ?? 0) > 0 || (i.card.lapses ?? 0) > 0);
+  const newCards = allDue.filter((i) => (i.card.reps ?? 0) === 0 && (i.card.lapses ?? 0) === 0);
+  const cappedNew = cap > 0 ? newCards.slice(0, cap) : newCards;
+  return [...reviewCards, ...cappedNew].sort(() => Math.random() - 0.5).map((i) => i.id);
+}
+
 function matchesCardRecall(input: string, item: SrsItem): boolean {
   const clean = input.trim().toLowerCase().replace(/\s+/g, '');
   if (!clean) return false;
@@ -26,11 +34,20 @@ function matchesCardRecall(input: string, item: SrsItem): boolean {
 }
 
 export default function Review() {
-  const { srs, reviewCard, removeCard, saveWord, addCard, sfxEnabled } = useStore();
+  const {
+    srs,
+    reviewCard,
+    removeCard,
+    saveWord,
+    addCard,
+    sfxEnabled,
+    suspendCard,
+    unsuspendCard,
+    dailyNewCardsCap,
+    setDailyNewCardsCap,
+  } = useStore();
   // Snapshot the queue at session start so cards don't reshuffle mid-review.
-  const [queue, setQueue] = useState(() =>
-    Object.values(srs).filter((i) => isDue(i)).sort(() => Math.random() - 0.5).map((i) => i.id),
-  );
+  const [queue, setQueue] = useState(() => buildDueQueue(srs, dailyNewCardsCap));
   const [reviewMode, setReviewMode] = useState<ReviewMode>('recognition');
   const [flipped, setFlipped] = useState(false);
   const [typedInput, setTypedInput] = useState('');
@@ -42,32 +59,41 @@ export default function Review() {
   // Deck Browser state
   const [showBrowser, setShowBrowser] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [kindFilter, setKindFilter] = useState<'all' | CardKind | 'leech'>('all');
+  const [kindFilter, setKindFilter] = useState<'all' | CardKind | 'leech' | 'suspended'>('all');
 
   const isLeechOrHard = (c: SrsItem) =>
-    (c.card.lapses ?? 0) > 0 || (c.card.difficulty ?? 0) >= 6.0 || c.id.startsWith('exam:');
+    !c.suspended && ((c.card.lapses ?? 0) > 0 || (c.card.difficulty ?? 0) >= 6.0 || c.id.startsWith('exam:'));
 
   const items = Object.values(srs);
   const total = items.length;
   const counts = {
-    kanji: items.filter((i) => i.kind === 'kanji').length,
-    word: items.filter((i) => i.kind === 'word').length,
-    grammar: items.filter((i) => i.kind === 'grammar').length,
+    kanji: items.filter((i) => !i.suspended && i.kind === 'kanji').length,
+    word: items.filter((i) => !i.suspended && i.kind === 'word').length,
+    grammar: items.filter((i) => !i.suspended && i.kind === 'grammar').length,
     leech: items.filter(isLeechOrHard).length,
+    suspended: items.filter((i) => Boolean(i.suspended)).length,
   };
 
   const nextDue = useMemo(() => {
-    const times = Object.values(srs).map((i) => new Date(i.card.due).getTime());
+    const times = Object.values(srs)
+      .filter((i) => !i.suspended)
+      .map((i) => new Date(i.card.due).getTime());
     return times.length ? new Date(Math.min(...times)) : null;
   }, [srs]);
 
   const refreshQueue = () =>
-    setQueue(
-      Object.values(useStore.getState().srs)
-        .filter((i) => isDue(i))
-        .sort(() => Math.random() - 0.5)
-        .map((i) => i.id),
-    );
+    setQueue(buildDueQueue(useStore.getState().srs, useStore.getState().dailyNewCardsCap));
+
+  const handleSuspend = (idToSuspend?: string) => {
+    const targetId = idToSuspend || queue[0];
+    if (!targetId) return;
+    suspendCard(targetId);
+    if (sfxEnabled) playDing();
+    setQueue((q) => q.filter((id) => id !== targetId));
+    setFlipped(false);
+    setTypedInput('');
+    setTypedResult(null);
+  };
 
   const seedVocabAndGrammar = () => {
     STORIES.forEach((s) => s.paragraphs.forEach((p) => p.forEach((t) => t.en && saveWord(t))));
@@ -139,6 +165,9 @@ export default function Review() {
       } else if (e.key.toLowerCase() === 'r') {
         e.preventDefault();
         speakCurrentItem(item);
+      } else if (e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        handleSuspend();
       } else if (flipped) {
         if (e.key === '1') grade(Rating.Again);
         else if (e.key === '2') grade(Rating.Hard);
@@ -154,10 +183,15 @@ export default function Review() {
   const filteredBrowserItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return items.filter((c) => {
-      if (kindFilter === 'leech') {
-        if (!isLeechOrHard(c)) return false;
-      } else if (kindFilter !== 'all' && c.kind !== kindFilter) {
-        return false;
+      if (kindFilter === 'suspended') {
+        if (!c.suspended) return false;
+      } else {
+        if (c.suspended) return false;
+        if (kindFilter === 'leech') {
+          if (!isLeechOrHard(c)) return false;
+        } else if (kindFilter !== 'all' && c.kind !== kindFilter) {
+          return false;
+        }
       }
       if (!q) return true;
       return (
@@ -203,7 +237,7 @@ export default function Review() {
             復習 <span className="muted">FSRS Review · {queue.length} due</span>
           </h1>
           <p className="muted small nomargin" style={{ marginTop: '0.15rem' }}>
-            {counts.kanji} Kanji · {counts.word} Vocab · {counts.grammar} Grammar · Hotkeys: Space (Flip), 1–4 (Grade), R (Audio)
+            {counts.kanji} Kanji · {counts.word} Vocab · {counts.grammar} Grammar · Hotkeys: Space (Flip), 1–4 (Grade), R (Audio), E (Suspend)
           </p>
         </div>
         <div className="controls">
@@ -250,9 +284,33 @@ export default function Review() {
           <div className="row-between">
             <b>🗂️ SRS Deck Browser ({filteredBrowserItems.length} / {total} cards)</b>
             <div className="controls nomargin">
-              {(['all', 'kanji', 'word', 'grammar', 'leech'] as const).map((k) => (
+              {(['all', 'kanji', 'word', 'grammar', 'leech', 'suspended'] as const).map((k) => (
                 <button key={k} className={kindFilter === k ? 'chip on' : 'chip'} onClick={() => setKindFilter(k)}>
-                  {k === 'all' ? 'All' : k === 'leech' ? `🔥 Leech / Hard (${counts.leech})` : k.toUpperCase()}
+                  {k === 'all'
+                    ? 'All'
+                    : k === 'leech'
+                    ? `🔥 Leech / Hard (${counts.leech})`
+                    : k === 'suspended'
+                    ? `📦 Suspended (${counts.suspended})`
+                    : `${k.toUpperCase()} (${counts[k]})`}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="row-between" style={{ margin: '0.6rem 0', padding: '0.45rem 0.75rem', background: 'var(--surface2)', borderRadius: '8px' }}>
+            <span className="small"><b>Daily New Cards Cap:</b> Limits unlearned cards entering queue</span>
+            <div className="controls nomargin">
+              {[10, 15, 20, 0].map((cap) => (
+                <button
+                  key={cap}
+                  className={dailyNewCardsCap === cap ? 'chip on' : 'chip'}
+                  style={{ padding: '0.15rem 0.55rem', fontSize: '0.75rem' }}
+                  onClick={() => {
+                    setDailyNewCardsCap(cap);
+                    setQueue(buildDueQueue(useStore.getState().srs, cap));
+                  }}
+                >
+                  {cap === 0 ? 'No Cap (All)' : `${cap} / day`}
                 </button>
               ))}
             </div>
@@ -283,11 +341,16 @@ export default function Review() {
                     background: 'var(--surface2)',
                     padding: '0.5rem 0.85rem',
                     borderRadius: '10px',
-                    borderLeft: isHard ? '3px solid var(--bad)' : undefined,
+                    borderLeft: isHard ? '3px solid var(--bad)' : c.suspended ? '3px solid var(--muted)' : undefined,
                   }}
                 >
                   <div style={{ flex: 1 }}>
                     <span className="tag" style={{ marginRight: '0.45rem' }}>{c.kind}</span>
+                    {c.suspended && (
+                      <span className="tag" style={{ marginRight: '0.45rem', opacity: 0.85 }}>
+                        📦 Suspended
+                      </span>
+                    )}
                     {isHard && (
                       <span className="tag" style={{ marginRight: '0.45rem', color: 'var(--bad)' }}>
                         🔥 {lapses > 0 ? `${lapses} lapse${lapses > 1 ? 's' : ''}` : c.id.startsWith('exam:') ? 'Missed Exam' : 'Hard'}
@@ -299,17 +362,38 @@ export default function Review() {
                     {c.reading && <span className="muted small"> ({c.reading})</span>}
                     <div className="muted small">{c.back}</div>
                   </div>
-                  <button
-                    className="chip"
-                    style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem' }}
-                    title="Remove card from SRS deck"
-                    onClick={() => {
-                      removeCard(c.id);
-                      setQueue((q) => q.filter((id) => id !== c.id));
-                    }}
-                  >
-                    ✕
-                  </button>
+                  <div className="controls nomargin" style={{ alignItems: 'center' }}>
+                    {c.suspended ? (
+                      <button
+                        className="chip on"
+                        style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem' }}
+                        title="Reactivate card into review queue"
+                        onClick={() => unsuspendCard(c.id)}
+                      >
+                        ↩ Unsuspend
+                      </button>
+                    ) : (
+                      <button
+                        className="chip"
+                        style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem' }}
+                        title="Archive card (already know it)"
+                        onClick={() => handleSuspend(c.id)}
+                      >
+                        📦 Suspend
+                      </button>
+                    )}
+                    <button
+                      className="chip"
+                      style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem' }}
+                      title="Remove card from SRS deck"
+                      onClick={() => {
+                        removeCard(c.id);
+                        setQueue((q) => q.filter((id) => id !== c.id));
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -317,6 +401,8 @@ export default function Review() {
               <p className="muted small center" style={{ padding: '0.8rem 0' }}>
                 {kindFilter === 'leech'
                   ? 'No leech or missed-exam cards yet! Cards you grade "Again" or export from missed exam questions appear here.'
+                  : kindFilter === 'suspended'
+                  ? 'No suspended cards. Cards you archive with (E) or "Already Know" will appear here.'
                   : 'No cards match your filter.'}
               </p>
             )}
@@ -371,17 +457,31 @@ export default function Review() {
           >
             <div className="row-between" style={{ width: '100%' }}>
               <span className="tag">{item.kind} · {reviewMode.toUpperCase()}</span>
-              <button
-                type="button"
-                className="chip"
-                style={{ padding: '0.25rem 0.7rem', fontSize: '0.8rem' }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  speakCurrentItem(item);
-                }}
-              >
-                🔊 Replay Audio <kbd className="kbd-badge">R</kbd>
-              </button>
+              <div className="controls nomargin">
+                <button
+                  type="button"
+                  className="chip"
+                  style={{ padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
+                  title="Archive this card — you already know it and won't be quizzed again (E)"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSuspend();
+                  }}
+                >
+                  📦 Already Know / Suspend <kbd className="kbd-badge">E</kbd>
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  style={{ padding: '0.25rem 0.65rem', fontSize: '0.8rem' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    speakCurrentItem(item);
+                  }}
+                >
+                  🔊 Replay Audio <kbd className="kbd-badge">R</kbd>
+                </button>
+              </div>
             </div>
 
             {/* Front of Card */}

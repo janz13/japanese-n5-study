@@ -94,6 +94,16 @@ export default function StoryReader() {
     speak(plain(story.paragraphs[i]), ttsRate, () => playFrom(i + 1));
   };
 
+  const playSentence = (i: number) => {
+    stopSpeaking();
+    if (playing === i) {
+      setPlaying(null);
+      return;
+    }
+    setPlaying(i);
+    speak(plain(story.paragraphs[i]), ttsRate, () => setPlaying(null));
+  };
+
   const allAnswered = Object.keys(answers).length === story.questions.length;
   const score = Math.round(
     (story.questions.filter((q, i) => answers[i] === q.answer).length / story.questions.length) * 100,
@@ -123,24 +133,58 @@ export default function StoryReader() {
 
       <div className="story-body">
         {story.paragraphs.map((para, i) => (
-          <div key={i} className={`para${playing === i ? ' playing' : ''}`}>
-            <p className="story-line" onDoubleClick={() => speak(plain(para))}>
-              {para.map((tok, j) => (
-                <Word
-                  key={j}
-                  tok={tok}
-                  furigana={showFurigana}
-                  active={gloss === tok}
-                  onTap={() => {
-                    if (tok.en) {
-                      setGloss(tok);
-                      speak(tok.r ?? tok.t);
+          <div key={i} className={`para${playing === i ? ' playing' : ''}`} style={{ marginBottom: '1.1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem' }}>
+              <button
+                type="button"
+                className="chip"
+                style={{
+                  padding: '0.2rem 0.55rem',
+                  fontSize: '0.85rem',
+                  flexShrink: 0,
+                  marginTop: '0.15rem',
+                  background: playing === i ? 'var(--accent)' : 'var(--surface2)',
+                  color: playing === i ? '#000' : 'inherit',
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: playing === i ? '1px solid var(--accent)' : '1px solid var(--border)',
+                }}
+                onClick={() => playSentence(i)}
+                title="Listen to / Shadow this line"
+              >
+                {playing === i ? '🔊' : '▶'}
+              </button>
+              <div style={{ flex: 1 }}>
+                <p
+                  className="story-line"
+                  style={{ cursor: 'pointer', margin: 0 }}
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (!target.closest('.word.has-gloss')) {
+                      playSentence(i);
                     }
                   }}
-                />
-              ))}
-            </p>
-            {showEn && <p className="en">{story.translation[i]}</p>}
+                  title="Click to replay & shadow this sentence"
+                >
+                  {para.map((tok, j) => (
+                    <Word
+                      key={j}
+                      tok={tok}
+                      furigana={showFurigana}
+                      active={gloss === tok}
+                      onTap={() => {
+                        if (tok.en) {
+                          setGloss(tok);
+                          speak(tok.r ?? tok.t);
+                        }
+                      }}
+                    />
+                  ))}
+                </p>
+                {showEn && <p className="en" style={{ marginTop: '0.35rem' }}>{story.translation[i]}</p>}
+              </div>
+            </div>
           </div>
         ))}
       </div>

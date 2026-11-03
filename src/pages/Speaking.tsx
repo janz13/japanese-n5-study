@@ -88,6 +88,8 @@ export function ScenePlayer() {
       (t) => {
         setHeard(t);
         setScores((s) => ({ ...s, [step]: Math.max(s[step] ?? 0, similarity(t, [line.jp, line.kana])) }));
+        // Auto-play native model voice right after speech completes for auditory reinforcement
+        speak(line.kana, 0.9);
       },
       (e) => {
         setListening(false);
@@ -208,10 +210,17 @@ export function ScenePlayer() {
           </div>
 
           {heard && (
-            <p className="center small">
-              Matched: <span className="jp">{heard}</span> ·{' '}
-              <b className={(cur ?? 0) >= PASS_LINE ? 'ok-text' : 'bad-text'}>{cur}%</b>
-            </p>
+            <div className="center small" style={{ marginTop: '0.4rem' }}>
+              <p className="nomargin">
+                Matched: <span className="jp">{heard}</span> ·{' '}
+                <b className={(cur ?? 0) >= PASS_LINE ? 'ok-text' : 'bad-text'}>{cur}%</b>
+              </p>
+              <div style={{ marginTop: '0.25rem' }}>
+                <span className="tag" style={{ background: 'var(--surface2)', fontSize: '0.75rem' }}>
+                  🔊 Native Model Audio Pronounced
+                </span>
+              </div>
+            </div>
           )}
           {err && <p className="bad-text center small">{err}</p>}
         </div>

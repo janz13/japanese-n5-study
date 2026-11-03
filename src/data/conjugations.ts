@@ -301,3 +301,149 @@ export const CONJUGATIONS: ConjugatableWord[] = [
     },
   },
 ];
+
+
+export interface ContextSentence {
+  jp: string;
+  en: string;
+}
+
+export const CONTEXT_SENTENCES: Record<string, Partial<Record<ConjForm, ContextSentence>>> = {
+  taberu: {
+    polite: { jp: '毎朝、パンを [ 食べる → ？ ]。', en: 'I eat bread every morning.' },
+    te: { jp: '朝ごはんを [ 食べる → ？ ]、学校へ行きます。', en: 'I eat breakfast, and then go to school.' },
+    negative: { jp: '朝は あまり [ 食べる → ？ ]。', en: "I don't eat much in the morning." },
+    past: { jp: 'きのう、寿司を [ 食べる → ？ ]。', en: 'I ate sushi yesterday.' },
+    politePast: { jp: '昨日、おいしいラーメンを [ 食べる → ？ ]。', en: 'I ate delicious ramen yesterday.' },
+  },
+  miru: {
+    polite: { jp: '週末に アニメを [ 見る → ？ ]。', en: 'I watch anime on the weekend.' },
+    te: { jp: '映画を [ 見る → ？ ]、感動しました。', en: 'I watched the movie and was moved.' },
+    negative: { jp: '平日は テレビを [ 見る → ？ ]。', en: "I don't watch TV on weekdays." },
+    past: { jp: 'さっき、富士山を [ 見る → ？ ]。', en: 'I saw Mount Fuji earlier.' },
+    politePast: { jp: '映画館で 映画を [ 見る → ？ ]。', en: 'I watched a movie at the theater.' },
+  },
+  okiru: {
+    polite: { jp: '毎朝、7時に [ 起きる → ？ ]。', en: 'I wake up at 7:00 every morning.' },
+    te: { jp: '早く [ 起きる → ？ ]、散歩します。', en: 'I wake up early and take a walk.' },
+    negative: { jp: '休日は 早く [ 起きる → ？ ]。', en: "I don't wake up early on days off." },
+    past: { jp: '今朝は 8時に [ 起きる → ？ ]。', en: 'I woke up at 8:00 this morning.' },
+    politePast: { jp: '今朝は 早く [ 起きる → ？ ]。', en: 'I woke up early this morning.' },
+  },
+  neru: {
+    polite: { jp: '夜、11時に [ 寝る → ？ ]。', en: 'I go to sleep at 11:00 at night.' },
+    te: { jp: 'シャワーを浴びて、すぐ [ 寝る → ？ ]。', en: 'I take a shower and sleep right away.' },
+    negative: { jp: 'まだ [ 寝る → ？ ]。', en: "I won't sleep yet." },
+    past: { jp: '昨夜は たくさん [ 寝る → ？ ]。', en: 'I slept a lot last night.' },
+    politePast: { jp: '昨日は 12時に [ 寝る → ？ ]。', en: 'I went to bed at 12:00 yesterday.' },
+  },
+  iku: {
+    polite: { jp: '毎朝、8時に 学校へ [ 行く → ？ ]。', en: 'I go to school at 8:00 every morning.' },
+    te: { jp: '駅へ [ 行く → ？ ]、切符を買います。', en: 'I go to the station and buy a ticket.' },
+    negative: { jp: 'あしたは どこへも [ 行く → ？ ]。', en: "I won't go anywhere tomorrow." },
+    past: { jp: '先週、京都へ [ 行く → ？ ]。', en: 'I went to Kyoto last week.' },
+    politePast: { jp: '去年、日本へ [ 行く → ？ ]。', en: 'I went to Japan last year.' },
+  },
+  nomu: {
+    polite: { jp: '毎朝、コーヒーを [ 飲む → ？ ]。', en: 'I drink coffee every morning.' },
+    te: { jp: '薬を [ 飲む → ？ ]、寝ます。', en: 'I take (drink) medicine and sleep.' },
+    negative: { jp: 'お酒は [ 飲む → ？ ]。', en: "I don't drink alcohol." },
+    past: { jp: '冷たい水を [ 飲む → ？ ]。', en: 'I drank cold water.' },
+    politePast: { jp: 'おいしいお茶を [ 飲む → ？ ]。', en: 'I drank delicious green tea.' },
+  },
+  kaku: {
+    polite: { jp: '日本語で 手紙を [ 書く → ？ ]。', en: 'I write a letter in Japanese.' },
+    te: { jp: 'ここに 名前を [ 書く → ？ ] ください。', en: 'Please write your name here.' },
+    negative: { jp: 'ペンがないから [ 書く → ？ ]。', en: "I don't have a pen, so I won't write." },
+    past: { jp: 'きのう、日記を [ 書く → ？ ]。', en: 'I wrote a diary entry yesterday.' },
+    politePast: { jp: '願書を 丁寧に [ 書く → ？ ]。', en: 'I wrote the application form carefully.' },
+  },
+  hanasu: {
+    polite: { jp: '先生と 日本語で [ 話す → ？ ]。', en: 'I speak with the teacher in Japanese.' },
+    te: { jp: 'ゆっくり [ 話す → ？ ] ください。', en: 'Please speak slowly.' },
+    negative: { jp: '秘密だから 誰にも [ 話す → ？ ]。', en: "It's a secret, so I won't speak of it to anyone." },
+    past: { jp: '友達と 電話で [ 話す → ？ ]。', en: 'I spoke with my friend on the phone.' },
+    politePast: { jp: '店員さんと 楽しく [ 話す → ？ ]。', en: 'I had a pleasant conversation with the clerk.' },
+  },
+  kau: {
+    polite: { jp: 'コンビニで お弁当を [ 買う → ？ ]。', en: 'I buy a bento at the convenience store.' },
+    te: { jp: '切符を [ 買う → ？ ]、電車に乗ります。', en: 'I buy a ticket and board the train.' },
+    negative: { jp: '高いから [ 買う → ？ ]。', en: "It's expensive, so I won't buy it." },
+    past: { jp: 'デパートで 服を [ 買う → ？ ]。', en: 'I bought clothes at the department store.' },
+    politePast: { jp: 'お土産を たくさん [ 買う → ？ ]。', en: 'I bought many souvenirs.' },
+  },
+  matsu: {
+    polite: { jp: '駅の改札で 友達を [ 待つ → ？ ]。', en: 'I wait for my friend at the station gate.' },
+    te: { jp: 'ちょっと [ 待つ → ？ ] ください。', en: 'Please wait a moment.' },
+    negative: { jp: '時間がないから [ 待つ → ？ ]。', en: "I don't have time, so I won't wait." },
+    past: { jp: 'バスを 20分 [ 待つ → ？ ]。', en: 'I waited 20 minutes for the bus.' },
+    politePast: { jp: 'ロビーで 静かに [ 待つ → ？ ]。', en: 'I waited quietly in the lobby.' },
+  },
+  kaeru: {
+    polite: { jp: '夕方、6時に 家へ [ 帰る → ？ ]。', en: 'I return home at 6:00 in the evening.' },
+    te: { jp: '早く 家へ [ 帰る → ？ ]、休みます。', en: 'I return home early and rest.' },
+    negative: { jp: '今夜は 家へ [ 帰る → ？ ]。', en: "I won't return home tonight." },
+    past: { jp: '父は もう 家へ [ 帰る → ？ ]。', en: 'My father already returned home.' },
+    politePast: { jp: '昨日は 9時に [ 帰る → ？ ]。', en: 'Yesterday I returned home at 9:00.' },
+  },
+  oyogu: {
+    polite: { jp: '夏休みに プールで [ 泳ぐ → ？ ]。', en: 'I swim in the pool during summer vacation.' },
+    te: { jp: '海で [ 泳ぐ → ？ ]、疲れました。', en: 'I swam in the sea and got tired.' },
+    negative: { jp: '水が冷たいから [ 泳ぐ → ？ ]。', en: "Because the water is cold, I won't swim." },
+    past: { jp: '川で 魚と一緒に [ 泳ぐ → ？ ]。', en: 'I swam in the river with the fish.' },
+    politePast: { jp: 'プールで 1キロ [ 泳ぐ → ？ ]。', en: 'I swam 1 kilometer in the pool.' },
+  },
+  suru: {
+    polite: { jp: '毎日、日本語を 勉強[ する → ？ ]。', en: 'I study Japanese every day.' },
+    te: { jp: '宿題を [ する → ？ ]、遊びます。', en: 'I do homework and then play.' },
+    negative: { jp: '今日は 無理を [ する → ？ ]。', en: "I won't push myself too hard today." },
+    past: { jp: 'きのう、テニスを [ する → ？ ]。', en: 'I played tennis yesterday.' },
+    politePast: { jp: '東京で 買い物を [ する → ？ ]。', en: 'I went shopping in Tokyo.' },
+  },
+  kuru: {
+    polite: { jp: '明日の朝、先生が [ 来る → ？ ]。', en: 'The teacher will come tomorrow morning.' },
+    te: { jp: 'ここに [ 来る → ？ ] ください。', en: 'Please come here.' },
+    negative: { jp: '雨だから 友達は [ 来る → ？ ]。', en: "Because it's raining, my friend won't come." },
+    past: { jp: 'さっき、郵便屋さんが [ 来る → ？ ]。', en: 'The mail carrier came earlier.' },
+    politePast: { jp: '日本から 留学生が [ 来る → ？ ]。', en: 'An exchange student came from Japan.' },
+  },
+  ookii: {
+    polite: { jp: 'この部屋は [ 大きい → ？ ]。', en: 'This room is big.' },
+    te: { jp: '部屋が [ 大きい → ？ ]、明るいです。', en: 'The room is big and bright.' },
+    negative: { jp: 'この靴は [ 大きい → ？ ]。', en: "These shoes aren't big." },
+    past: { jp: '昔、この木は [ 大きい → ？ ]。', en: 'Long ago, this tree was big.' },
+    politePast: { jp: '昔の車は とても [ 大きい → ？ ]。', en: 'Old cars were very big.' },
+  },
+  takai: {
+    polite: { jp: '東京のホテルは [ 高い → ？ ]。', en: 'Hotels in Tokyo are expensive.' },
+    te: { jp: '富士山は [ 高い → ？ ]、美しいです。', en: 'Mount Fuji is tall and beautiful.' },
+    negative: { jp: 'この定食は [ 高い → ？ ]。', en: "This set meal isn't expensive." },
+    past: { jp: '去年の野菜は [ 高い → ？ ]。', en: 'Vegetables were expensive last year.' },
+    politePast: { jp: '昔、パソコンは とても [ 高い → ？ ]。', en: 'Computers were very expensive in the past.' },
+  },
+  ii: {
+    polite: { jp: 'このカメラは とても [ いい → ？ ]。', en: 'This camera is very good.' },
+    te: { jp: '天気が [ いい → ？ ]、散歩します。', en: 'The weather is good, so I take a walk.' },
+    negative: { jp: '今日の気分は あまり [ いい → ？ ]。', en: "I don't feel very good today." },
+    past: { jp: '昨日のコンサートは とても [ いい → ？ ]。', en: "Yesterday's concert was very good." },
+    politePast: { jp: '旅行は とても [ いい → ？ ]。', en: 'The trip was very good.' },
+  },
+  shizuka: {
+    polite: { jp: 'この図書館は [ 静か → ？ ]。', en: 'This library is quiet.' },
+    te: { jp: '部屋が [ 静か → ？ ]、勉強しやすいです。', en: 'The room is quiet and easy to study in.' },
+    negative: { jp: '休日の駅は [ 静か → ？ ]。', en: "The station on holidays is not quiet." },
+    past: { jp: '夜は まわりが [ 静か → ？ ]。', en: 'At night, the surroundings were quiet.' },
+    politePast: { jp: '昨夜のホテルは とても [ 静か → ？ ]。', en: 'Last night hotel was very quiet.' },
+  },
+  genki: {
+    polite: { jp: 'おかげさまで [ 元気 → ？ ]。', en: 'Thanks to you, I am doing well (healthy).' },
+    te: { jp: '田中さんは [ 元気 → ？ ]、明るい人です。', en: 'Tanaka-san is energetic and cheerful.' },
+    negative: { jp: '最近、あまり [ 元気 → ？ ]。', en: "Lately, I'm not very well/energetic." },
+    past: { jp: '子どもの頃は いつも [ 元気 → ？ ]。', en: 'When I was a kid, I was always energetic.' },
+    politePast: { jp: '祖父は 昔とても [ 元気 → ？ ]。', en: 'My grandfather was very healthy in the past.' },
+  },
+};
+
+export function getConjugationContext(wordId: string, form: ConjForm): ContextSentence | undefined {
+  return CONTEXT_SENTENCES[wordId]?.[form];
+}

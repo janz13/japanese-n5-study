@@ -50,9 +50,25 @@ interface WarmupPrompt {
 }
 
 import { SIGNS } from '../data/signs';
+import { FORM_LABELS } from '../data/conjugations';
+
 export default function DailyBento() {
   const { srs, addCard, reviewCard, recordKana, completeBento, bentoCount, kanaStats } = useStore();
   const [dish, setDish] = useState<1 | 2 | 3 | 4>(1);
+
+  // Read active study track (with instant fallback and local persistence)
+  const [studyTrack, setStudyTrack] = useState<'beginner' | 'travel' | 'n5' | 'n4'>(() => {
+    return (localStorage.getItem('n5_study_track') as 'beginner' | 'travel' | 'n5' | 'n4') || 'beginner';
+  });
+
+  const selectTrack = (t: 'beginner' | 'travel' | 'n5' | 'n4') => {
+    setStudyTrack(t);
+    try {
+      localStorage.setItem('n5_study_track', t);
+    } catch {
+      // ignore
+    }
+  };
 
   // 5-minute informational pace timer (purely helpful, never cuts user off)
   const [secondsLeft, setSecondsLeft] = useState(300);
@@ -71,7 +87,7 @@ export default function DailyBento() {
     return dayHash(iso) + bentoCount * 7919; // large prime offset per session
   }, [bentoCount]);
 
-  // Dish 1: 3 Kana (prioritizing user's weak kana) + 2 Verb Conjugations = 5 Warm-up prompts
+  // Dish 1: 5 Warm-up prompts tailored to the active study track!
   const warmups = useMemo<WarmupPrompt[]>(() => {
     // Check for struggling kana (wrong >= 1 and wrong >= correct)
     const weakKana = HIRAGANA.filter((k) => {
@@ -79,6 +95,74 @@ export default function DailyBento() {
       return s && s.wrong > 0 && s.wrong >= s.correct;
     });
 
+    if (studyTrack === 'beginner') {
+      // 🌱 Complete Beginner: 5 Pure Kana prompts (prioritizing weak kana) - ZERO verb conjugations!
+      const chosenWeak = weakKana.slice(0, 2);
+      const nonWeak = HIRAGANA.filter((k) => !chosenWeak.some((w) => w.kana === k.kana));
+      const fillerKana = seededShuffle(nonWeak, todaySeed).slice(0, 5 - chosenWeak.length);
+      const kPool = [...chosenWeak, ...fillerKana];
+
+      return kPool.map((k, ki) => {
+        const isWeak = chosenWeak.some((w) => w.kana === k.kana);
+        const distractors = seededShuffle(
+          HIRAGANA.filter((x) => x.romaji !== k.romaji),
+          todaySeed + 100 + ki,
+        )
+          .slice(0, 2)
+          .map((x) => x.romaji);
+        return {
+          label: isWeak ? '🌱 Beginner Kana · 🎯 Focus Spot' : '🌱 Beginner Kana Warm-up',
+          display: k.kana,
+          sub: 'Type or tap romaji',
+          answers: [k.romaji, ...(k.alts ?? [])],
+          audio: k.kana,
+          options: seededShuffle([k.romaji, ...distractors], todaySeed + 200 + ki),
+        };
+      });
+    }
+
+    if (studyTrack === 'travel') {
+      // 🧳 Travel: 3 Kana + 2 Essential Travel Counters
+      const chosenWeak = weakKana.slice(0, 1);
+      const nonWeak = HIRAGANA.filter((k) => !chosenWeak.some((w) => w.kana === k.kana));
+      const fillerKana = seededShuffle(nonWeak, todaySeed).slice(0, 3 - chosenWeak.length);
+      const kPool = [...chosenWeak, ...fillerKana];
+
+      const kPrompts: WarmupPrompt[] = kPool.map((k, ki) => {
+        const distractors = seededShuffle(
+          HIRAGANA.filter((x) => x.romaji !== k.romaji),
+          todaySeed + 100 + ki,
+        ).slice(0, 2).map((x) => x.romaji);
+        return {
+          label: '🧳 Travel Kana Warm-up',
+          display: k.kana,
+          sub: 'Type or tap romaji',
+          answers: [k.romaji, ...(k.alts ?? [])],
+          audio: k.kana,
+          options: seededShuffle([k.romaji, ...distractors], todaySeed + 200 + ki),
+        };
+      });
+
+      const travelCounters = [
+        { display: '1つ (One thing)', answers: ['ひとつ', 'hitotsu'], audio: 'ひとつ', options: ['ひとつ', 'ふたつ', 'みっつ'] },
+        { display: '2つ (Two things)', answers: ['ふたつ', 'futatsu'], audio: 'ふたつ', options: ['ふたつ', 'ひとつ', 'よっつ'] },
+        { display: '1人 (One person)', answers: ['ひとり', 'hitori'], audio: 'ひとり', options: ['ひとり', 'ふたり', 'さんにん'] },
+        { display: '1枚 (One flat ticket/sheet)', answers: ['いちまい', 'ichimai'], audio: 'いちまい', options: ['いちまい', 'にまい', 'さんまい'] },
+      ];
+      const pickedCounters = seededShuffle(travelCounters, todaySeed + 10).slice(0, 2);
+      const counterPrompts: WarmupPrompt[] = pickedCounters.map((tc) => ({
+        label: '🧳 Essential Travel Counter',
+        display: tc.display,
+        sub: 'Reading in Kana or Romaji',
+        answers: tc.answers,
+        audio: tc.audio,
+        options: tc.options,
+      }));
+
+      return [...kPrompts, ...counterPrompts];
+    }
+
+    // Default N5 or N4: 3 Kana / Weak Kana + 2 Verb Conjugations
     const chosenWeak = weakKana.slice(0, 2);
     const nonWeak = HIRAGANA.filter((k) => !chosenWeak.some((w) => w.kana === k.kana));
     const fillerKana = seededShuffle(nonWeak, todaySeed).slice(0, 3 - chosenWeak.length);
@@ -104,26 +188,27 @@ export default function DailyBento() {
       };
     });
 
-    const cPrompts: WarmupPrompt[] = cPool.map((w) => {
-      const t = w.forms.te;
+    const cPrompts: WarmupPrompt[] = cPool.map((w, wi) => {
+      const formKey = studyTrack === 'n4' && wi === 1 ? 'negative' : 'te';
+      const t = w.forms[formKey];
       return {
-        label: 'Verb Warm-up → て形 (Te-form)',
+        label: `Verb Warm-up → ${FORM_LABELS[formKey].jp.split(' ')[1]}`,
         display: w.dict,
         sub: `${w.reading} (${w.en})`,
         answers: [t.romaji, t.kana, t.kanji],
         audio: t.kana,
-        options: seededShuffle([t.kanji, w.forms.polite.kanji, w.forms.negative.kanji], todaySeed + 300),
+        options: seededShuffle([t.kanji, w.forms.polite.kanji, w.forms.negative.kanji], todaySeed + 300 + wi),
       };
     });
 
     return [...kPrompts, ...cPrompts];
-  }, [todaySeed, kanaStats]);
+  }, [todaySeed, kanaStats, studyTrack]);
 
   const [wIdx, setWIdx] = useState(0);
   const [wInput, setWInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Dish 2: Up to 5 due SRS cards (balanced mix by kind) — or a daily-rotating slice of ALL 150 kanji
+  // Dish 2: Up to 5 due SRS cards — or track-adaptive fallback
   const memoryCards = useMemo(() => {
     const dueList = Object.values(srs).filter((i) => isDue(i));
     if (dueList.length >= 3) {
@@ -149,26 +234,64 @@ export default function DailyBento() {
       }
       return dueList.slice(0, 5);
     }
-    // Rotate through the full kanji list so each day gets a different group of 5
-    const shuffled = seededShuffle(KANJI, todaySeed + 500);
-    const fallback: Omit<SrsItem, 'card'>[] = shuffled.slice(0, 5).map((k) => ({
+
+    // Fallback: Tailored to active Study Track!
+    if (studyTrack === 'beginner') {
+      const beginnerSurvival = [
+        { id: 'w:わたし', kind: 'word' as const, front: 'わたし', reading: 'わたし', back: 'I / Me' },
+        { id: 'w:これ', kind: 'word' as const, front: 'これ', reading: 'これ', back: 'This (near speaker)' },
+        { id: 'w:はい', kind: 'word' as const, front: 'はい', reading: 'はい', back: 'Yes' },
+        { id: 'w:ありがとう', kind: 'word' as const, front: 'ありがとう', reading: 'ありがとう', back: 'Thank you' },
+        { id: 'k:日', kind: 'kanji' as const, front: '日', reading: 'ニチ / ひ', back: 'Sun, Day' },
+        { id: 'k:本', kind: 'kanji' as const, front: '本', reading: 'ホン / もと', back: 'Book, Origin' },
+        { id: 'k:一', kind: 'kanji' as const, front: '一', reading: 'イチ / ひと', back: 'One' },
+        { id: 'k:二', kind: 'kanji' as const, front: '二', reading: 'ニ / ふた', back: 'Two' },
+        { id: 'k:三', kind: 'kanji' as const, front: '三', reading: 'サン / み', back: 'Three' },
+        { id: 'k:人', kind: 'kanji' as const, front: '人', reading: 'ジン, ニン / ひと', back: 'Person' },
+      ];
+      return seededShuffle(beginnerSurvival, todaySeed + 500).slice(0, 5);
+    }
+
+    if (studyTrack === 'travel') {
+      const travelSurvival = [
+        { id: 'w:えき', kind: 'word' as const, front: '駅 (えき)', reading: 'えき', back: 'Train Station' },
+        { id: 'w:きっぷ', kind: 'word' as const, front: '切符 (きっぷ)', reading: 'きっぷ', back: 'Ticket' },
+        { id: 'w:みず', kind: 'word' as const, front: 'お水 (おみず)', reading: 'おみず', back: 'Water' },
+        { id: 'w:といれ', kind: 'word' as const, front: 'トイレ', reading: 'といれ', back: 'Restroom / Toilet' },
+        { id: 'w:いくら', kind: 'word' as const, front: 'いくら', reading: 'いくら', back: 'How much (price)' },
+        { id: 'w:おすすめ', kind: 'word' as const, front: 'おすすめ', reading: 'おすすめ', back: 'Recommendation' },
+        { id: 'k:円', kind: 'kanji' as const, front: '円', reading: 'エン / まる', back: 'Yen, Circle' },
+        { id: 'k:口', kind: 'kanji' as const, front: '口', reading: 'コウ / くち', back: 'Mouth, Entrance/Exit' },
+      ];
+      return seededShuffle(travelSurvival, todaySeed + 500).slice(0, 5);
+    }
+
+    const targetLevel = studyTrack === 'n4' ? 'N4' : 'N5';
+    const levelKanji = KANJI.filter((k) => k.level === targetLevel);
+    const shuffled = seededShuffle(levelKanji.length ? levelKanji : KANJI, todaySeed + 500);
+    return shuffled.slice(0, 5).map((k) => ({
       id: `k:${k.k}`,
-      kind: 'kanji',
+      kind: 'kanji' as const,
       front: k.k,
       reading: `${k.on} / ${k.kun}`,
       back: k.meaning,
     }));
-    return fallback;
-  }, [srs, todaySeed]);
+  }, [srs, todaySeed, studyTrack]);
 
   const [mIdx, setMIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
-  // Dish 3: Featured Kanji (rotates through ALL 150) + Street Sign (rotates through ALL signs)
+  // Dish 3: Featured Kanji (rotates through track-relevant kanji) + Street Sign
   const featuredKanji = useMemo(() => {
-    const idx = todaySeed % KANJI.length;
-    return KANJI[idx];
-  }, [todaySeed]);
+    if (studyTrack === 'beginner') {
+      const beginnerList = KANJI.filter((k) => ['一', '二', '三', '四', '五', '日', '本', '人', '大', '小', '月', '水', '木'].includes(k.k));
+      return beginnerList[todaySeed % beginnerList.length] || KANJI[0];
+    }
+    const pool = studyTrack === 'n4' ? KANJI.filter((k) => k.level === 'N4') : KANJI.filter((k) => k.level === 'N5');
+    const list = pool.length ? pool : KANJI;
+    return list[todaySeed % list.length];
+  }, [todaySeed, studyTrack]);
+
   const streetSign = useMemo(() => {
     const idx = (todaySeed + 77) % SIGNS.length;
     return SIGNS[idx];
@@ -229,21 +352,37 @@ export default function DailyBento() {
       <div className="row-between">
         <div>
           <h1>今日の弁当 <span className="muted">Today's 5-Minute Bento</span></h1>
-          {dish < 4 && (
-            <span
-              className="chip"
-              style={{
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                color: secondsLeft === 0 ? 'var(--bad)' : secondsLeft <= 60 ? '#f39c12' : 'inherit',
-                borderColor: secondsLeft === 0 ? 'var(--bad)' : secondsLeft <= 60 ? '#f39c12' : undefined,
-                marginTop: '0.2rem',
-                display: 'inline-block',
-              }}
-            >
-              ⏱ {secondsLeft > 0 ? `${timerMin}:${timerSec} Pace` : '0:00 (Take your time!)'}
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.3rem', flexWrap: 'wrap' }}>
+            {dish < 4 && (
+              <span
+                className="chip"
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: secondsLeft === 0 ? 'var(--bad)' : secondsLeft <= 60 ? '#f39c12' : 'inherit',
+                  borderColor: secondsLeft === 0 ? 'var(--bad)' : secondsLeft <= 60 ? '#f39c12' : undefined,
+                  display: 'inline-block',
+                }}
+              >
+                ⏱ {secondsLeft > 0 ? `${timerMin}:${timerSec} Pace` : '0:00 (Take your time!)'}
+              </span>
+            )}
+            <span className="muted small" style={{ marginLeft: '0.4rem' }}>Difficulty Track:</span>
+            {(['beginner', 'travel', 'n5', 'n4'] as const).map((t) => (
+              <button
+                key={t}
+                className={studyTrack === t ? 'chip on' : 'chip'}
+                style={{ padding: '0.2rem 0.6rem', fontSize: '0.78rem' }}
+                onClick={() => selectTrack(t)}
+                title={`Switch Bento difficulty to ${t}`}
+              >
+                {t === 'beginner' && '🌱 Beginner'}
+                {t === 'travel' && '🧳 Travel'}
+                {t === 'n5' && '⚡ N5 Core'}
+                {t === 'n4' && '🚀 N4 Bridge'}
+              </button>
+            ))}
+          </div>
         </div>
         <Link to="/" className="muted small">← Dashboard</Link>
       </div>

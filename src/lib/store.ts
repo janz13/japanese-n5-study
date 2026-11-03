@@ -18,6 +18,7 @@ export interface SrsItem {
   reading?: string;
   back: string;
   card: Card;
+  suspended?: boolean;
 }
 
 interface Word {
@@ -84,6 +85,10 @@ interface State {
   toggleTheme: () => void;
   toggleSfx: () => void;
   setTtsRate: (rate: number) => void;
+  dailyNewCardsCap: number;
+  suspendCard: (id: string) => void;
+  unsuspendCard: (id: string) => void;
+  setDailyNewCardsCap: (cap: number) => void;
   importData: (data: Partial<State>) => void;
   resetProgress: () => void;
 }
@@ -102,7 +107,7 @@ export function reviveCard(c: Card): Card {
   return { ...c, due: new Date(c.due), last_review: c.last_review ? new Date(c.last_review) : undefined };
 }
 
-export const isDue = (i: SrsItem, now = Date.now()) => new Date(i.card.due).getTime() <= now;
+export const isDue = (i: SrsItem, now = Date.now()) => !i.suspended && new Date(i.card.due).getTime() <= now;
 
 const initialData = {
   kanaStats: {} as Record<string, KanaStat>,
@@ -126,6 +131,7 @@ const initialData = {
   theme: 'dark' as ThemeMode,
   ttsRate: 0.9,
   sfxEnabled: true,
+  dailyNewCardsCap: 20,
 };
 
 export const useStore = create<State>()(
@@ -197,6 +203,17 @@ export const useStore = create<State>()(
           const { card } = scheduler.next(reviveCard(item.card), new Date(), grade);
           return { ...bumpStreak(s), srs: { ...s.srs, [id]: { ...item, card } } };
         }),
+      suspendCard: (id: string) =>
+        set((s) => {
+          const item = s.srs[id];
+          return item ? { srs: { ...s.srs, [id]: { ...item, suspended: true } } } : s;
+        }),
+      unsuspendCard: (id: string) =>
+        set((s) => {
+          const item = s.srs[id];
+          return item ? { srs: { ...s.srs, [id]: { ...item, suspended: false } } } : s;
+        }),
+      setDailyNewCardsCap: (dailyNewCardsCap: number) => set({ dailyNewCardsCap }),
       completeStory: (id, score) =>
         set((s) => ({
           ...bumpStreak(s),
@@ -264,7 +281,7 @@ export const useStore = create<State>()(
     }),
     {
       name: 'n5-study',
-      version: 7,
+      version: 8,
       migrate: (old: unknown) => {
         const s = (old ?? {}) as Partial<State>;
         const srs: Record<string, SrsItem> = s.srs ?? {};
@@ -289,6 +306,7 @@ export const useStore = create<State>()(
           theme: s.theme ?? 'dark',
           ttsRate: s.ttsRate ?? 0.9,
           sfxEnabled: s.sfxEnabled ?? true,
+          dailyNewCardsCap: s.dailyNewCardsCap ?? 20,
         } as State;
       },
     },

@@ -34,6 +34,8 @@ export default function KanaDojo() {
   const [flash, setFlash] = useState<'ok' | 'bad' | null>(null);
   const [reveal, setReveal] = useState<string | null>(null);
   const [session, setSession] = useState({ ok: 0, total: 0 });
+  const [showMnemonic, setShowMnemonic] = useState(false);
+  const [autoAudio, setAutoAudio] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const pool = useMemo(() => {
@@ -42,7 +44,11 @@ export default function KanaDojo() {
   }, [script, rows]);
 
   useEffect(() => {
-    if (pool.length) setCurrent(pick(pool, kanaStats));
+    if (pool.length) {
+      const nextKana = pick(pool, kanaStats);
+      setCurrent(nextKana);
+      if (autoAudio && nextKana) speak(nextKana.kana, 0.85);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pool]);
 
@@ -54,12 +60,16 @@ export default function KanaDojo() {
     setFlash(ok ? 'ok' : 'bad');
     if (sfxEnabled) (ok ? playDing : playMiss)();
     speak(current.kana, 0.85);
+    const nextKana = pick(pool, kanaStats, current);
     if (ok) {
       setReveal(null);
-      setCurrent(pick(pool, kanaStats, current));
+      setCurrent(nextKana);
     } else {
       setReveal(`${current.kana} = ${current.romaji}`);
-      setCurrent(pick(pool, kanaStats, current));
+      setCurrent(nextKana);
+    }
+    if (autoAudio && nextKana) {
+      setTimeout(() => speak(nextKana.kana, 0.85), 350);
     }
     setInput('');
     setTimeout(() => setFlash(null), 250);
@@ -124,6 +134,26 @@ export default function KanaDojo() {
 
       <div className={`drill ${flash ?? ''}`} onClick={() => inputRef.current?.focus()}>
         <div className="drill-char">{current?.kana}</div>
+
+        {/* 1-Line Visual Memory Hook for Beginners */}
+        {showMnemonic && current?.mnemonic && (
+          <div
+            style={{
+              background: 'var(--surface2)',
+              borderLeft: '3px solid var(--accent)',
+              borderRadius: '8px',
+              padding: '0.45rem 0.85rem',
+              margin: '0.2rem auto 0.8rem',
+              maxWidth: '420px',
+              fontSize: '0.9rem',
+              textAlign: 'left',
+              animation: 'fadeIn 0.2s ease',
+            }}
+          >
+            💡 <b>Memory Hook:</b> {current.mnemonic}
+          </div>
+        )}
+
         <input
           ref={inputRef}
           autoFocus
@@ -135,7 +165,44 @@ export default function KanaDojo() {
           autoComplete="off"
           autoCapitalize="off"
         />
-        <div className="drill-meta">
+
+        <div className="controls center" style={{ marginTop: '0.7rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className={showMnemonic ? 'chip on' : 'chip'}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMnemonic((m) => !m);
+            }}
+            title="Toggle 1-line visual mnemonic hook"
+          >
+            💡 {showMnemonic ? 'Hide Mnemonic' : 'Mnemonic Peek'}
+          </button>
+          <button
+            type="button"
+            className="chip"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (current) speak(current.kana, 0.85);
+            }}
+            title="Hear character pronunciation"
+          >
+            🔊 Hear Sound
+          </button>
+          <button
+            type="button"
+            className={autoAudio ? 'chip on' : 'chip'}
+            onClick={(e) => {
+              e.stopPropagation();
+              setAutoAudio((a) => !a);
+            }}
+            title="Auto-play audio on prompt appearance"
+          >
+            {autoAudio ? '🔊 Auto-Audio: ON' : '🔈 Auto-Audio: OFF'}
+          </button>
+        </div>
+
+        <div className="drill-meta" style={{ marginTop: '0.6rem' }}>
           {reveal ? <span className="bad-text">✗ {reveal}</span> : <span>&nbsp;</span>}
           <span>
             {session.ok}/{session.total} · {session.total ? Math.round((session.ok / session.total) * 100) : 0}%

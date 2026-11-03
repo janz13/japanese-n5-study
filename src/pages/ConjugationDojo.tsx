@@ -4,6 +4,7 @@ import {
   CONJUGATIONS,
   FORM_LABELS,
   GROUP_LABELS,
+  getConjugationContext,
   type ConjForm,
   type ConjugatableWord,
   type WordGroup,
@@ -224,7 +225,33 @@ export default function ConjugationDojo() {
                   <rt>{current.word.reading}</rt>
                 </ruby>
               </div>
-              <div className="muted" style={{ marginBottom: '0.8rem' }}>{current.word.en}</div>
+              <div className="muted" style={{ marginBottom: '0.5rem' }}>{current.word.en}</div>
+
+              {/* 1-Line Context Sentence Anchor */}
+              {(() => {
+                const ctx = getConjugationContext(current.word.id, current.form);
+                if (!ctx) return null;
+                return (
+                  <div
+                    style={{
+                      background: 'var(--surface2)',
+                      borderLeft: '3px solid var(--accent)',
+                      borderRadius: '8px',
+                      padding: '0.55rem 0.95rem',
+                      margin: '0.2rem auto 0.9rem',
+                      maxWidth: '440px',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div className="jp" style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)' }}>
+                      💬 {ctx.jp}
+                    </div>
+                    <div className="muted small" style={{ marginTop: '0.2rem' }}>
+                      {ctx.en}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <input
                 ref={inputRef}
