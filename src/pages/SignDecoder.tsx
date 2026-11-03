@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { SIGN_CATEGORIES, SIGNS, type SignCategory } from '../data/signs';
 import { SHOKKENKI_MISSIONS, TICKET_BUTTONS, type TicketButton } from '../data/shokkenki';
 import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
 import { playDing, playFanfare, playMiss } from '../lib/sfx';
+import { useCampaignMission } from '../lib/useCampaignMission';
+import CampaignBanner from '../components/CampaignBanner';
 
 /** Shuffle options so the correct answer isn't always first. */
 function shuffled<T>(arr: T[]) {
@@ -13,7 +15,26 @@ function shuffled<T>(arr: T[]) {
 
 export default function SignDecoder() {
   const { sfxEnabled: sfx, srs, addCard } = useStore();
-  const [mode, setMode] = useState<'signs' | 'shokkenki'>('signs');
+  const {
+    isCampaignMode,
+    stage,
+    saga,
+    targetTab,
+    completeMission,
+    returnToCampaign,
+  } = useCampaignMission();
+
+  const [mode, setMode] = useState<'signs' | 'shokkenki'>(() => {
+    if (targetTab === 'shokkenki' || targetTab === 'signs') return targetTab;
+    return 'signs';
+  });
+
+  useEffect(() => {
+    if (targetTab === 'shokkenki' || targetTab === 'signs') {
+      setMode(targetTab);
+    }
+  }, [targetTab]);
+
   const [cat, setCat] = useState<SignCategory | 'all'>('all');
   const [choices, setChoices] = useState<Record<string, number>>({});
 
@@ -31,6 +52,12 @@ export default function SignDecoder() {
     if (id in choices) return;
     setChoices((c) => ({ ...c, [id]: idx }));
     if (sfx) (idx === correct ? playDing : playMiss)();
+    if (isCampaignMode && mode === 'signs' && idx === correct) {
+      const nextSolved = solved + 1;
+      if (nextSolved >= 3) {
+        completeMission();
+      }
+    }
   };
 
   const mission = SHOKKENKI_MISSIONS[missionIdx % SHOKKENKI_MISSIONS.length];
@@ -52,11 +79,17 @@ export default function SignDecoder() {
     if (sfx) (isExactMatch ? playFanfare : playMiss)();
     if (isExactMatch) {
       speak(mission.kitchenCallKana);
+      if (isCampaignMode) {
+        completeMission();
+      }
     }
   };
 
   return (
     <div className="page">
+      {isCampaignMode && stage && (
+        <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
+      )}
       <div className="row-between">
         <div>
           <h1 className="nomargin">

@@ -11,22 +11,24 @@ export default function Stories() {
       <h1>物語 <span className="muted">Stories</span></h1>
       <p className="muted">Follow Ana's first weeks in Japan. Each chapter unlocks after its grammar lesson.</p>
       <div className="story-list">
-        {STORIES.map((s) =>
-          storyUnlocked(s.chapter, p) ? (
-            <Link key={s.id} to={`/stories/${s.id}`} className="story-card">
+        {STORIES.map((s) => {
+          const isDone = done[s.id] !== undefined;
+          const isUnlocked = isDone || storyUnlocked(s.chapter, p);
+          return (
+            <Link
+              key={s.id}
+              to={`/stories/${s.id}`}
+              className={isUnlocked ? 'story-card' : 'story-card locked'}
+            >
               <span className="tag">{s.level} · Ch.{s.chapter}</span>
-              <span className="story-title">{s.title}</span>
-              <span className="muted">{s.titleEn}</span>
-              {done[s.id] !== undefined && <span className="done">✓ {done[s.id]}%</span>}
+              <span className="story-title">{isUnlocked ? s.title : `🔒 ${s.title}`}</span>
+              <span className="muted">
+                {isUnlocked ? s.titleEn : `Pass grammar lesson ${s.chapter} to unlock (tap to read anyway)`}
+              </span>
+              {isDone && <span className="done">✓ {done[s.id]}%</span>}
             </Link>
-          ) : (
-            <Link key={s.id} to="/grammar" className="story-card locked">
-              <span className="tag">{s.level} · Ch.{s.chapter}</span>
-              <span className="story-title">🔒 {s.title}</span>
-              <span className="muted">Pass grammar lesson {s.chapter} to unlock</span>
-            </Link>
-          ),
-        )}
+          );
+        })}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CONJUGATION_LESSONS, type ConjugationLesson } from '../data/conjugationLessons';
 import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
@@ -6,11 +6,33 @@ import { playDing, playFanfare } from '../lib/sfx';
 
 export default function ConjugationLessonViewer({
   onSwitchToDrill,
+  initialLessonId,
+  onComplete,
 }: {
   onSwitchToDrill: () => void;
+  initialLessonId?: string;
+  onComplete?: () => void;
 }) {
   const { conjLessonsDone, completeConjLesson, sfxEnabled } = useStore();
-  const [activeLessonId, setActiveLessonId] = useState<string>(CONJUGATION_LESSONS[0].id);
+  const [activeLessonId, setActiveLessonId] = useState<string>(() => {
+    if (initialLessonId) {
+      const found = CONJUGATION_LESSONS.find(
+        (l) => l.id === initialLessonId || l.id === `lesson-${initialLessonId}`,
+      );
+      if (found) return found.id;
+    }
+    return CONJUGATION_LESSONS[0].id;
+  });
+
+  useEffect(() => {
+    if (initialLessonId) {
+      const found = CONJUGATION_LESSONS.find(
+        (l) => l.id === initialLessonId || l.id === `lesson-${initialLessonId}`,
+      );
+      if (found) setActiveLessonId(found.id);
+    }
+  }, [initialLessonId]);
+
   const [morphStepIdx, setMorphStepIdx] = useState<number>(0);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [quizSubmitted, setQuizSubmitted] = useState<boolean>(false);
@@ -40,6 +62,7 @@ export default function ConjugationLessonViewer({
     const allCorrect = score === lesson.quiz.length;
     if (allCorrect) {
       completeConjLesson(lesson.id);
+      if (onComplete) onComplete();
       if (sfxEnabled) playFanfare();
     } else {
       if (sfxEnabled) playDing();

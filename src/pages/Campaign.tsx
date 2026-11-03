@@ -14,6 +14,8 @@ export default function Campaign() {
     campaignCompletedStages,
     completeCampaignStage,
     completeCampaignSaga,
+    completeLesson,
+    completeStory,
     sfxEnabled,
   } = useStore();
 
@@ -91,6 +93,36 @@ export default function Campaign() {
         saga.stages.forEach((st) => completeCampaignStage(st.id));
       }
     }
+
+    // Backfill stories and grammar lessons for all skipped sagas
+    const backfillMap: Record<number, { lessons: string[]; stories: string[] }> = {
+      2: { lessons: ['g1'], stories: ['ch1-arrival'] },
+      3: { lessons: ['g1', 'g2'], stories: ['ch1-arrival', 'ch2-cafe'] },
+      4: { lessons: ['g1', 'g2', 'g3'], stories: ['ch1-arrival', 'ch2-cafe', 'ch3-asakusa'] },
+      5: {
+        lessons: ['g1', 'g2', 'g3', 'g4', 'g5'],
+        stories: ['ch1-arrival', 'ch2-cafe', 'ch3-asakusa', 'ch4-weekend', 'ch5-shinkansen'],
+      },
+      6: {
+        lessons: ['g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7'],
+        stories: [
+          'ch1-arrival',
+          'ch2-cafe',
+          'ch3-asakusa',
+          'ch4-weekend',
+          'ch5-shinkansen',
+          'ch6-akihabara',
+          'ch7-onsen',
+        ],
+      },
+    };
+
+    const toBackfill = backfillMap[targetSaga];
+    if (toBackfill) {
+      toBackfill.lessons.forEach((lid) => completeLesson(lid, 100));
+      toBackfill.stories.forEach((sid) => completeStory(sid, 100));
+    }
+
     setActiveSagaNum(targetSaga);
     setPlacementOpen(false);
     if (sfxEnabled) playFanfare();

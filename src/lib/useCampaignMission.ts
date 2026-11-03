@@ -12,6 +12,7 @@ export interface CampaignMissionContext {
   targetScript?: 'hiragana' | 'katakana' | 'both';
   targetCategory?: string;
   targetTab?: string;
+  targetLessonId?: string;
   isCompleted: boolean;
   completeMission: () => void;
   returnToCampaign: () => void;
@@ -32,9 +33,19 @@ export function useCampaignMission(): CampaignMissionContext {
   const stage = stageInfo?.stage ?? null;
   const saga = stageInfo?.saga ?? null;
   const targetItems = stage?.targetItems ?? null;
-  const targetScript = stage?.targetScript;
+
+  const scriptParam = searchParams.get('script');
+  const targetScript =
+    scriptParam === 'hiragana' || scriptParam === 'katakana' || scriptParam === 'both'
+      ? scriptParam
+      : stage?.targetScript;
+
   const targetCategory = stage?.targetCategory;
-  const targetTab = stage?.targetTab;
+
+  const tabParam = searchParams.get('tab') || searchParams.get('mode');
+  const targetTab = tabParam || stage?.targetTab;
+
+  const targetLessonId = searchParams.get('lesson') || searchParams.get('lessonId') || undefined;
 
   const campaignCompletedStages = useStore((s) => s.campaignCompletedStages);
   const isCompleted = stageId ? Boolean(campaignCompletedStages[stageId]) : false;
@@ -62,6 +73,7 @@ export function useCampaignMission(): CampaignMissionContext {
     targetScript,
     targetCategory,
     targetTab,
+    targetLessonId,
     isCompleted,
     completeMission,
     returnToCampaign,

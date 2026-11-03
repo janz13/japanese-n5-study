@@ -7,6 +7,7 @@ import { storyUnlocked } from '../lib/progress';
 import { playFanfare } from '../lib/sfx';
 import { useCampaignMission } from '../lib/useCampaignMission';
 import CampaignBanner from '../components/CampaignBanner';
+import { findStory } from '../lib/findStory';
 
 const plain = (tokens: Token[]) => tokens.map((t) => t.r ?? t.t).join('');
 
@@ -62,7 +63,7 @@ function Word({ tok, furigana, onTap, active }: { tok: Token; furigana: boolean;
 
 export default function StoryReader() {
   const { id } = useParams();
-  const story = STORIES.find((s) => s.id === id);
+  const story = findStory(id);
   const state = useStore();
   const { showFurigana, toggleFurigana, saveWord, srs, completeStory, ttsRate, setTtsRate } = state;
   const {
@@ -80,6 +81,7 @@ export default function StoryReader() {
   const [savedScore, setSavedScore] = useState(false);
   const campaignCompletedRef = useRef(false);
 
+  const isAlreadyCompleted = story ? state.completedStories[story.id] !== undefined : false;
   const allAnswered = story ? Object.keys(answers).length === story.questions.length : false;
   const score = story && story.questions.length > 0
     ? Math.round(
@@ -96,7 +98,7 @@ export default function StoryReader() {
   }, [isCampaignMode, allAnswered, completeMission, state.sfxEnabled]);
 
   if (!story) return <div className="page">Story not found. <Link to="/stories">Back</Link></div>;
-  if (!isCampaignMode && !forceOpen && !storyUnlocked(story.chapter, state)) {
+  if (!isCampaignMode && !forceOpen && !isAlreadyCompleted && !storyUnlocked(story.chapter, state)) {
     return (
       <div className="page">
         <p>

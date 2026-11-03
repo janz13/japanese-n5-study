@@ -43,21 +43,28 @@ export function GrammarList() {
       </div>
       <div className="story-list">
         {LESSONS.map((l) => {
-          const open = lessonUnlocked(l.chapter, p);
+          const isDone = (p.grammarDone[l.id] ?? 0) >= PASS;
+          const open = isDone || lessonUnlocked(l.chapter, p);
           const score = p.grammarDone[l.id];
-          return open ? (
-            <Link key={l.id} to={`/grammar/${l.id}`} className="story-card">
-              <span className="tag">Lesson {l.chapter} → unlocks Ch.{l.chapter}</span>
-              <span className="story-title small-title">{l.title}</span>
-              <span className="muted">{l.points.map((x) => x.pattern).join(' · ')}</span>
-              {score !== undefined && <span className={score >= PASS ? 'done' : 'done bad-text'}>{score}%</span>}
+          return (
+            <Link
+              key={l.id}
+              to={`/grammar/${l.id}`}
+              className={open ? 'story-card' : 'story-card locked'}
+            >
+              <span className="tag">
+                {open ? `Lesson ${l.chapter} → unlocks Ch.${l.chapter}` : `Lesson ${l.chapter}`}
+              </span>
+              <span className="story-title small-title">{open ? l.title : `🔒 ${l.title}`}</span>
+              <span className="muted">
+                {open
+                  ? l.points.map((x) => x.pattern).join(' · ')
+                  : `Finish the Ch.${l.chapter - 1} story first (tap to study anyway)`}
+              </span>
+              {score !== undefined && (
+                <span className={score >= PASS ? 'done' : 'done bad-text'}>{score}%</span>
+              )}
             </Link>
-          ) : (
-            <div key={l.id} className="story-card locked">
-              <span className="tag">Lesson {l.chapter}</span>
-              <span className="story-title small-title">🔒 {l.title}</span>
-              <span className="muted">Finish the Ch.{l.chapter - 1} story first</span>
-            </div>
           );
         })}
       </div>
@@ -127,7 +134,8 @@ function OrderEx({ ex, onAnswer }: { ex: Extract<Exercise, { type: 'order' }>; o
 export function GrammarLesson() {
   const { id } = useParams();
   const lesson = LESSONS.find((l) => l.id === id);
-  const { completeLesson, srs, addCard, sfxEnabled } = useStore();
+  const state = useStore();
+  const { completeLesson, srs, addCard, sfxEnabled } = state;
   const {
     isCampaignMode,
     stage,
@@ -143,6 +151,8 @@ export function GrammarLesson() {
   const n = lesson?.exercises.length ?? 0;
   const doneAll = lesson ? Object.keys(answers).length === n : false;
   const score = n > 0 ? Math.round((Object.values(answers).filter(Boolean).length / n) * 100) : 0;
+  const isAlreadyPassed = lesson ? (state.grammarDone[lesson.id] ?? 0) >= PASS : false;
+  const isUnlocked = lesson ? isAlreadyPassed || lessonUnlocked(lesson.chapter, state) : false;
 
   useEffect(() => {
     if (isCampaignMode && doneAll && score >= PASS && !campaignCompletedRef.current) {
@@ -158,6 +168,21 @@ export function GrammarLesson() {
     <div className="page">
       {isCampaignMode && stage && (
         <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
+      )}
+      {!isCampaignMode && !isUnlocked && (
+        <div
+          style={{
+            background: 'var(--surface2)',
+            borderLeft: '4px solid var(--accent)',
+            padding: '0.6rem 0.9rem',
+            borderRadius: '6px',
+            marginBottom: '1rem',
+          }}
+        >
+          <span className="small">
+            ℹ️ Recommended prerequisite: Finish <Link to={`/stories/ch${lesson.chapter - 1}`} className="link">Story Chapter {lesson.chapter - 1}</Link> first for context. You can still study and practice below!
+          </span>
+        </div>
       )}
       <Link to="/grammar" className="muted">← Grammar</Link>
       <h1>{lesson.title}</h1>

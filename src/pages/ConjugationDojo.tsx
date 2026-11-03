@@ -46,7 +46,15 @@ function matchesTarget(input: string, word: ConjugatableWord, form: ConjForm) {
 
 export default function ConjugationDojo() {
   const { srs, addCard, sfxEnabled } = useStore();
-  const { isCampaignMode, stage, saga, targetTab, returnToCampaign } = useCampaignMission();
+  const {
+    isCampaignMode,
+    stage,
+    saga,
+    targetTab,
+    targetLessonId,
+    completeMission,
+    returnToCampaign,
+  } = useCampaignMission();
   const [dojoMode, setDojoMode] = useState<'lessons' | 'conjugate' | 'pairs'>(() => {
     if (targetTab === 'lessons' || targetTab === 'conjugate' || targetTab === 'pairs') {
       return targetTab;
@@ -165,7 +173,14 @@ export default function ConjugationDojo() {
     if (pairPicked) return;
     setPairPicked(kind);
     const ok = kind === currentPairDrill.targetKind;
-    setSession((s) => ({ ok: s.ok + (ok ? 1 : 0), total: s.total + 1 }));
+    setSession((s) => {
+      const nextOk = s.ok + (ok ? 1 : 0);
+      const nextTotal = s.total + 1;
+      if (isCampaignMode && nextTotal >= 5) {
+        completeMission();
+      }
+      return { ok: nextOk, total: nextTotal };
+    });
     if (sfxEnabled) (ok ? playDing : playMiss)();
     speak(currentPairDrill.ttsKana);
   };
@@ -207,7 +222,13 @@ export default function ConjugationDojo() {
       </div>
 
       {dojoMode === 'lessons' ? (
-        <ConjugationLessonViewer onSwitchToDrill={() => setDojoMode('conjugate')} />
+        <ConjugationLessonViewer
+          onSwitchToDrill={() => setDojoMode('conjugate')}
+          initialLessonId={targetLessonId}
+          onComplete={() => {
+            if (isCampaignMode) completeMission();
+          }}
+        />
       ) : dojoMode === 'conjugate' ? (
         <>
           <div className="controls" style={{ marginTop: '0.8rem' }}>

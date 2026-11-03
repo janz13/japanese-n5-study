@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LISTENING, LISTENING_TYPES, type ListeningItem } from '../data/listening';
 import { PITCH_PAIRS, type PitchWord } from '../data/pitchAccent';
 import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
 import { playDing, playFanfare, playMiss } from '../lib/sfx';
+import { useCampaignMission } from '../lib/useCampaignMission';
+import CampaignBanner from '../components/CampaignBanner';
 
 type Kind = ListeningItem['type'];
 const ROUND = 10;
@@ -65,7 +67,26 @@ function PitchContourSvg({ word, color }: { word: PitchWord; color: string }) {
 
 export default function Listening() {
   const { sfxEnabled: sfx, srs, addCard } = useStore();
-  const [tab, setTab] = useState<'drills' | 'pitch'>('drills');
+  const {
+    isCampaignMode,
+    stage,
+    saga,
+    targetTab,
+    completeMission,
+    returnToCampaign,
+  } = useCampaignMission();
+
+  const [tab, setTab] = useState<'drills' | 'pitch'>(() => {
+    if (targetTab === 'pitch' || targetTab === 'drills') return targetTab;
+    return 'drills';
+  });
+
+  useEffect(() => {
+    if (targetTab === 'pitch' || targetTab === 'drills') {
+      setTab(targetTab);
+    }
+  }, [targetTab]);
+
   const [kind, setKind] = useState<Kind | 'all'>('all');
   const [seed, setSeed] = useState(0);
   const round = useMemo(() => buildRound(kind), [kind, seed]);
@@ -78,6 +99,7 @@ export default function Listening() {
   const [pitchIdx, setPitchIdx] = useState(0);
   const [pitchTargetSide, setPitchTargetSide] = useState<'A' | 'B'>('A');
   const [pitchPicked, setPitchPicked] = useState<'A' | 'B' | null>(null);
+  const [pitchDrillCount, setPitchDrillCount] = useState(0);
   const activePair = PITCH_PAIRS[pitchIdx % PITCH_PAIRS.length];
   const targetPitchWord = pitchTargetSide === 'A' ? activePair.wordA : activePair.wordB;
 
@@ -106,7 +128,10 @@ export default function Listening() {
     setShowText(false);
     const n = idx + 1;
     setIdx(n);
-    if (n >= round.length && sfx) playFanfare();
+    if (n >= round.length) {
+      if (sfx) playFanfare();
+      if (isCampaignMode) completeMission();
+    }
   };
 
   const choosePitchSide = (side: 'A' | 'B') => {
@@ -115,6 +140,13 @@ export default function Listening() {
     const ok = side === pitchTargetSide;
     if (sfx) (ok ? playDing : playMiss)();
     speak(targetPitchWord.sentenceTts);
+    if (isCampaignMode) {
+      const nextCount = pitchDrillCount + 1;
+      setPitchDrillCount(nextCount);
+      if (nextCount >= 5) {
+        completeMission();
+      }
+    }
   };
 
   const nextPitchDrill = () => {
@@ -126,6 +158,9 @@ export default function Listening() {
 
   return (
     <div className="page">
+      {isCampaignMode && stage && (
+        <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
+      )}
       <div className="row-between">
         <div>
           <h1 className="nomargin">

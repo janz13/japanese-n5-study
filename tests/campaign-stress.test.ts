@@ -127,30 +127,31 @@ CAMPAIGN_SAGAS.forEach((saga) => {
   saga.stages.forEach((stage) => {
     validatedStages++;
     const route = stage.targetRoute;
+    const basePath = route.split('?')[0];
     check(typeof route === 'string' && route.startsWith('/'), `Stage ${stage.id}: targetRoute must start with /`);
 
-    if (route.startsWith('/stories/')) {
-      const storyId = route.replace('/stories/', '');
+    if (basePath.startsWith('/stories/')) {
+      const storyId = basePath.replace('/stories/', '');
       check(
         validStoryIds.has(storyId),
         `Stage ${stage.id}: targetRoute "${route}" points to nonexistent story "${storyId}"! Available stories: ${Array.from(validStoryIds).join(', ')}`
       );
-    } else if (route.startsWith('/grammar/')) {
-      const lessonId = route.replace('/grammar/', '');
+    } else if (basePath.startsWith('/grammar/')) {
+      const lessonId = basePath.replace('/grammar/', '');
       check(
         validLessonIds.has(lessonId),
         `Stage ${stage.id}: targetRoute "${route}" points to nonexistent grammar lesson "${lessonId}"! Available lessons: ${Array.from(validLessonIds).join(', ')}`
       );
-    } else if (route.startsWith('/speaking/')) {
-      const sceneId = route.replace('/speaking/', '');
+    } else if (basePath.startsWith('/speaking/')) {
+      const sceneId = basePath.replace('/speaking/', '');
       check(
         validSceneIds.has(sceneId),
         `Stage ${stage.id}: targetRoute "${route}" points to nonexistent speaking scene "${sceneId}"! Available scenes: ${Array.from(validSceneIds).join(', ')}`
       );
     } else {
       check(
-        VALID_STATIC_ROUTES.has(route),
-        `Stage ${stage.id}: targetRoute "${route}" is not a recognized static application route!`
+        VALID_STATIC_ROUTES.has(basePath),
+        `Stage ${stage.id}: targetRoute "${route}" (basePath: "${basePath}") is not a recognized static application route!`
       );
     }
   });
