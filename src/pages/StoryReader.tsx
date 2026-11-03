@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { STORIES, type Token } from '../data/stories';
+import { type Token } from '../data/stories';
 import { useStore } from '../lib/store';
 import { speak, stopSpeaking } from '../lib/tts';
 import { storyUnlocked } from '../lib/progress';
