@@ -137,7 +137,7 @@ export default function StoryReader() {
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem' }}>
               <button
                 type="button"
-                className="chip"
+                className="chip sentence-play-btn"
                 style={{
                   padding: '0.2rem 0.55rem',
                   fontSize: '0.85rem',
