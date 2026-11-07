@@ -5,6 +5,7 @@ import { speak } from '../lib/tts';
 import { playDing, playFanfare, playMiss } from '../lib/sfx';
 import { useCampaignMission } from '../lib/useCampaignMission';
 import CampaignBanner from '../components/CampaignBanner';
+import ConfuserSpeedSorter from '../components/ConfuserSpeedSorter';
 
 type Script = 'hiragana' | 'katakana' | 'both';
 
@@ -56,6 +57,7 @@ export default function KanaDojo() {
     }
   }, [targetScript]);
 
+  const [viewMode, setViewMode] = useState<'typing' | 'confuser'>('typing');
   const [rows, setRows] = useState<string[]>(ROWS);
   const [current, setCurrent] = useState<Kana | null>(null);
   const [input, setInput] = useState('');
@@ -143,10 +145,35 @@ export default function KanaDojo() {
           onReturn={returnToCampaign}
         />
       )}
-      <h1>Kana Dojo</h1>
-      {isCampaignMode && targetItems && targetItems.length > 0 ? (
-        <div
-          className="controls"
+      <div className="row-between" style={{ alignItems: 'center', marginBottom: '0.8rem' }}>
+        <h1 className="nomargin">Kana Dojo</h1>
+        <div className="controls nomargin">
+          <button
+            type="button"
+            className={viewMode === 'typing' ? 'chip on' : 'chip'}
+            onClick={() => setViewMode('typing')}
+          >
+            ⚡ Typing Drill
+          </button>
+          <button
+            type="button"
+            className={viewMode === 'confuser' ? 'chip on' : 'chip'}
+            onClick={() => setViewMode('confuser')}
+          >
+            🎯 Look-Alike Confuser Sorter
+          </button>
+        </div>
+      </div>
+
+      {viewMode === 'confuser' ? (
+        <div style={{ marginTop: '0.8rem' }}>
+          <ConfuserSpeedSorter kind="kana" />
+        </div>
+      ) : (
+        <>
+          {isCampaignMode && targetItems && targetItems.length > 0 ? (
+            <div
+              className="controls"
           style={{
             background: 'var(--surface2)',
             padding: '0.6rem 0.9rem',
@@ -369,6 +396,8 @@ export default function KanaDojo() {
           );
         })}
       </div>
+      </>
+      )}
 
       {missionModalOpen && stage && (
         <div

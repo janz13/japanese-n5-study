@@ -51,9 +51,12 @@ export function KanjiList() {
         k.on.includes(kata) ||
         k.kun.includes(q) ||
         k.kun.includes(hira) ||
-        k.ex.w.includes(q) ||
-        k.ex.r.includes(hira) ||
-        k.ex.en.toLowerCase().includes(q)
+        k.compounds.some(
+          (c) =>
+            c.w.includes(q) ||
+            c.r.includes(hira) ||
+            c.en.toLowerCase().includes(q)
+        )
       );
     });
   }, [query, levelFilter, radicalFam, filter, strokeFilter, srs]);
@@ -196,6 +199,96 @@ export function KanjiDetail() {
           >
             {srs[id] ? '✓ In review deck' : '+ Add to review'}
           </button>
+        </div>
+      </div>
+
+      {/* Multi-Compound Vocabulary & Example Sentences */}
+      <div className="gp" style={{ margin: '1rem 0' }}>
+        <div className="row-between" style={{ marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <span className="tag">📚 COMPOUND VOCABULARY ({kj.compounds.length} 熟語・例文)</span>
+            <h3 className="nomargin" style={{ marginTop: '0.2rem' }}>
+              Essential Compounds &amp; Real Context
+            </h3>
+          </div>
+          <span className="muted small">Tap speaker icon to hear audio</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {kj.compounds.map((comp, idx) => (
+            <div
+              key={idx}
+              style={{
+                background: 'var(--surface-sunken, rgba(0,0,0,0.03))',
+                borderRadius: '8px',
+                padding: '0.75rem 1rem',
+                borderLeft: `3px solid ${comp.type === 'kun' ? 'var(--info, #3b82f6)' : comp.type === 'on' ? 'var(--accent, #f59e0b)' : 'var(--success, #10b981)'}`,
+              }}
+            >
+              <div className="row-between" style={{ alignItems: 'baseline', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
+                  <ruby style={{ fontSize: '1.25rem', fontWeight: 600 }}>
+                    {comp.w}
+                    <rt style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{comp.r}</rt>
+                  </ruby>
+                  <span
+                    className="tag"
+                    style={{
+                      fontSize: '0.7rem',
+                      padding: '0.1rem 0.4rem',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {comp.type || 'on'}
+                  </span>
+                  <button
+                    type="button"
+                    className="chip"
+                    style={{ padding: '0.1rem 0.4rem', fontSize: '0.75rem' }}
+                    onClick={() => speak(comp.r)}
+                    title={`Pronounce ${comp.w}`}
+                  >
+                    🔊
+                  </button>
+                </div>
+                <div style={{ fontWeight: 500, color: 'var(--fg)' }}>
+                  {comp.en}
+                </div>
+              </div>
+
+              {comp.sentenceJp && (
+                <div
+                  style={{
+                    marginTop: '0.45rem',
+                    paddingTop: '0.45rem',
+                    borderTop: '1px dashed var(--border, rgba(128,128,128,0.2))',
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="chip"
+                    style={{ padding: '0.1rem 0.35rem', fontSize: '0.7rem' }}
+                    onClick={() => speak(comp.sentenceJp!)}
+                    title="Pronounce context sentence"
+                  >
+                    🔊
+                  </button>
+                  <div>
+                    <span className="jp" style={{ color: 'var(--fg)' }}>{comp.sentenceJp}</span>
+                    {comp.sentenceEn && (
+                      <span className="muted" style={{ marginLeft: '0.5rem', fontSize: '0.85rem' }}>
+                        — {comp.sentenceEn}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 

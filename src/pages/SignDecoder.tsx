@@ -1,20 +1,46 @@
 import { useEffect, useMemo, useState } from 'react';
-import { SIGN_CATEGORIES, SIGNS, type SignCategory } from '../data/signs';
-import { SHOKKENKI_MISSIONS, TICKET_BUTTONS, type TicketButton } from '../data/shokkenki';
+import {
+  SIGNS,
+  SIGN_CATEGORIES,
+  type SignCategory,
+} from '../data/signs';
+import {
+  TICKET_BUTTONS,
+  SHOKKENKI_MISSIONS,
+  type TicketButton,
+} from '../data/shokkenki';
 import { useStore } from '../lib/store';
 import { speak } from '../lib/tts';
-import { playDing, playFanfare, playMiss } from '../lib/sfx';
+import { playDing, playMiss, playFanfare } from '../lib/sfx';
 import { useCampaignMission } from '../lib/useCampaignMission';
 import CampaignBanner from '../components/CampaignBanner';
+import ConbiniSimulator from '../components/ConbiniSimulator';
+import IzakayaSimulator from '../components/IzakayaSimulator';
+import TransitKioskSimulator from '../components/TransitKioskSimulator';
 
-/** Shuffle options so the correct answer isn't always first. */
-function shuffled<T>(arr: T[]) {
-  const a = arr.map((v, i) => ({ v, i, r: Math.random() }));
-  return a.sort((x, y) => x.r - y.r);
+export type DecoderTab = 'signs' | 'shokkenki' | 'conbini' | 'izakaya' | 'kiosk';
+
+function shuffled<T>(arr: T[]): T[] {
+  const c = [...arr];
+  for (let i = c.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [c[i], c[j]] = [c[j], c[i]];
+  }
+  return c;
 }
 
 export default function SignDecoder() {
-  const { sfxEnabled: sfx, srs, addCard } = useStore();
+  const {
+    decodedSigns,
+    recordSignChoice,
+    sfxEnabled: sfx,
+    shokkenkiMissionIdx,
+    setShokkenkiMissionIdx,
+    completeShokkenkiOrder,
+    addCard,
+    srs,
+  } = useStore();
+
   const {
     isCampaignMode,
     stage,
@@ -24,33 +50,34 @@ export default function SignDecoder() {
     returnToCampaign,
   } = useCampaignMission();
 
-  const [mode, setMode] = useState<'signs' | 'shokkenki'>(() => {
-    if (targetTab === 'shokkenki' || targetTab === 'signs') return targetTab;
+  const isValidTab = (tab?: string): tab is DecoderTab =>
+    tab === 'signs' || tab === 'shokkenki' || tab === 'conbini' || tab === 'izakaya' || tab === 'kiosk';
+
+  const [mode, setMode] = useState<DecoderTab>(() => {
+    if (isValidTab(targetTab)) return targetTab;
     return 'signs';
   });
 
   useEffect(() => {
-    if (targetTab === 'shokkenki' || targetTab === 'signs') {
-      setMode(targetTab);
+    if (targetTab && isValidTab(targetTab)) {
+      setMode((prev) => (prev !== targetTab ? (targetTab as DecoderTab) : prev));
     }
   }, [targetTab]);
 
   const [cat, setCat] = useState<SignCategory | 'all'>('all');
-  const [choices, setChoices] = useState<Record<string, number>>({});
 
-  // Shokkenki (Ticket Machine) state
-  const [missionIdx, setMissionIdx] = useState(0);
+  // Shokkenki (Ticket Machine) transient state
   const [cart, setCart] = useState<string[]>([]);
   const [showGloss, setShowGloss] = useState(false);
   const [ticketResult, setTicketResult] = useState<'ok' | 'bad' | null>(null);
 
   const list = useMemo(() => SIGNS.filter((s) => cat === 'all' || s.category === cat), [cat]);
   const order = useMemo(() => Object.fromEntries(SIGNS.map((s) => [s.id, shuffled(s.options)])), []);
-  const solved = SIGNS.filter((s) => choices[s.id] === s.answer).length;
+  const solved = SIGNS.filter((s) => decodedSigns[s.id] === s.answer).length;
 
   const answer = (id: string, idx: number, correct: number) => {
-    if (id in choices) return;
-    setChoices((c) => ({ ...c, [id]: idx }));
+    if (id in decodedSigns) return;
+    recordSignChoice(id, idx);
     if (sfx) (idx === correct ? playDing : playMiss)();
     if (isCampaignMode && mode === 'signs' && idx === correct) {
       const nextSolved = solved + 1;
@@ -60,7 +87,7 @@ export default function SignDecoder() {
     }
   };
 
-  const mission = SHOKKENKI_MISSIONS[missionIdx % SHOKKENKI_MISSIONS.length];
+  const mission = SHOKKENKI_MISSIONS[shokkenkiMissionIdx % SHOKKENKI_MISSIONS.length];
   const cartTotal = cart.reduce((sum, id) => {
     const b = TICKET_BUTTONS.find((x) => x.id === id);
     return sum + (b?.price ?? 0);
@@ -79,6 +106,7 @@ export default function SignDecoder() {
     if (sfx) (isExactMatch ? playFanfare : playMiss)();
     if (isExactMatch) {
       speak(mission.kitchenCallKana);
+      completeShokkenkiOrder(mission.id);
       if (isCampaignMode) {
         completeMission();
       }
@@ -90,28 +118,38 @@ export default function SignDecoder() {
       {isCampaignMode && stage && (
         <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
       )}
-      <div className="row-between">
+      <div className="row-between" style={{ flexWrap: 'wrap', gap: '0.8rem', alignItems: 'flex-start' }}>
         <div>
           <h1 className="nomargin">
-            看板・食券機 <span className="muted">Sign Decoder &amp; Ticket Machine</span>
+            看板・端末シミュレーター <span className="muted">Japanese Public Terminals</span>
           </h1>
           <p className="muted small nomargin" style={{ marginTop: '0.2rem' }}>
-            Decode real Japanese street signs or practice ordering on a ramen shop ticket machine (`食券機`).
+            Decode real street signs or operate authentic Japanese self-service kiosks (Ramen Ticket Machines, Conbini POS, Izakaya Tablets, and Station Kiosks).
           </p>
         </div>
-        <div className="controls">
+        <div className="controls" style={{ flexWrap: 'wrap', gap: '0.4rem' }}>
           <button className={mode === 'signs' ? 'chip on' : 'chip'} onClick={() => setMode('signs')}>
-            🏮 Street &amp; Shop Signs ({SIGNS.length})
+            🏮 Street Signs ({SIGNS.length})
           </button>
           <button className={mode === 'shokkenki' ? 'chip on' : 'chip'} onClick={() => setMode('shokkenki')}>
-            🎫 Ramen Ticket Machine (食券機)
+            🍜 Ramen Ticket Machine
+          </button>
+          <button className={mode === 'conbini' ? 'chip on' : 'chip'} onClick={() => setMode('conbini')}>
+            🏪 Conbini POS Register
+          </button>
+          <button className={mode === 'izakaya' ? 'chip on' : 'chip'} onClick={() => setMode('izakaya')}>
+            🍶 Izakaya Tablet
+          </button>
+          <button className={mode === 'kiosk' ? 'chip on' : 'chip'} onClick={() => setMode('kiosk')}>
+            🚆 Station &amp; Vending Kiosk
           </button>
         </div>
       </div>
 
-      {mode === 'signs' ? (
+      {/* MODE 1: Street Signs */}
+      {mode === 'signs' && (
         <>
-          <div className="controls" style={{ marginTop: '0.8rem' }}>
+          <div className="controls" style={{ marginTop: '0.8rem', flexWrap: 'wrap', gap: '0.4rem' }}>
             <button className={cat === 'all' ? 'chip on' : 'chip'} onClick={() => setCat('all')}>
               All ({SIGNS.length} · {solved} decoded)
             </button>
@@ -120,56 +158,125 @@ export default function SignDecoder() {
                 {SIGN_CATEGORIES[c]} ({SIGNS.filter((s) => s.category === c).length})
               </button>
             ))}
-            <button className="chip" onClick={() => setChoices({})}>↺ Reset</button>
           </div>
 
-          {list.map((s) => {
-            const picked = choices[s.id];
-            return (
-              <div key={s.id} className="gp">
-                <span className="tag">{s.place}</span>
-                <div className="sign-board jp" style={{ margin: '0.6rem 0', fontSize: '1.4rem', cursor: 'pointer' }} onClick={() => speak(s.reading)}>
-                  🔊 {s.sign}
+          <div className="sign-grid">
+            {list.map((s) => {
+              const picked = decodedSigns[s.id];
+              const isAnswered = picked !== undefined;
+              const isCorrect = picked === s.answer;
+
+              return (
+                <div key={s.id} className="sign-card">
+                  <div className="row-between">
+                    <span className="tag">{SIGN_CATEGORIES[s.category]}</span>
+                    {isAnswered && (
+                      <span className={isCorrect ? 'ok-text' : 'bad-text'}>
+                        {isCorrect ? '✓ Decoded' : '✗ Try again next time'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="sign-display">
+                    <div className="sign-jp">{s.sign}</div>
+                    {s.reading && isAnswered && <div className="sign-reading">{s.reading}</div>}
+                    <div className="sign-context">{s.place}</div>
+                  </div>
+
+                  <p className="sign-prompt">{s.question}</p>
+
+                  <div className="controls">
+                    {(order[s.id] || s.options).map((opt) => {
+                      const realIdx = s.options.indexOf(opt);
+                      let cls = 'chip';
+                      if (isAnswered) {
+                        if (realIdx === s.answer) cls = 'chip ok';
+                        else if (realIdx === picked) cls = 'chip bad';
+                      }
+                      return (
+                        <button
+                          key={opt}
+                          className={cls}
+                          disabled={isAnswered}
+                          onClick={() => answer(s.id, realIdx, s.answer)}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {isAnswered && (
+                    <div className="sign-notes">
+                      <p className="small nomargin">{s.note}</p>
+                      <div className="row-between" style={{ marginTop: '0.5rem' }}>
+                        <button
+                          className="chip"
+                          onClick={() =>
+                            addCard({
+                              id: `sign:${s.id}`,
+                              kind: 'word',
+                              front: s.sign,
+                              reading: s.reading,
+                              back: `${s.question} → ${s.options[s.answer]} (${s.place})`,
+                            })
+                          }
+                          disabled={!!srs[`sign:${s.id}`]}
+                        >
+                          {srs[`sign:${s.id}`] ? '✓ In SRS' : '+ Add to SRS'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {picked !== undefined && <p className="muted small nomargin">{s.reading}</p>}
-                <p>{s.question}</p>
-                <div className="controls">
-                  {order[s.id].map(({ v, i }) => (
-                    <button
-                      key={i}
-                      className={picked === undefined ? 'chip' : i === s.answer ? 'chip ok' : picked === i ? 'chip bad' : 'chip'}
-                      onClick={() => answer(s.id, i, s.answer)}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-                {picked !== undefined && <p className="small ok-text">💡 {s.note}</p>}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </>
-      ) : (
-        <>
-          {/* Shokkenki Mission Banner */}
-          <div className="bento-banner" style={{ marginTop: '1rem' }}>
-            <div style={{ flex: 1 }}>
-              <span className="tag">🍜 RAMEN SHOKKENKI ORDER MISSION ({(missionIdx % SHOKKENKI_MISSIONS.length) + 1}/{SHOKKENKI_MISSIONS.length})</span>
-              <h2 className="nomargin" style={{ fontSize: '1.3rem', marginTop: '0.2rem' }}>
-                {mission.title}
-              </h2>
-              <p className="nomargin" style={{ marginTop: '0.25rem', fontWeight: 600 }}>
-                🎯 {mission.orderEn}
-              </p>
+      )}
+
+      {/* MODE 2: Ramen Shokkenki */}
+      {mode === 'shokkenki' && (
+        <div style={{ marginTop: '1rem' }}>
+          {/* Mission Card */}
+          <div
+            className="gp"
+            style={{
+              padding: '1.1rem',
+              marginBottom: '1rem',
+              background: 'var(--surface)',
+              borderLeft: '4px solid var(--accent)',
+            }}
+          >
+            <div className="row-between" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <span className="tag" style={{ background: 'var(--accent)', color: '#000', fontWeight: 700 }}>
+                  CUSTOMER MISSION {shokkenkiMissionIdx + 1} / {SHOKKENKI_MISSIONS.length}
+                </span>
+                <h3 className="nomargin" style={{ marginTop: '0.25rem' }}>
+                  {mission.title}
+                </h3>
+              </div>
+              {mission.maxBudget && (
+                <span className="chip on" style={{ fontWeight: 600 }}>
+                  Budget Target: ¥{mission.maxBudget.toLocaleString()}
+                </span>
+              )}
             </div>
-            <div className="controls">
-              <button className={showGloss ? 'chip on' : 'chip'} onClick={() => setShowGloss((g) => !g)}>
+            <p className="muted small" style={{ margin: '0.4rem 0 0.2rem' }}>
+              <b>Scenario:</b> {mission.orderEn}
+            </p>
+            <div className="controls nomargin" style={{ marginTop: '0.6rem' }}>
+              <button className="chip" onClick={() => speak(mission.kitchenCallKana)}>
+                🔊 Listen to Order Call
+              </button>
+              <button className="chip" onClick={() => setShowGloss(!showGloss)}>
                 {showGloss ? '🙈 Hide English Gloss' : '💡 Show Reading & English'}
               </button>
               <button
                 className="chip"
                 onClick={() => {
-                  setMissionIdx((i) => i + 1);
+                  setShokkenkiMissionIdx((shokkenkiMissionIdx + 1) % SHOKKENKI_MISSIONS.length);
                   setCart([]);
                   setTicketResult(null);
                 }}
@@ -177,6 +284,12 @@ export default function SignDecoder() {
                 Next Mission →
               </button>
             </div>
+            {showGloss && (
+              <div style={{ marginTop: '0.6rem', padding: '0.6rem', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                <div className="small"><b>Explanation:</b> {mission.explain}</div>
+                <div className="small muted"><b>Kitchen Call:</b> {mission.kitchenCallKana}</div>
+              </div>
+            )}
           </div>
 
           {/* 14-Button Japanese Ticket Machine Grid */}
@@ -327,7 +440,22 @@ export default function SignDecoder() {
               </div>
             )}
           </div>
-        </>
+        </div>
+      )}
+
+      {/* MODE 3: Conbini POS Register */}
+      {mode === 'conbini' && (
+        <ConbiniSimulator onCompleteMission={isCampaignMode ? completeMission : undefined} />
+      )}
+
+      {/* MODE 4: Izakaya Touchscreen Tablet */}
+      {mode === 'izakaya' && (
+        <IzakayaSimulator onCompleteMission={isCampaignMode ? completeMission : undefined} />
+      )}
+
+      {/* MODE 5: Transit & Drink Vending Kiosk */}
+      {mode === 'kiosk' && (
+        <TransitKioskSimulator onCompleteMission={isCampaignMode ? completeMission : undefined} />
       )}
     </div>
   );

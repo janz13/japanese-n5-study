@@ -9,8 +9,15 @@ import {
 import { useStore, todayStr, type CardKind, type SrsItem } from '../lib/store';
 import { speak, stopSpeaking } from '../lib/tts';
 import { playDing, playFanfare } from '../lib/sfx';
-
-type ExamMode = 'full' | 'mini';
+import { OmrBubbleSheet } from '../components/OmrBubbleSheet';
+import { HexagonRadarChart } from '../components/HexagonRadarChart';
+import {
+  SECTION_STAGE_META,
+  getStageDurationSec,
+  calculateRadarMetrics,
+  type ExamMode,
+  type ExamStage,
+} from '../lib/examStage';
 
 function letterGrade(pct: number): 'A' | 'B' | 'C' {
   if (pct >= 67) return 'A';
@@ -76,25 +83,64 @@ export default function Exam() {
   const [starOrders, setStarOrders] = useState<Record<number, number[]>>({});
   const [submitted, setSubmitted] = useState(false);
 
-  // Official JLPT N5 time limit: 20m (Vocab) + 40m (Grammar/Reading) + 30m (Listening) = 90 mins
-  const durationMins = mode === 'full' ? 90 : 15;
-  const [secondsLeft, setSecondsLeft] = useState(durationMins * 60);
+  const [currentStage, setCurrentStage] = useState<ExamStage>('section_1');
+  const [stageSecondsLeft, setStageSecondsLeft] = useState(() => getStageDurationSec('section_1', level, mode));
+  const [showOmrSheet, setShowOmrSheet] = useState(false);
+  const [playedAudio, setPlayedAudio] = useState<Record<number, boolean>>({});
+  const [activeQuestionIdx, setActiveQuestionIdx] = useState<number | undefined>(undefined);
+
+  const advanceStage = () => {
+    stopSpeaking();
+    if (currentStage === 'section_1') {
+      setCurrentStage('intermission_1');
+      setStageSecondsLeft(getStageDurationSec('intermission_1', level, mode));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (currentStage === 'intermission_1') {
+      setCurrentStage('section_2');
+      setStageSecondsLeft(getStageDurationSec('section_2', level, mode));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (currentStage === 'section_2') {
+      setCurrentStage('intermission_2');
+      setStageSecondsLeft(getStageDurationSec('intermission_2', level, mode));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (currentStage === 'intermission_2') {
+      setCurrentStage('section_3');
+      setStageSecondsLeft(getStageDurationSec('section_3', level, mode));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (currentStage === 'section_3') {
+      submit();
+    }
+  };
 
   useEffect(() => {
     if (submitted) return;
     const t = setInterval(() => {
-      setSecondsLeft((s) => {
+      setStageSecondsLeft((s) => {
         if (s <= 1) {
-          setSubmitted(true);
+          setTimeout(() => advanceStage(), 0);
           return 0;
         }
         return s - 1;
       });
     }, 1000);
     return () => clearInterval(t);
-  }, [submitted]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitted, currentStage, level, mode]);
 
   useEffect(() => () => stopSpeaking(), []);
+
+  // Prevent accidental navigation during active exam
+  useEffect(() => {
+    if (submitted) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (Object.keys(answers).length > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [submitted, answers]);
 
   const total = questions.length;
   const answeredCount = Object.keys(answers).length;
@@ -157,25 +203,34 @@ export default function Exam() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const playListeningAudio = (idx: number, audioText: string, rate: number = 0.9) => {
+    if (!submitted && playedAudio[idx]) return;
+    setPlayedAudio((prev) => ({ ...prev, [idx]: true }));
+    speak(audioText, rate);
+  };
+
   const generateNewTake = (nextLevel: ExamLevel = level, nextMode: ExamMode = mode) => {
     stopSpeaking();
     setLevel(nextLevel);
     setMode(nextMode);
     setActiveSec('all');
+    setCurrentStage('section_1');
+    setStageSecondsLeft(getStageDurationSec('section_1', nextLevel, nextMode));
     setEdition((e) => e + 1);
     setAnswers({});
     setFlagged({});
     setStarOrders({});
+    setPlayedAudio({});
     setSubmitted(false);
-    setSecondsLeft((nextMode === 'full' ? 90 : 15) * 60);
   };
 
   const toggleFlag = (idx: number) => {
     setFlagged((f) => ({ ...f, [idx]: !f[idx] }));
   };
 
-  const mins = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
-  const secs = String(secondsLeft % 60).padStart(2, '0');
+  const mins = String(Math.floor(stageSecondsLeft / 60)).padStart(2, '0');
+  const secs = String(stageSecondsLeft % 60).padStart(2, '0');
+  const radarMetrics = useMemo(() => calculateRadarMetrics(questions, answers), [questions, answers]);
 
   return (
     <div className="page">
@@ -190,7 +245,9 @@ export default function Exam() {
         </div>
         <div className="controls">
           {examBest !== null && <span className="chip">Best: {examBest}%</span>}
-          <span className={`chip ${secondsLeft < 120 && !submitted ? 'bad' : 'on'}`}>⏱ {mins}:{secs}</span>
+          <span className={`chip ${stageSecondsLeft < 120 && !submitted ? 'bad' : 'on'}`} style={{ fontWeight: 700 }}>
+            ⏱ {!submitted ? SECTION_STAGE_META[currentStage].nameJp.split('：')[0] : 'Exam Completed'}: {mins}:{secs}
+          </span>
         </div>
       </div>
 
@@ -373,34 +430,267 @@ export default function Exam() {
         </div>
       )}
 
-      {/* Section Filter Bar */}
-      <div className="controls">
-        <button className={activeSec === 'all' ? 'chip on' : 'chip'} onClick={() => setActiveSec('all')}>
-          All 3 Sections ({questions.length})
-        </button>
-        {(['vocab', 'grammar', 'listening'] as ExamSection[]).map((sec) => {
-          const cnt = questions.filter((q) => q.section === sec).length;
-          return (
-            <button key={sec} className={activeSec === sec ? 'chip on' : 'chip'} onClick={() => setActiveSec(sec)}>
-              {sec === 'vocab' ? '第1部・文字語彙 (20m)' : sec === 'grammar' ? '第2部・文法読解 (40m)' : '第3部・聴解 (30m)'} ({cnt})
-            </button>
-          );
-        })}
-      </div>
+      {/* Active Exam Section Stepper & Controls */}
+      {!submitted ? (
+        <div
+          className="gp"
+          style={{
+            margin: '0.8rem 0 0.4rem',
+            padding: '0.75rem 1rem',
+            background: 'var(--surface2)',
+            borderRadius: '12px',
+          }}
+        >
+          <div className="row-between" style={{ flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.6rem' }}>
+            <div>
+              <span className="tag" style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                CURRENT STAGE: {SECTION_STAGE_META[currentStage].nameJp}
+              </span>
+              <div className="small muted" style={{ marginTop: '0.2rem' }}>
+                {SECTION_STAGE_META[currentStage].nameEn} · Stage Time Remaining: <b>{mins}:{secs}</b>
+              </div>
+            </div>
+            <div className="controls nomargin">
+              {currentStage === 'section_1' && (
+                <button className="chip on" onClick={advanceStage}>
+                  Finish Section 1 &amp; Proceed to Break (3m) →
+                </button>
+              )}
+              {currentStage === 'intermission_1' && (
+                <button className="chip on" onClick={advanceStage}>
+                  Skip Break &amp; Begin Section 2 (Grammar/Reading) →
+                </button>
+              )}
+              {currentStage === 'section_2' && (
+                <button className="chip on" onClick={advanceStage}>
+                  Finish Section 2 &amp; Proceed to Audio Check (5m) →
+                </button>
+              )}
+              {currentStage === 'intermission_2' && (
+                <button className="chip on" onClick={advanceStage}>
+                  Skip Break &amp; Begin Section 3 (Listening) →
+                </button>
+              )}
+              {currentStage === 'section_3' && (
+                <button className="chip on" onClick={submit}>
+                  🎓 End &amp; Grade Exam ({answeredCount}/{total})
+                </button>
+              )}
+              <button
+                className="chip"
+                onClick={submit}
+                title="Early submission for all sections"
+                style={{ fontSize: '0.75rem' }}
+              >
+                Instant Grade All
+              </button>
+            </div>
+          </div>
 
-      {/* Mark Sheet (マークシート) Question Navigator */}
+          {/* Stepper pills */}
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {(
+              [
+                { id: 'section_1', label: '1. 文字・語彙 (Vocab)' },
+                { id: 'intermission_1', label: '☕ 休憩 (Break 3m)' },
+                { id: 'section_2', label: '2. 文法・読解 (Grammar/Reading)' },
+                { id: 'intermission_2', label: '🎧 音響確認 (Break 5m)' },
+                { id: 'section_3', label: '3. 聴解 (Listening)' },
+              ] as const
+            ).map((s) => {
+              const isCurrent = currentStage === s.id;
+              const isPast =
+                (s.id === 'section_1' && currentStage !== 'section_1') ||
+                (s.id === 'intermission_1' && (currentStage === 'section_2' || currentStage === 'intermission_2' || currentStage === 'section_3')) ||
+                (s.id === 'section_2' && (currentStage === 'intermission_2' || currentStage === 'section_3')) ||
+                (s.id === 'intermission_2' && currentStage === 'section_3');
+              return (
+                <span
+                  key={s.id}
+                  className={`chip ${isCurrent ? 'on' : isPast ? 'ok' : ''}`}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.2rem 0.55rem',
+                    opacity: isCurrent || isPast ? 1 : 0.5,
+                  }}
+                >
+                  {isPast ? '✓ ' : ''}
+                  {s.label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        /* Section Filter Bar when Exam is Submitted */
+        <div className="controls">
+          <button className={activeSec === 'all' ? 'chip on' : 'chip'} onClick={() => setActiveSec('all')}>
+            All 3 Sections ({questions.length})
+          </button>
+          {(['vocab', 'grammar', 'listening'] as ExamSection[]).map((sec) => {
+            const cnt = questions.filter((q) => q.section === sec).length;
+            return (
+              <button key={sec} className={activeSec === sec ? 'chip on' : 'chip'} onClick={() => setActiveSec(sec)}>
+                {sec === 'vocab' ? '第1部・文字語彙' : sec === 'grammar' ? '第2部・文法読解' : '第3部・聴解'} ({cnt})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Intermission 1 Screen */}
+      {!submitted && currentStage === 'intermission_1' && (
+        <div className="bento-banner" style={{ margin: '1.2rem 0', flexDirection: 'column', alignItems: 'stretch' }}>
+          <div className="row-between">
+            <div>
+              <span className="tag">☕ INTERMISSION 1 · 休憩・説明</span>
+              <h2 className="nomargin" style={{ marginTop: '0.2rem' }}>
+                第1部（言語知識・文字語彙）が終了しました
+              </h2>
+              <p className="muted" style={{ marginTop: '0.4rem', maxWidth: '640px' }}>
+                Official JLPT exam rules require test booklets to be collected before the next section begins.
+                Take a 3-minute mental break, hydrate, and prepare for Section 2 (Grammar &amp; Reading Comprehension).
+              </p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--accent)' }}>
+                {mins}:{secs}
+              </div>
+              <span className="muted small">Break Countdown</span>
+            </div>
+          </div>
+          <div className="controls" style={{ marginTop: '1rem' }}>
+            <button className="chip on" style={{ padding: '0.45rem 1.2rem', fontSize: '0.95rem' }} onClick={advanceStage}>
+              ▶ Start Section 2 (Grammar &amp; Reading) Now →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Intermission 2 Screen */}
+      {!submitted && currentStage === 'intermission_2' && (
+        <div className="bento-banner" style={{ margin: '1.2rem 0', flexDirection: 'column', alignItems: 'stretch' }}>
+          <div className="row-between">
+            <div>
+              <span className="tag">🎧 INTERMISSION 2 · 休憩・音響確認 (AUDIO CHECK)</span>
+              <h2 className="nomargin" style={{ marginTop: '0.2rem' }}>
+                第2部が終了しました。次は第3部（聴解）です
+              </h2>
+              <p className="muted" style={{ marginTop: '0.4rem', maxWidth: '640px' }}>
+                ⚠️ <b>Single-Play Audio Warning:</b> In the official JLPT Listening section, audio plays exactly <b>ONCE</b>.
+                You cannot pause or replay the recording during the test. Please test your sound volume now!
+              </p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--accent)' }}>
+                {mins}:{secs}
+              </div>
+              <span className="muted small">Audio Check Countdown</span>
+            </div>
+          </div>
+          <div className="controls" style={{ marginTop: '1rem' }}>
+            <button
+              className="chip on"
+              style={{ padding: '0.45rem 1rem' }}
+              onClick={() => speak('これから、日本語能力試験の聴解試験を始めます。音声がよく聞こえますか。', 0.9)}
+            >
+              🔊 Test Sound Volume (「聴解試験を始めます」)
+            </button>
+            <button className="chip" onClick={() => stopSpeaking()}>
+              ⏹ Stop Audio
+            </button>
+            <button className="chip on" style={{ padding: '0.45rem 1.2rem', fontSize: '0.95rem' }} onClick={advanceStage}>
+              ▶ Start Section 3 (Listening Comprehension) Now →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Section 3 Listening Guidance Banner */}
+      {!submitted && currentStage === 'section_3' && (
+        <div
+          className="gp"
+          style={{
+            margin: '0.6rem 0',
+            padding: '0.75rem 1rem',
+            borderLeft: '4px solid #f59e0b',
+            background: 'var(--surface2)',
+          }}
+        >
+          <div className="row-between">
+            <span className="small">
+              ⚠️ <b>JLPT Single-Play Rule:</b> Audio prompts play exactly <b>once</b> per question. After playing, the replay button will lock until you submit the exam.
+            </span>
+            <span className="chip" style={{ fontSize: '0.72rem' }}>
+              Played: {Object.keys(playedAudio).length} / {questions.filter((q) => q.section === 'listening').length}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Mark Sheet (マークシート) Question Navigator & OMR Toggle */}
       <div className="gp" style={{ padding: '0.85rem 1rem' }}>
-        <div className="row-between" style={{ marginBottom: '0.5rem' }}>
+        <div className="row-between" style={{ marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
           <span className="small muted">
             <b>マークシート Answer Sheet</b>: {answeredCount}/{total} answered
             {flaggedCount > 0 ? ` · 🚩 ${flaggedCount} flagged` : ''} · Official Pass ≥ {passTotalThreshold}/180 pts
           </span>
-          {!submitted && (
-            <button className="chip on" style={{ padding: '0.28rem 0.85rem', fontSize: '0.82rem' }} onClick={submit}>
-              🎓 Submit &amp; Grade Exam ({answeredCount}/{total})
+          <div className="controls nomargin">
+            <button
+              className={showOmrSheet ? 'chip on' : 'chip'}
+              style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
+              onClick={() => setShowOmrSheet((s) => !s)}
+            >
+              {showOmrSheet ? '✕ Hide OMR Sheet' : '📝 2B OMR Bubble Sheet (マークシート)'}
             </button>
-          )}
+            {!submitted && (
+              <button className="chip on" style={{ padding: '0.28rem 0.85rem', fontSize: '0.82rem' }} onClick={submit}>
+                🎓 Submit &amp; Grade Exam ({answeredCount}/{total})
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* 2B Pencil OMR Bubble Sheet */}
+        {showOmrSheet && (
+          <div style={{ margin: '0.6rem 0 0.9rem' }}>
+            <OmrBubbleSheet
+              totalQuestions={total}
+              answers={answers}
+              flagged={flagged}
+              submitted={submitted}
+              correctAnswers={
+                submitted
+                  ? questions.reduce<Record<number, number>>((acc, q, idx) => {
+                      acc[idx] = q.answer;
+                      return acc;
+                    }, {})
+                  : undefined
+              }
+              activeQuestionIdx={activeQuestionIdx}
+              onSelectAnswer={(qIdx, optIdx) => {
+                setAnswers((prev) => ({ ...prev, [qIdx]: optIdx }));
+                setActiveQuestionIdx(qIdx);
+              }}
+              onSelectQuestion={(qIdx) => {
+                setActiveQuestionIdx(qIdx);
+                const targetSec = questions[qIdx]?.section;
+                if (submitted) {
+                  setActiveSec('all');
+                } else if (targetSec) {
+                  if (targetSec === 'vocab') setCurrentStage('section_1');
+                  else if (targetSec === 'grammar') setCurrentStage('section_2');
+                  else if (targetSec === 'listening') setCurrentStage('section_3');
+                }
+                setTimeout(() => {
+                  document.getElementById(`exam-q-${qIdx}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 40);
+              }}
+              onToggleFlag={toggleFlag}
+            />
+          </div>
+        )}
+
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
           {questions.map((q: GeneratedExamQuestion, i: number) => {
             const isAnswered = answers[i] !== undefined;
@@ -424,7 +714,14 @@ export default function Exam() {
                   borderColor: isFlagged && !submitted ? 'var(--bad)' : undefined,
                 }}
                 onClick={() => {
-                  setActiveSec('all');
+                  setActiveQuestionIdx(i);
+                  if (submitted) {
+                    setActiveSec('all');
+                  } else {
+                    if (q.section === 'vocab') setCurrentStage('section_1');
+                    else if (q.section === 'grammar') setCurrentStage('section_2');
+                    else if (q.section === 'listening') setCurrentStage('section_3');
+                  }
                   setTimeout(() => {
                     document.getElementById(`exam-q-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }, 30);
@@ -488,6 +785,11 @@ export default function Exam() {
             </div>
           </div>
 
+          {/* Diagnostic 6-Axis Hexagonal Radar Chart */}
+          <div style={{ margin: '0.8rem 0' }}>
+            <HexagonRadarChart metrics={radarMetrics} passBenchmarkPct={60} />
+          </div>
+
           {missedQuestions.length > 0 && (() => {
             const liveWeakMondai = Array.from(
               new Set(missedQuestions.map((q) => q.mondaiTitle.split('（')[0])),
@@ -541,10 +843,17 @@ export default function Exam() {
 
       {/* Questions List */}
       {questions.map((q: GeneratedExamQuestion, i: number) => {
-        if (activeSec !== 'all' && q.section !== activeSec) return null;
+        if (!submitted) {
+          if (currentStage === 'intermission_1' || currentStage === 'intermission_2') return null;
+          const stageKey = SECTION_STAGE_META[currentStage].sectionKey;
+          if (stageKey && q.section !== stageKey) return null;
+        } else {
+          if (activeSec !== 'all' && q.section !== activeSec) return null;
+        }
+
         const prevSec = i > 0 ? questions[i - 1].section : null;
         const prevMondai = i > 0 ? questions[i - 1].mondaiId : null;
-        const showSecHeader = activeSec === 'all' && q.section !== prevSec;
+        const showSecHeader = (submitted ? activeSec === 'all' : true) && q.section !== prevSec;
         const showMondaiHeader = q.mondaiId !== prevMondai;
 
         return (
@@ -569,12 +878,30 @@ export default function Exam() {
                 <div className="controls nomargin">
                   {q.audio && (
                     <>
-                      <button className="chip on" onClick={() => speak(q.audio!, 0.9)}>
-                        🔊 Play Audio
-                      </button>
-                      <button className="chip" onClick={() => speak(q.audio!, 0.72)}>
-                        🐢 Slow
-                      </button>
+                      {!submitted ? (
+                        playedAudio[i] ? (
+                          <button className="chip" disabled style={{ opacity: 0.6, cursor: 'not-allowed' }}>
+                            ✓ 音声再生済 (1 Play Used)
+                          </button>
+                        ) : (
+                          <button
+                            className="chip on"
+                            onClick={() => playListeningAudio(i, q.audio!)}
+                            title="Play audio (strictly 1 time per question during exam)"
+                          >
+                            🔊 Play Audio (1 Time Only)
+                          </button>
+                        )
+                      ) : (
+                        <>
+                          <button className="chip on" onClick={() => speak(q.audio!, 0.9)}>
+                            🔊 Replay Audio
+                          </button>
+                          <button className="chip" onClick={() => speak(q.audio!, 0.72)}>
+                            🐢 Slow
+                          </button>
+                        </>
+                      )}
                     </>
                   )}
                   {!submitted && (

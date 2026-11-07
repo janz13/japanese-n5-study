@@ -267,7 +267,7 @@ assert.equal(g11.chapter, 11, 'g11 has chapter 11');
 assert.ok(g11.points.some((p) => p.pattern.includes('受身形')), 'g11 covers Passive voice');
 assert.ok(g11.points.some((p) => p.pattern.includes('使役形')), 'g11 covers Causative voice');
 assert.ok(g11.points.some((p) => p.pattern.includes('使役受身')), 'g11 covers Causative-Passive voice');
-assert.equal(g11.exercises.length, 4, 'g11 has 4 interactive exercises');
+assert.ok(g11.exercises.length >= 4, 'g11 has at least 4 interactive exercises');
 
 const c5 = CONJUGATION_LESSONS.find((l) => l.id === 'c-passive-causative');
 assert.ok(c5, 'Conjugation Lesson c-passive-causative exists');

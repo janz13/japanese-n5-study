@@ -236,3 +236,132 @@ export const PARTICLES: ParticlePrompt[] = [
     why: 'から marks the starting time or place ("from 9:00").',
   },
 ];
+
+export interface ParticleSlotChallenge {
+  id: string;
+  title: string;
+  /** Sentence text divided by slot gaps. For N slots, there are N + 1 segments. */
+  sentenceSegments: string[];
+  /** Correct particle for each slot gap. */
+  correctParticles: string[];
+  /** Pedagogical role for each slot, mapped to Amber, Teal, Indigo, Rose, Emerald. */
+  semanticRoles: string[];
+  /** Available particles in the tray (includes answers + distractors). */
+  particleBank: string[];
+  en: string;
+  audioText: string;
+  explanation: string;
+}
+
+export const PARTICLE_SLOT_CHALLENGES: ParticleSlotChallenge[] = [
+  {
+    id: 'psc-1',
+    title: 'Weekend Park Trip',
+    sentenceSegments: ['日曜日', '友達', '公園', '行きました。'],
+    correctParticles: ['に', 'と', 'へ'],
+    semanticRoles: ['Time (on)', 'Companion (with)', 'Destination (direction to)'],
+    particleBank: ['に', 'と', 'へ', 'で', 'を', 'は', 'が', 'も'],
+    en: 'On Sunday, I went to the park with my friend.',
+    audioText: 'にちようびに ともだちと こうえんへ いきました。',
+    explanation: 'に marks the specific day/time, と marks the companion you did an action with, and へ marks the destination direction.',
+  },
+  {
+    id: 'psc-2',
+    title: 'Cafe Routine',
+    sentenceSegments: ['私', 'カフェ', 'コーヒー', '飲みました。'],
+    correctParticles: ['は', 'で', 'を'],
+    semanticRoles: ['Topic (as for me)', 'Action Location (at)', 'Direct Object (coffee)'],
+    particleBank: ['は', 'で', 'を', 'に', 'が', 'と', 'へ', 'より'],
+    en: 'As for me, I drank coffee at the cafe.',
+    audioText: 'わたしは カフェで コーヒーを のみました。',
+    explanation: 'は marks the personal topic, で marks the place where the activity took place, and を marks the direct object of drinking.',
+  },
+  {
+    id: 'psc-3',
+    title: 'Cats in the Room',
+    sentenceSegments: ['部屋', '猫', '二匹 います。'],
+    correctParticles: ['に', 'が'],
+    semanticRoles: ['Existence Location (in)', 'Living Subject (cats)'],
+    particleBank: ['に', 'が', 'で', 'を', 'は', 'と'],
+    en: 'There are two cats in the room.',
+    audioText: 'へやに ねこが にひき います。',
+    explanation: 'に marks the static location of existence; が introduces the animate subject existing with います.',
+  },
+  {
+    id: 'psc-4',
+    title: 'Bullet Train to Kyoto',
+    sentenceSegments: ['新幹線', '京都', '行きました。'],
+    correctParticles: ['で', 'に'],
+    semanticRoles: ['Means / Vehicle (by)', 'Destination Goal (to)'],
+    particleBank: ['で', 'に', 'を', 'は', 'と', 'から'],
+    en: 'I went to Kyoto by bullet train.',
+    audioText: 'しんかんせんで きょうとに いきました。',
+    explanation: 'で indicates the means or vehicle of transportation; に marks the destination endpoint.',
+  },
+  {
+    id: 'psc-5',
+    title: 'Tokyo to Osaka Route',
+    sentenceSegments: ['東京', '大阪', '新幹線で 行きます。'],
+    correctParticles: ['から', 'まで'],
+    semanticRoles: ['Starting Point (from)', 'Endpoint Boundary (until/to)'],
+    particleBank: ['から', 'まで', 'に', 'へ', 'で', 'を'],
+    en: 'I travel from Tokyo to Osaka by bullet train.',
+    audioText: 'とうきょうから おおさかまで しんかんせんで いきます。',
+    explanation: 'から marks the starting point; まで marks the boundary/endpoint.',
+  },
+  {
+    id: 'psc-6',
+    title: 'Tanaka-san’s Preference',
+    sentenceSegments: ['田中さん', '日本料理', '好きです。'],
+    correctParticles: ['は', 'が'],
+    semanticRoles: ['Topic (Tanaka)', 'Target of Affection (Japanese food)'],
+    particleBank: ['は', 'が', 'を', 'に', 'で', 'と'],
+    en: 'Tanaka-san likes Japanese cuisine.',
+    audioText: 'たなかさんは にほんりょうりが すきです。',
+    explanation: '好き is an adjective in Japanese; the experiencer is marked with は and the liked entity is marked with が (never を!).',
+  },
+  {
+    id: 'psc-7',
+    title: 'Morning Departure',
+    sentenceSegments: ['毎朝 七時', '家', '出ます。'],
+    correctParticles: ['に', 'を'],
+    semanticRoles: ['Clock Time (at)', 'Point of Departure (from)'],
+    particleBank: ['に', 'を', 'で', 'から', 'は', 'へ'],
+    en: 'Every morning at 7:00, I leave home.',
+    audioText: 'まいあさ しちじに いえを でます。',
+    explanation: 'に marks numerical clock time; を marks the physical space being exited (家を出る).',
+  },
+  {
+    id: 'psc-8',
+    title: 'Speed Comparison',
+    sentenceSegments: ['電車の ほう', 'バス', '速いです。'],
+    correctParticles: ['が', 'より'],
+    semanticRoles: ['Selected Option (the one that is)', 'Comparison Benchmark (than)'],
+    particleBank: ['が', 'より', 'は', 'に', 'で', 'と'],
+    en: 'Trains are faster than buses.',
+    audioText: 'でんしゃの ほうが バスより はやいです。',
+    explanation: '〜のほうが identifies the superior/chosen option; 〜より marks the comparative standard being measured against.',
+  },
+  {
+    id: 'psc-9',
+    title: 'Homework with Sister',
+    sentenceSegments: ['私', '妹', '一緒に 宿題', 'しました。'],
+    correctParticles: ['は', 'と', 'を'],
+    semanticRoles: ['Topic (I)', 'Companion (together with)', 'Direct Object (homework)'],
+    particleBank: ['は', 'と', 'を', 'に', 'で', 'が', 'も'],
+    en: 'I did homework together with my younger sister.',
+    audioText: 'わたしは いもうとと いっしょに しゅくだいを しました。',
+    explanation: 'は marks the topic, と pairs with 一緒に to denote doing an activity with someone, and を marks the direct object.',
+  },
+  {
+    id: 'psc-10',
+    title: 'Department Store Shopping',
+    sentenceSegments: ['デパート', '新しい 靴', '買い', '行きました。'],
+    correctParticles: ['へ', 'を', 'に'],
+    semanticRoles: ['Destination (to)', 'Direct Object (shoes)', 'Purpose of Movement (in order to buy)'],
+    particleBank: ['へ', 'を', 'に', 'で', 'は', 'と', 'が'],
+    en: 'I went to the department store to buy new shoes.',
+    audioText: 'デパートへ あたらしい くつを かいに いきました。',
+    explanation: 'へ marks movement toward the department store, を marks what is bought, and stem + に marks the purpose of movement.',
+  },
+];

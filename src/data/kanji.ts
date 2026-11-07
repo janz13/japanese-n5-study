@@ -1,3 +1,7 @@
+import { KANJI_COMPOUNDS, type KanjiCompound } from './kanjiCompounds.ts';
+
+export { type KanjiCompound } from './kanjiCompounds.ts';
+
 export interface Kanji {
   k: string;
   level: 'N5' | 'N4';
@@ -6,7 +10,8 @@ export interface Kanji {
   on: string;
   kun: string;
   sound: string;
-  ex: { w: string; r: string; en: string };
+  ex: KanjiCompound;
+  compounds: KanjiCompound[];
 }
 
 /** Canonical standalone audio reading for every N5 & N4 kanji */
@@ -351,6 +356,9 @@ const parseRaw = (raw: string, level: 'N5' | 'N4'): Kanji[] =>
   raw.split('\n').map((line) => {
     const [k, meaning, on, kun, ex] = line.split('|');
     const [w, r, en] = ex.split(':');
+    const compounds = KANJI_COMPOUNDS[k] ?? [
+      { w, r, en, type: 'on', sentenceJp: `${w}です。`, sentenceEn: `It is ${en}.` },
+    ];
     return {
       k,
       level,
@@ -359,7 +367,8 @@ const parseRaw = (raw: string, level: 'N5' | 'N4'): Kanji[] =>
       on,
       kun,
       sound: KANJI_SOUNDS[k] || k,
-      ex: { w, r, en },
+      ex: compounds[0],
+      compounds,
     };
   });
 

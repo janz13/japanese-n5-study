@@ -10,7 +10,7 @@ import CampaignBanner from '../components/CampaignBanner';
 type Kind = ListeningItem['type'];
 const ROUND = 10;
 
-function buildRound(kind: Kind | 'all') {
+function buildRound(kind: Kind | 'all', _seed?: number) {
   const pool = LISTENING.filter((i) => kind === 'all' || i.type === kind);
   return [...pool]
     .sort(() => Math.random() - 0.5)
@@ -19,45 +19,178 @@ function buildRound(kind: Kind | 'all') {
 }
 
 function PitchContourSvg({ word, color }: { word: PitchWord; color: string }) {
-  const stepX = 48;
-  const padX = 24;
+  const stepX = 52;
+  const padX = 32;
   const w = padX * 2 + (word.morae.length - 1) * stepX;
-  const h = 76;
-  const yHigh = 20;
-  const yLow = 50;
+  const h = 84;
+  const yHigh = 22;
+  const yLow = 56;
 
-  const pts = word.morae.map((m, i) => ({
-    m,
-    x: padX + i * stepX,
-    y: word.heights[i] === 'H' ? yHigh : yLow,
-    isParticle: i === word.morae.length - 1 && word.morae.length > word.kana.length,
-  }));
+  const particleKana = ['が', 'を', 'に', 'は', 'で', 'と', 'の', 'へ', 'から', 'まで'];
+  const lastMora = word.morae[word.morae.length - 1];
+  const hasTrailingParticle =
+    word.morae.length > word.kana.length || particleKana.includes(lastMora);
+
+  const pts = word.morae.map((m, i) => {
+    const isParticle = hasTrailingParticle && i === word.morae.length - 1;
+    const isKernel = word.accentKernel ? word.accentKernel === i + 1 : false;
+    return {
+      m,
+      x: padX + i * stepX,
+      y: word.heights[i] === 'H' ? yHigh : yLow,
+      isParticle,
+      isKernel,
+    };
+  });
 
   const poly = pts.map((p) => `${p.x},${p.y}`).join(' ');
+  const particlePt = pts.find((p) => p.isParticle);
+  const nounFinalPt = pts[pts.length - 2];
+
+  // Odaka has word-final mora High and particle Low
+  const isOdakaDrop =
+    word.patternType === 'odaka' &&
+    particlePt &&
+    nounFinalPt &&
+    nounFinalPt.y === yHigh &&
+    particlePt.y === yLow;
+
+  // Heiban maintains flat High into particle
+  const isHeibanFlat =
+    word.patternType === 'heiban' &&
+    particlePt &&
+    nounFinalPt &&
+    nounFinalPt.y === yHigh &&
+    particlePt.y === yHigh;
 
   return (
-    <svg width={w} height={h} style={{ overflow: 'visible', display: 'block', margin: '0.35rem 0' }}>
-      <polyline fill="none" stroke={color} strokeWidth="2.8" points={poly} />
+    <svg
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      style={{
+        overflow: 'visible',
+        display: 'block',
+        margin: '0.4rem 0',
+        maxWidth: '100%',
+        height: 'auto',
+      }}
+    >
+      {/* High and Low pitch guide rails */}
+      <line
+        x1={padX - 18}
+        y1={yHigh}
+        x2={w - padX + 18}
+        y2={yHigh}
+        stroke="var(--border)"
+        strokeDasharray="3 3"
+        strokeWidth="1"
+        opacity="0.6"
+      />
+      <line
+        x1={padX - 18}
+        y1={yLow}
+        x2={w - padX + 18}
+        y2={yLow}
+        stroke="var(--border)"
+        strokeDasharray="3 3"
+        strokeWidth="1"
+        opacity="0.6"
+      />
+      <text x={padX - 22} y={yHigh + 3} textAnchor="end" fontSize="9" fill="var(--muted)">
+        H
+      </text>
+      <text x={padX - 22} y={yLow + 3} textAnchor="end" fontSize="9" fill="var(--muted)">
+        L
+      </text>
+
+      {/* Particle boundary divider */}
+      {particlePt && nounFinalPt && (
+        <line
+          x1={(nounFinalPt.x + particlePt.x) / 2}
+          y1={yHigh - 8}
+          x2={(nounFinalPt.x + particlePt.x) / 2}
+          y2={yLow + 10}
+          stroke="var(--border)"
+          strokeDasharray="2 2"
+          strokeWidth="1.2"
+        />
+      )}
+
+      {/* Pitch contour line */}
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={poly}
+      />
+
+      {/* Drop indicator for Odaka */}
+      {isOdakaDrop && particlePt && nounFinalPt && (
+        <g>
+          <text
+            x={(nounFinalPt.x + particlePt.x) / 2}
+            y={(yHigh + yLow) / 2 - 2}
+            textAnchor="middle"
+            fill="var(--warn, #e67e22)"
+            fontSize="10"
+            fontWeight="bold"
+          >
+            ▼ drop
+          </text>
+        </g>
+      )}
+
+      {/* Flat continuation indicator for Heiban */}
+      {isHeibanFlat && particlePt && nounFinalPt && (
+        <g>
+          <text
+            x={(nounFinalPt.x + particlePt.x) / 2}
+            y={yHigh - 6}
+            textAnchor="middle"
+            fill="var(--ok, #2ecc71)"
+            fontSize="10"
+            fontWeight="bold"
+          >
+            ― flat
+          </text>
+        </g>
+      )}
+
+      {/* Mora circles and labels */}
       {pts.map((p, i) => (
         <g key={i}>
+          {p.isKernel && (
+            <circle
+              cx={p.x}
+              cy={p.y}
+              r={9}
+              fill="none"
+              stroke="var(--warn, #e67e22)"
+              strokeWidth="1.8"
+            />
+          )}
           <circle
             cx={p.x}
             cy={p.y}
-            r={p.isParticle ? 5 : 6}
+            r={p.isParticle ? 5.5 : 6.5}
             fill={p.isParticle ? 'var(--surface)' : color}
             stroke={color}
-            strokeWidth="2.2"
+            strokeWidth="2.4"
+            strokeDasharray={p.isParticle ? '2 2' : undefined}
           />
           <text
             x={p.x}
-            y={h - 4}
+            y={h - 6}
             textAnchor="middle"
             fill={p.isParticle ? 'var(--muted)' : 'var(--text)'}
             fontSize="13"
             fontFamily="Noto Sans JP, sans-serif"
-            fontWeight={p.isParticle ? 400 : 700}
+            fontWeight={p.isParticle ? 500 : 700}
           >
-            {p.m}
+            {p.isParticle ? `+${p.m}` : p.m}
           </text>
         </g>
       ))}
@@ -89,7 +222,7 @@ export default function Listening() {
 
   const [kind, setKind] = useState<Kind | 'all'>('all');
   const [seed, setSeed] = useState(0);
-  const round = useMemo(() => buildRound(kind), [kind, seed]);
+  const round = useMemo(() => buildRound(kind, seed), [kind, seed]);
   const [idx, setIdx] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [score, setScore] = useState(0);
@@ -235,6 +368,46 @@ export default function Listening() {
         </>
       ) : (
         <>
+          {/* 4-Archetype Reference Guide */}
+          <div
+            className="archetype-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '0.8rem',
+              marginBottom: '1.2rem',
+            }}
+          >
+            <div className="card-box" style={{ padding: '0.8rem', borderTop: '3px solid var(--ok)' }}>
+              <b style={{ color: 'var(--ok)' }}>平板 [0] Heiban</b>
+              <div className="small muted">Low → High (flat across particle)</div>
+              <div className="small jp" style={{ marginTop: '0.2rem' }}>
+                飴が (a-MÉ-GA) · 酒を · 鼻が
+              </div>
+            </div>
+            <div className="card-box" style={{ padding: '0.8rem', borderTop: '3px solid var(--accent)' }}>
+              <b style={{ color: 'var(--accent)' }}>頭高 [1] Atamadaka</b>
+              <div className="small muted">HIGH on 1st mora → Drops immediately</div>
+              <div className="small jp" style={{ marginTop: '0.2rem' }}>
+                雨が (Á-me-ga) · 箸で · 白が
+              </div>
+            </div>
+            <div className="card-box" style={{ padding: '0.8rem', borderTop: '3px solid var(--warn, #e67e22)' }}>
+              <b style={{ color: 'var(--warn, #e67e22)' }}>中高 [kernel] Nakadaka</b>
+              <div className="small muted">Low → High peak → Drops before end</div>
+              <div className="small jp" style={{ marginTop: '0.2rem' }}>
+                心が (ko-KÓ-ro-ga) · 温みが · 青い
+              </div>
+            </div>
+            <div className="card-box" style={{ padding: '0.8rem', borderTop: '3px solid var(--secondary, #9b59b6)' }}>
+              <b style={{ color: 'var(--secondary, #9b59b6)' }}>尾高 [final] Odaka</b>
+              <div className="small muted">Low → High on final mora → Drops on particle!</div>
+              <div className="small jp" style={{ marginTop: '0.2rem' }}>
+                橋を (ha-SHÍ-o) · 花が · 紙に
+              </div>
+            </div>
+          </div>
+
           {/* Interactive Pitch Accent Homophone Ear Drill */}
           <div className={`drill ${pitchPicked ? (pitchPicked === pitchTargetSide ? 'ok' : 'bad') : ''}`}>
             <div className="row-between" style={{ width: '100%' }}>

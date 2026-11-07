@@ -3,9 +3,11 @@ import {
   PARTICLES,
   PARTICLE_CATEGORIES,
   PARTICLE_GUIDE,
+  PARTICLE_SLOT_CHALLENGES,
   type ParticleCategory,
   type ParticlePrompt,
 } from '../data/particles';
+import { ParticleSlotGrid } from '../components/ParticleSlotGrid';
 import {
   ONOMATOPOEIA,
   ONOMATO_CATEGORIES,
@@ -44,6 +46,8 @@ export default function ParticleDojo() {
   const [picked, setPicked] = useState<string | null>(null);
   const [showWhy, setShowWhy] = useState(false);
   const [session, setSession] = useState({ ok: 0, total: 0 });
+  const [particleSubMode, setParticleSubMode] = useState<'traps' | 'matrix'>('traps');
+  const [slotIdx, setSlotIdx] = useState(0);
 
   // Onomatopoeia Dojo State
   const [onoCat, setOnoCat] = useState<OnomatoCategory | 'all'>('all');
@@ -150,105 +154,143 @@ export default function ParticleDojo() {
       {dojoTab === 'particles' ? (
         <>
           <div className="controls" style={{ marginTop: '0.8rem' }}>
-            <button className={cat === 'all' ? 'chip on' : 'chip'} onClick={() => setCat('all')}>
-              All ({PARTICLES.length})
+            <button
+              className={particleSubMode === 'traps' ? 'chip on' : 'chip'}
+              onClick={() => setParticleSubMode('traps')}
+            >
+              ⚡ Single Particle Traps ({PARTICLES.length})
             </button>
-            {ALL_CATS.map((c) => (
-              <button key={c} className={cat === c ? 'chip on' : 'chip'} onClick={() => setCat(c)}>
-                {PARTICLE_CATEGORIES[c]}
-              </button>
-            ))}
+            <button
+              className={particleSubMode === 'matrix' ? 'chip on' : 'chip'}
+              onClick={() => setParticleSubMode('matrix')}
+            >
+              🧩 Multi-Slot Matrix ({PARTICLE_SLOT_CHALLENGES.length})
+            </button>
           </div>
 
-          {current && (
-            <div className={`drill ${picked === null ? '' : picked === current.answer ? 'ok' : 'bad'}`}>
-              <span className="tag">{PARTICLE_CATEGORIES[current.category]}</span>
-
-              <div
-                className="jp center"
-                style={{ fontSize: '1.85rem', margin: '0.9rem 0 0.3rem', lineHeight: 1.5 }}
-              >
-                {current.before}
-                <span
-                  style={{
-                    display: 'inline-block',
-                    minWidth: '2.6rem',
-                    padding: '0 0.45rem',
-                    margin: '0 0.25rem',
-                    borderBottom: '3px solid var(--accent)',
-                    color:
-                      picked === null
-                        ? 'var(--accent)'
-                        : picked === current.answer
-                          ? 'var(--ok)'
-                          : 'var(--bad)',
-                    fontWeight: 700,
-                  }}
-                >
-                  {picked !== null ? current.answer : '？'}
-                </span>
-                {current.after}
-              </div>
-
-              <p className="muted nomargin" style={{ marginBottom: '0.9rem' }}>
-                {current.en}
-              </p>
-
-              <div className="controls center">
-                {shuffledOptions.map((opt) => {
-                  const cls =
-                    picked === null
-                      ? 'chip'
-                      : opt === current.answer
-                        ? 'chip ok'
-                        : picked === opt
-                          ? 'chip bad'
-                          : 'chip';
-                  return (
-                    <button
-                      key={opt}
-                      className={cls}
-                      style={{ fontSize: '1.25rem', padding: '0.5rem 1.3rem', fontWeight: 600 }}
-                      onClick={() => choose(opt)}
-                    >
-                      {opt}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {(picked !== null || showWhy) && (
-                <p className="small ok-text center" style={{ marginTop: '0.9rem', maxWidth: '620px' }}>
-                  💡 <b>Why 「{current.answer}」:</b> {current.why}
-                </p>
-              )}
-
-              <div className="controls" style={{ marginTop: '0.9rem' }}>
-                {picked === null && (
-                  <button className="chip" onClick={() => setShowWhy((w) => !w)}>
-                    💡 {showWhy ? 'Hide Hint' : 'Why Hint'}
+          {particleSubMode === 'matrix' ? (
+            <div>
+              <div className="controls" style={{ marginTop: '0.8rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+                {PARTICLE_SLOT_CHALLENGES.map((ch, idx) => (
+                  <button
+                    key={ch.id}
+                    className={(slotIdx % PARTICLE_SLOT_CHALLENGES.length) === idx ? 'chip on' : 'chip'}
+                    onClick={() => setSlotIdx(idx)}
+                  >
+                    #{idx + 1} {ch.title}
                   </button>
-                )}
-                <button className="chip" onClick={() => speak(current.audio)}>
-                  🔊 Hear Sentence
+                ))}
+              </div>
+              <ParticleSlotGrid
+                key={PARTICLE_SLOT_CHALLENGES[slotIdx % PARTICLE_SLOT_CHALLENGES.length].id}
+                challenge={PARTICLE_SLOT_CHALLENGES[slotIdx % PARTICLE_SLOT_CHALLENGES.length]}
+                onNext={() => setSlotIdx((i) => (i + 1) % PARTICLE_SLOT_CHALLENGES.length)}
+              />
+            </div>
+          ) : (
+            <>
+              <div className="controls" style={{ marginTop: '0.8rem' }}>
+                <button className={cat === 'all' ? 'chip on' : 'chip'} onClick={() => setCat('all')}>
+                  All ({PARTICLES.length})
                 </button>
-                <button className={inSrs ? 'chip ok' : 'chip'} disabled={inSrs} onClick={addCurrentToSrs}>
-                  {inSrs ? '✓ In SRS' : '+ Add to SRS'}
-                </button>
-                <button className="chip on" onClick={next}>
-                  {picked !== null ? 'Next Prompt →' : 'Skip →'}
-                </button>
+                {ALL_CATS.map((c) => (
+                  <button key={c} className={cat === c ? 'chip on' : 'chip'} onClick={() => setCat(c)}>
+                    {PARTICLE_CATEGORIES[c]}
+                  </button>
+                ))}
               </div>
 
-              <div className="drill-meta">
-                <span>
-                  Session: {session.ok}/{session.total}
-                </span>
-                <span>
-                  {session.total ? `${Math.round((session.ok / session.total) * 100)}% accuracy` : ''}
-                </span>
-              </div>
-            </div>
+              {current && (
+                <div className={`drill ${picked === null ? '' : picked === current.answer ? 'ok' : 'bad'}`}>
+                  <span className="tag">{PARTICLE_CATEGORIES[current.category]}</span>
+
+                  <div
+                    className="jp center"
+                    style={{ fontSize: '1.85rem', margin: '0.9rem 0 0.3rem', lineHeight: 1.5 }}
+                  >
+                    {current.before}
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        minWidth: '2.6rem',
+                        padding: '0 0.45rem',
+                        margin: '0 0.25rem',
+                        borderBottom: '3px solid var(--accent)',
+                        color:
+                          picked === null
+                            ? 'var(--accent)'
+                            : picked === current.answer
+                              ? 'var(--ok)'
+                              : 'var(--bad)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {picked !== null ? current.answer : '？'}
+                    </span>
+                    {current.after}
+                  </div>
+
+                  <p className="muted nomargin" style={{ marginBottom: '0.9rem' }}>
+                    {current.en}
+                  </p>
+
+                  <div className="controls center">
+                    {shuffledOptions.map((opt) => {
+                      const cls =
+                        picked === null
+                          ? 'chip'
+                          : opt === current.answer
+                            ? 'chip ok'
+                            : picked === opt
+                              ? 'chip bad'
+                              : 'chip';
+                      return (
+                        <button
+                          key={opt}
+                          className={cls}
+                          style={{ fontSize: '1.25rem', padding: '0.5rem 1.3rem', fontWeight: 600 }}
+                          onClick={() => choose(opt)}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {(picked !== null || showWhy) && (
+                    <p className="small ok-text center" style={{ marginTop: '0.9rem', maxWidth: '620px' }}>
+                      💡 <b>Why 「{current.answer}」:</b> {current.why}
+                    </p>
+                  )}
+
+                  <div className="controls" style={{ marginTop: '0.9rem' }}>
+                    {picked === null && (
+                      <button className="chip" onClick={() => setShowWhy((w) => !w)}>
+                        💡 {showWhy ? 'Hide Hint' : 'Why Hint'}
+                      </button>
+                    )}
+                    <button className="chip" onClick={() => speak(current.audio)}>
+                      🔊 Hear Sentence
+                    </button>
+                    <button className={inSrs ? 'chip ok' : 'chip'} disabled={inSrs} onClick={addCurrentToSrs}>
+                      {inSrs ? '✓ In SRS' : '+ Add to SRS'}
+                    </button>
+                    <button className="chip on" onClick={next}>
+                      {picked !== null ? 'Next Prompt →' : 'Skip →'}
+                    </button>
+                  </div>
+
+                  <div className="drill-meta">
+                    <span>
+                      Session: {session.ok}/{session.total}
+                    </span>
+                    <span>
+                      {session.total ? `${Math.round((session.ok / session.total) * 100)}% accuracy` : ''}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           <h2>Particle Cheat-Sheet Matrix <span className="muted">(tap any card to hear example)</span></h2>

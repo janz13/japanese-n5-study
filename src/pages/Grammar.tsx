@@ -7,6 +7,7 @@ import { speak } from '../lib/tts';
 import { playFanfare } from '../lib/sfx';
 import { useCampaignMission } from '../lib/useCampaignMission';
 import CampaignBanner from '../components/CampaignBanner';
+import { LayeredClozeInput } from '../components/LayeredClozeInput';
 
 export function GrammarList() {
   const p = useStore();
@@ -224,7 +225,7 @@ export function GrammarLesson() {
 
       <h2>練習 <span className="muted">Practice</span></h2>
       {lesson.exercises.map((ex, i) => (
-        <div key={i} className="question">
+        <div key={ex.type === 'cloze' ? ex.id : i} className="question">
           <span className="tag">{i + 1}/{n}</span>
           {ex.type === 'mcq' ? (
             <>
@@ -250,8 +251,10 @@ export function GrammarLesson() {
                 })}
               </div>
             </>
-          ) : (
+          ) : ex.type === 'order' ? (
             <OrderEx ex={ex} onAnswer={(ok) => setAnswers((a) => ({ ...a, [i]: ok }))} />
+          ) : (
+            <LayeredClozeInput ex={ex} onAnswer={(ok) => setAnswers((a) => ({ ...a, [i]: ok }))} />
           )}
         </div>
       ))}

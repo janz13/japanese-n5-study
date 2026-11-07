@@ -6,9 +6,10 @@ import { speak } from '../lib/tts';
 import { playDing, playFanfare, playMiss } from '../lib/sfx';
 import { useCampaignMission } from '../lib/useCampaignMission';
 import CampaignBanner from '../components/CampaignBanner';
+import ConfuserSpeedSorter from '../components/ConfuserSpeedSorter';
 
 type PromptKind = 'meaning' | 'reading' | 'vocab';
-type ModeFilter = 'all' | 'meaning' | 'reading' | 'vocab';
+type ModeFilter = 'all' | 'meaning' | 'reading' | 'vocab' | 'confuser';
 type LevelFilter = 'N5' | 'N4' | 'all';
 
 interface DrillItem {
@@ -117,18 +118,20 @@ export default function KanjiDojo() {
         });
       }
 
-      // 3. Vocab
+      // 3. Vocab (all rich compounds for this kanji)
       if (modeFilter === 'all' || modeFilter === 'vocab') {
-        items.push({
-          id: `v:${kj.k}`,
-          kanjiObj: kj,
-          kind: 'vocab',
-          promptDisplay: kj.ex.w,
-          subLabel: `Vocabulary Reading for ${kj.k} (${kj.ex.en})`,
-          expectedInputType: 'kana',
-          acceptableAnswers: [toHiragana(kj.ex.r)],
-          displayAnswer: `${kj.ex.w}【${kj.ex.r}】= ${kj.ex.en}`,
-          ttsAudio: kj.ex.r,
+        kj.compounds.forEach((comp, cIdx) => {
+          items.push({
+            id: `v:${kj.k}:${cIdx}`,
+            kanjiObj: kj,
+            kind: 'vocab',
+            promptDisplay: comp.w,
+            subLabel: `Vocabulary Reading for ${kj.k} (${comp.en})${comp.sentenceJp ? ` · 例文: ${comp.sentenceJp}` : ''}`,
+            expectedInputType: 'kana',
+            acceptableAnswers: [toHiragana(comp.r)],
+            displayAnswer: `${comp.w}【${comp.r}】= ${comp.en}`,
+            ttsAudio: comp.r,
+          });
         });
       }
     }
@@ -278,6 +281,9 @@ export default function KanjiDojo() {
         <button className={modeFilter === 'vocab' ? 'chip on' : 'chip'} onClick={() => setModeFilter('vocab')}>
           🔮 Vocab Context Only
         </button>
+        <button className={modeFilter === 'confuser' ? 'chip on' : 'chip'} onClick={() => setModeFilter('confuser')}>
+          🎯 Confuser Speed Sorter
+        </button>
 
         {(!isCampaignMode || !targetItems || targetItems.length === 0) && (
           <>
@@ -295,8 +301,13 @@ export default function KanjiDojo() {
         )}
       </div>
 
-      {/* Main Interactive Drill Card */}
-      {currentItem && (
+      {/* Main Interactive Drill Card or Confuser Sorter */}
+      {modeFilter === 'confuser' ? (
+        <div style={{ marginTop: '1.2rem' }}>
+          <ConfuserSpeedSorter kind="kanji" />
+        </div>
+      ) : (
+        currentItem && (
         <div
           className={`drill ${flash ?? ''}`}
           style={{
@@ -407,6 +418,7 @@ export default function KanjiDojo() {
             </span>
           </div>
         </div>
+        )
       )}
 
       {/* Kanji Mastery Heatmap & Weak Characters */}

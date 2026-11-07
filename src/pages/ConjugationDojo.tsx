@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toHiragana } from 'wanakana';
 import {
   CONJUGATIONS,
+  DECONJUGATION_ITEMS,
   FORM_LABELS,
   GROUP_LABELS,
   getConjugationContext,
@@ -56,18 +57,83 @@ export default function ConjugationDojo() {
     completeMission,
     returnToCampaign,
   } = useCampaignMission();
-  const [dojoMode, setDojoMode] = useState<'lessons' | 'conjugate' | 'pairs'>(() => {
-    if (targetTab === 'lessons' || targetTab === 'conjugate' || targetTab === 'pairs') {
+  const [dojoMode, setDojoMode] = useState<'lessons' | 'conjugate' | 'deconjugate' | 'pairs'>(() => {
+    if (
+      targetTab === 'lessons' ||
+      targetTab === 'conjugate' ||
+      targetTab === 'deconjugate' ||
+      targetTab === 'pairs'
+    ) {
       return targetTab;
     }
     return 'lessons';
   });
 
   useEffect(() => {
-    if (targetTab === 'lessons' || targetTab === 'conjugate' || targetTab === 'pairs') {
+    if (
+      targetTab === 'lessons' ||
+      targetTab === 'conjugate' ||
+      targetTab === 'deconjugate' ||
+      targetTab === 'pairs'
+    ) {
       setDojoMode(targetTab);
     }
   }, [targetTab]);
+
+  // Deconjugation Drill State
+  const [deconjFilterGroup, setDeconjFilterGroup] = useState<WordGroup | 'all'>('all');
+  const [deconjIdx, setDeconjIdx] = useState(0);
+  const [selectedRoot, setSelectedRoot] = useState<string | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState<string | null>(null);
+  const [deconjAnswered, setDeconjAnswered] = useState(false);
+  const [deconjSession, setDeconjSession] = useState({ ok: 0, total: 0 });
+  const [deconjFlash, setDeconjFlash] = useState<'ok' | 'bad' | null>(null);
+
+  const filteredDeconjList = useMemo(() => {
+    if (deconjFilterGroup === 'all') return DECONJUGATION_ITEMS;
+    return DECONJUGATION_ITEMS.filter((item) => item.group === deconjFilterGroup);
+  }, [deconjFilterGroup]);
+
+  const currentDeconj = filteredDeconjList[deconjIdx % filteredDeconjList.length] || DECONJUGATION_ITEMS[0];
+
+  const handleSelectRoot = (dict: string) => {
+    if (deconjAnswered) return;
+    setSelectedRoot(dict);
+  };
+
+  const handleSelectVoice = (voice: string) => {
+    if (deconjAnswered) return;
+    setSelectedVoice(voice);
+  };
+
+  const submitDeconjugation = () => {
+    if (!selectedRoot || deconjAnswered) return;
+    const isRootOk = selectedRoot === currentDeconj.targetDictForm;
+    const isVoiceOk = selectedVoice ? selectedVoice === currentDeconj.formIdentified : true;
+    const isAllOk = isRootOk && isVoiceOk;
+
+    setDeconjAnswered(true);
+    setDeconjFlash(isAllOk ? 'ok' : 'bad');
+    if (sfxEnabled) (isAllOk ? playDing : playMiss)();
+    speak(currentDeconj.inflectedReading);
+
+    setDeconjSession((s) => {
+      const nextOk = s.ok + (isAllOk ? 1 : 0);
+      const nextTotal = s.total + 1;
+      if (isCampaignMode && nextTotal >= 5) {
+        completeMission();
+      }
+      return { ok: nextOk, total: nextTotal };
+    });
+  };
+
+  const nextDeconjugation = () => {
+    setSelectedRoot(null);
+    setSelectedVoice(null);
+    setDeconjAnswered(false);
+    setDeconjFlash(null);
+    setDeconjIdx((i) => i + 1);
+  };
   const [groups, setGroups] = useState<WordGroup[]>(ALL_GROUPS);
   const [forms, setForms] = useState<ConjForm[]>(['polite', 'te', 'negative', 'past']);
   const [current, setCurrent] = useState<PromptItem | null>(null);
@@ -212,6 +278,12 @@ export default function ConjugationDojo() {
             onClick={() => setDojoMode('conjugate')}
           >
             ⚡ Inflection Drill ({CONJUGATIONS.length} words)
+          </button>
+          <button
+            className={dojoMode === 'deconjugate' ? 'chip on' : 'chip'}
+            onClick={() => setDojoMode('deconjugate')}
+          >
+            ↩️ Reverse De-Conjugator ({DECONJUGATION_ITEMS.length} challenges)
           </button>
           <button
             className={dojoMode === 'pairs' ? 'chip on' : 'chip'}
@@ -385,6 +457,311 @@ export default function ConjugationDojo() {
                 </div>
               </div>
             ))}
+          </div>
+        </>
+      ) : dojoMode === 'deconjugate' ? (
+        <>
+          <div className="controls" style={{ marginTop: '0.8rem' }}>
+            <span className="muted small" style={{ alignSelf: 'center' }}>Filter:</span>
+            <button
+              className={deconjFilterGroup === 'all' ? 'chip on' : 'chip'}
+              onClick={() => {
+                setDeconjFilterGroup('all');
+                setSelectedRoot(null);
+                setSelectedVoice(null);
+                setDeconjAnswered(false);
+              }}
+            >
+              All Verb Groups ({DECONJUGATION_ITEMS.length})
+            </button>
+            {(['ichidan', 'godan', 'irregular'] as const).map((g) => (
+              <button
+                key={g}
+                className={deconjFilterGroup === g ? 'chip on' : 'chip'}
+                onClick={() => {
+                  setDeconjFilterGroup(g);
+                  setSelectedRoot(null);
+                  setSelectedVoice(null);
+                  setDeconjAnswered(false);
+                }}
+              >
+                {GROUP_LABELS[g]}
+              </button>
+            ))}
+          </div>
+
+          {currentDeconj && (
+            <div className={`drill ${deconjFlash ?? ''}`} style={{ maxWidth: '640px', margin: '1rem auto' }}>
+              <div className="row-between" style={{ width: '100%' }}>
+                <span className="tag">
+                  ↩️ Reverse De-Conjugator · {GROUP_LABELS[currentDeconj.group]}
+                </span>
+                <span className="muted small">
+                  Challenge {(deconjIdx % filteredDeconjList.length) + 1} / {filteredDeconjList.length}
+                </span>
+              </div>
+
+              {/* Surface Inflected Word */}
+              <div className="drill-char" style={{ fontSize: '3.6rem', margin: '0.6rem 0 0.2rem' }}>
+                <ruby>
+                  {currentDeconj.inflectedWord}
+                  <rt>{currentDeconj.inflectedReading}</rt>
+                </ruby>
+              </div>
+              <div className="muted" style={{ marginBottom: '1.2rem' }}>
+                romaji: <code>{currentDeconj.romaji}</code>
+              </div>
+
+              {/* Step 1: Root Dictionary Form Selection */}
+              <div style={{ textAlign: 'left', width: '100%', marginBottom: '1rem' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.4rem', color: 'var(--text)' }}>
+                  1. Deduce the Root Dictionary Form (辞書形):
+                </div>
+                <div className="controls" style={{ gap: '0.6rem' }}>
+                  {currentDeconj.options.map((opt) => {
+                    const isPicked = selectedRoot === opt.dict;
+                    const isTarget = currentDeconj.targetDictForm === opt.dict;
+                    let btnCls = 'chip';
+                    if (deconjAnswered) {
+                      if (isTarget) btnCls = 'chip ok';
+                      else if (isPicked) btnCls = 'chip bad';
+                    } else if (isPicked) {
+                      btnCls = 'chip on';
+                    }
+
+                    return (
+                      <button
+                        key={opt.dict}
+                        type="button"
+                        className={btnCls}
+                        style={{ padding: '0.6rem 1rem', fontSize: '1.05rem' }}
+                        onClick={() => handleSelectRoot(opt.dict)}
+                        disabled={deconjAnswered}
+                      >
+                        <b className="jp">{opt.dict}</b>{' '}
+                        <span className="muted small">({opt.reading} · {opt.en})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Step 2: Grammatical Voice Selection */}
+              <div style={{ textAlign: 'left', width: '100%', marginBottom: '1.2rem' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.4rem', color: 'var(--text)' }}>
+                  2. Identify the Inflection / Grammatical Voice (文法形・態):
+                </div>
+                <div className="controls" style={{ gap: '0.5rem' }}>
+                  {currentDeconj.voiceOptions.map((vOpt) => {
+                    const isPicked = selectedVoice === vOpt;
+                    const isTarget = currentDeconj.formIdentified === vOpt;
+                    let vCls = 'chip';
+                    if (deconjAnswered) {
+                      if (isTarget) vCls = 'chip ok';
+                      else if (isPicked) vCls = 'chip bad';
+                    } else if (isPicked) {
+                      vCls = 'chip on';
+                    }
+
+                    return (
+                      <button
+                        key={vOpt}
+                        type="button"
+                        className={vCls}
+                        onClick={() => handleSelectVoice(vOpt)}
+                        disabled={deconjAnswered}
+                      >
+                        {vOpt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Submit & Audio Controls */}
+              {!deconjAnswered ? (
+                <div className="controls center">
+                  <button
+                    type="button"
+                    className="chip on"
+                    style={{ padding: '0.7rem 1.8rem', fontSize: '1.05rem', fontWeight: 700 }}
+                    disabled={!selectedRoot}
+                    onClick={submitDeconjugation}
+                  >
+                    Check De-Conjugation ✓
+                  </button>
+                  <button
+                    type="button"
+                    className="chip"
+                    onClick={() => speak(currentDeconj.inflectedReading)}
+                  >
+                    🔊 Hear Inflection
+                  </button>
+                </div>
+              ) : (
+                /* Post-Answer Step-by-Step Un-inflection Chain */
+                <div style={{ width: '100%', marginTop: '0.5rem' }}>
+                  <div
+                    style={{
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--border)',
+                      borderLeft: '4px solid var(--accent)',
+                      borderRadius: '10px',
+                      padding: '1rem',
+                      textAlign: 'left',
+                      marginBottom: '1rem',
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.6rem', color: 'var(--accent)' }}>
+                      📍 Step-by-Step Un-inflection Chain (解読ステップ):
+                    </div>
+                    {currentDeconj.uninflectionSteps.map((step, sIdx) => (
+                      <div
+                        key={sIdx}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '0.6rem',
+                          marginBottom: '0.5rem',
+                          fontSize: '0.95rem',
+                        }}
+                      >
+                        <span
+                          style={{
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '50%',
+                            width: '24px',
+                            height: '24px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {sIdx + 1}
+                        </span>
+                        <div>
+                          <div>
+                            <b className="jp">{step.from}</b> ➔ <b className="jp" style={{ color: 'var(--ok)' }}>{step.to}</b>
+                          </div>
+                          <div className="muted small" style={{ marginTop: '0.15rem' }}>
+                            {step.rule}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div
+                      style={{
+                        marginTop: '0.8rem',
+                        paddingTop: '0.6rem',
+                        borderTop: '1px dashed var(--border)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <span>
+                        Root: <b className="jp" style={{ fontSize: '1.15rem' }}>{currentDeconj.targetDictForm}</b>{' '}
+                        <span className="muted small">({currentDeconj.targetDictReading} — {currentDeconj.targetEn})</span>
+                      </span>
+                      <span className="tag ok">{currentDeconj.formIdentified}</span>
+                    </div>
+                  </div>
+
+                  <div className="controls center">
+                    <button
+                      type="button"
+                      className="chip"
+                      onClick={() => speak(currentDeconj.inflectedReading)}
+                    >
+                      🔊 Hear Inflection
+                    </button>
+                    <button
+                      type="button"
+                      className={srs[`dcj:${currentDeconj.id}`] ? 'chip ok' : 'chip'}
+                      disabled={!!srs[`dcj:${currentDeconj.id}`]}
+                      onClick={() =>
+                        addCard({
+                          id: `dcj:${currentDeconj.id}`,
+                          kind: 'grammar',
+                          front: `Deconjugate: ${currentDeconj.inflectedWord} (${currentDeconj.inflectedReading})`,
+                          reading: currentDeconj.targetDictReading,
+                          back: `Root: ${currentDeconj.targetDictForm} (${currentDeconj.targetEn}) · Form: ${currentDeconj.formIdentified}`,
+                        })
+                      }
+                    >
+                      {srs[`dcj:${currentDeconj.id}`] ? '✓ In SRS' : '+ Add to SRS'}
+                    </button>
+                    <button
+                      type="button"
+                      className="chip on"
+                      style={{ padding: '0.6rem 1.4rem', fontWeight: 700 }}
+                      onClick={nextDeconjugation}
+                    >
+                      Next Challenge ➔
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Session Score */}
+              <div className="drill-meta" style={{ marginTop: '0.8rem' }}>
+                <span>
+                  {deconjAnswered && (
+                    <span className={selectedRoot === currentDeconj.targetDictForm ? 'ok-text' : 'bad-text'}>
+                      {selectedRoot === currentDeconj.targetDictForm ? '✓ Correct Deduction!' : `✗ Target was ${currentDeconj.targetDictForm}`}
+                    </span>
+                  )}
+                </span>
+                <span>
+                  Session: {deconjSession.ok} / {deconjSession.total} ·{' '}
+                  {deconjSession.total ? Math.round((deconjSession.ok / deconjSession.total) * 100) : 0}%
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Reference Matrix for De-Conjugation Rules */}
+          <h2>Reverse De-Conjugation (Un-inflection) Cheat Sheet</h2>
+          <div className="story-list">
+            <div className="gp">
+              <div className="row-between">
+                <b className="jp">解読の原則 (Core Un-inflection Principles)</b>
+                <span className="tag">Morphology Rules</span>
+              </div>
+              <p className="muted small" style={{ margin: '0.4rem 0 0.8rem' }}>
+                How to peel away Japanese verbal suffixes layer-by-layer to discover the dictionary root:
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.8rem' }}>
+                <div style={{ background: 'var(--surface2)', padding: '0.75rem', borderRadius: '8px' }}>
+                  <b className="jp">1. 〜なかった (Past Negative)</b>
+                  <p className="muted small nomargin" style={{ marginTop: '0.2rem' }}>
+                    Strip <code>なかった</code> ➔ restore <code>ない</code> ➔ Shift Godan a-row vowel back to u-row (e.g. 飲ま- ➔ 飲む). For Ichidan, replace ない with る (e.g. 食べない ➔ 食べる).
+                  </p>
+                </div>
+                <div style={{ background: 'var(--surface2)', padding: '0.75rem', borderRadius: '8px' }}>
+                  <b className="jp">2. 〜ば (Hypothetical Conditional)</b>
+                  <p className="muted small nomargin" style={{ marginTop: '0.2rem' }}>
+                    Strip <code>ば</code> ➔ Godan e-row vowel shifts back to u-row (e.g. 行け- ➔ 行く, 読め- ➔ 読む). For Ichidan, replace れば with る (e.g. 食べれば ➔ 食べる).
+                  </p>
+                </div>
+                <div style={{ background: 'var(--surface2)', padding: '0.75rem', borderRadius: '8px' }}>
+                  <b className="jp">3. 〜れる / 〜られる (Passive &amp; Potential)</b>
+                  <p className="muted small nomargin" style={{ marginTop: '0.2rem' }}>
+                    Passive attaches to Godan a-row (読まれる ➔ 読む). Potential for Godan attaches to e-row + る (話せる ➔ 話す). For Ichidan, both use 〜られる (食べられる ➔ 食べる).
+                  </p>
+                </div>
+                <div style={{ background: 'var(--surface2)', padding: '0.75rem', borderRadius: '8px' }}>
+                  <b className="jp">4. 〜せる / 〜させる (Causative)</b>
+                  <p className="muted small nomargin" style={{ marginTop: '0.2rem' }}>
+                    Godan causative uses a-row + せる (読ませる ➔ 読む). Ichidan causative uses stem + させる (食べさせる ➔ 食べる). Causative-passive merges both (読ませられる ➔ 読む).
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </>
       ) : (

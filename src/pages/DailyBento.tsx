@@ -5,12 +5,16 @@ import { toHiragana } from 'wanakana';
 import { HIRAGANA } from '../data/kana';
 import { CONJUGATIONS } from '../data/conjugations';
 import { KANJI } from '../data/kanji';
-import { STAMPS } from '../data/stamps';
+import { getDailyStamp, TRAVEL_COUNTERS } from '../data/stamps';
 import { TraceCanvas } from '../components/Strokes';
 import { StampSvg } from './StampBook';
-import { isDue, useStore, type SrsItem } from '../lib/store';
+import { isDue, useStore, todayStr, type SrsItem, type BentoNutritionPlate } from '../lib/store';
 import { speak } from '../lib/tts';
 import { playDing, playFanfare } from '../lib/sfx';
+import { SIGNS } from '../data/signs';
+import { FORM_LABELS } from '../data/conjugations';
+import { PARTICLE_SLOT_CHALLENGES, type ParticleSlotChallenge } from '../data/particles';
+import { ParticleSlotGrid } from '../components/ParticleSlotGrid';
 
 /** Simple date-seeded PRNG so every Bento dish is different each calendar day
  *  but deterministic within the same day (reload-safe). */
@@ -47,14 +51,192 @@ interface WarmupPrompt {
   answers: string[];
   audio: string;
   options: string[];
+  slotChallenge?: ParticleSlotChallenge;
 }
 
-import { SIGNS } from '../data/signs';
-import { FORM_LABELS } from '../data/conjugations';
+export { TRAVEL_COUNTERS };
+
+function BentoNutritionPlateCard({
+  plate,
+  shields,
+  vacation,
+  onToggleVacation,
+}: {
+  plate: BentoNutritionPlate;
+  shields: number;
+  vacation: boolean;
+  onToggleVacation: () => void;
+}) {
+  const isFull =
+    plate.vocabProtein >= 5 &&
+    plate.grammarCarbs >= 3 &&
+    plate.kanjiFiber >= 2 &&
+    plate.listeningVitamins >= 2;
+
+  const nutrients = [
+    {
+      id: 'vocab',
+      name: 'Vocab Protein',
+      icon: '🥩',
+      cur: plate.vocabProtein,
+      target: 5,
+      color: '#ef4444',
+    },
+    {
+      id: 'grammar',
+      name: 'Grammar Carbs',
+      icon: '🍚',
+      cur: plate.grammarCarbs,
+      target: 3,
+      color: '#3b82f6',
+    },
+    {
+      id: 'kanji',
+      name: 'Kanji Fiber',
+      icon: '🥗',
+      cur: plate.kanjiFiber,
+      target: 2,
+      color: '#10b981',
+    },
+    {
+      id: 'listening',
+      name: 'Listening Vitamins',
+      icon: '🍊',
+      cur: plate.listeningVitamins,
+      target: 2,
+      color: '#f59e0b',
+    },
+  ];
+
+  return (
+    <div
+      className="gp"
+      style={{
+        margin: '0.8rem 0 1rem',
+        padding: '0.9rem 1.1rem',
+        background: 'var(--surface, #1e293b)',
+        borderRadius: '10px',
+        border: isFull ? '2px solid #10b981' : '1px solid var(--border, #334155)',
+      }}
+    >
+      <div className="row-between" style={{ flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.7rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <b style={{ fontSize: '0.95rem' }}>🍱 Bento Nutrition Engine (栄養バランス)</b>
+          {isFull ? (
+            <span
+              className="chip ok"
+              style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', fontWeight: 700 }}
+            >
+              ✨ 栄養満点！ (Fully Balanced)
+            </span>
+          ) : (
+            <span className="muted small">Daily Target Balancing</span>
+          )}
+        </div>
+
+        {/* Streak Shield & Vacation status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <span
+            className="chip"
+            style={{
+              fontSize: '0.78rem',
+              borderColor: shields > 0 ? '#38bdf8' : 'var(--border)',
+              color: shields > 0 ? '#38bdf8' : 'inherit',
+            }}
+            title="Shields automatically absorb missed calendar days"
+          >
+            🛡️ {shields}/2 Shields Active
+          </span>
+          <button
+            type="button"
+            className={vacation ? 'chip on' : 'chip'}
+            style={{ fontSize: '0.78rem', padding: '0.2rem 0.6rem' }}
+            onClick={onToggleVacation}
+            title="Vacation pause freezes streak decay"
+          >
+            {vacation ? '🌴 Vacation Mode ON' : '🏖️ Vacation Pause'}
+          </button>
+        </div>
+      </div>
+
+      {/* 4 Nutritional Compartments Grid */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+          gap: '0.6rem',
+        }}
+      >
+        {nutrients.map((n) => {
+          const pct = Math.min(100, Math.round((n.cur / n.target) * 100));
+          const met = n.cur >= n.target;
+          return (
+            <div
+              key={n.id}
+              style={{
+                background: 'rgba(0,0,0,0.15)',
+                padding: '0.5rem 0.6rem',
+                borderRadius: '6px',
+                border: met ? `1px solid ${n.color}` : '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <div className="row-between" style={{ fontSize: '0.75rem', marginBottom: '0.3rem' }}>
+                <span>
+                  {n.icon} {n.name}
+                </span>
+                <span style={{ fontWeight: 700, color: met ? '#10b981' : 'inherit' }}>
+                  {n.cur}/{n.target}
+                </span>
+              </div>
+              <div
+                style={{
+                  height: '6px',
+                  background: 'rgba(255,255,255,0.1)',
+                  borderRadius: '3px',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${pct}%`,
+                    background: n.color,
+                    borderRadius: '3px',
+                    transition: 'width 0.3s ease',
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function DailyBento() {
-  const { srs, addCard, reviewCard, recordKana, completeBento, bentoCount, kanaStats } = useStore();
+  const {
+    srs,
+    addCard,
+    reviewCard,
+    recordKana,
+    completeBento,
+    bentoCount,
+    kanaStats,
+    streak,
+    lastStudy,
+    streakShields,
+    vacationMode,
+    toggleVacationMode,
+    nutritionPlate,
+    recordNutritionActivity,
+    resetDailyPlateIfNewDay,
+  } = useStore();
   const [dish, setDish] = useState<1 | 2 | 3 | 4>(1);
+
+  useEffect(() => {
+    resetDailyPlateIfNewDay();
+  }, [resetDailyPlateIfNewDay]);
 
   // Read active study track (with instant fallback and local persistence)
   const [studyTrack, setStudyTrack] = useState<'beginner' | 'travel' | 'n5' | 'n4'>(() => {
@@ -80,12 +262,12 @@ export default function DailyBento() {
     return () => clearInterval(t);
   }, [dish]);
 
+  const todayIso = todayStr();
+
   // Seed = date hash + bentoCount so each session within the same day is different
   const todaySeed = useMemo(() => {
-    const d = new Date();
-    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return dayHash(iso) + bentoCount * 7919; // large prime offset per session
-  }, [bentoCount]);
+    return dayHash(todayIso) + bentoCount * 7919; // large prime offset per session
+  }, [bentoCount, todayIso]);
 
   // Dish 1: 5 Warm-up prompts tailored to the active study track!
   const warmups = useMemo<WarmupPrompt[]>(() => {
@@ -143,13 +325,7 @@ export default function DailyBento() {
         };
       });
 
-      const travelCounters = [
-        { display: '1つ (One thing)', answers: ['ひとつ', 'hitotsu'], audio: 'ひとつ', options: ['ひとつ', 'ふたつ', 'みっつ'] },
-        { display: '2つ (Two things)', answers: ['ふたつ', 'futatsu'], audio: 'ふたつ', options: ['ふたつ', 'ひとつ', 'よっつ'] },
-        { display: '1人 (One person)', answers: ['ひとり', 'hitori'], audio: 'ひとり', options: ['ひとり', 'ふたり', 'さんにん'] },
-        { display: '1枚 (One flat ticket/sheet)', answers: ['いちまい', 'ichimai'], audio: 'いちまい', options: ['いちまい', 'にまい', 'さんまい'] },
-      ];
-      const pickedCounters = seededShuffle(travelCounters, todaySeed + 10).slice(0, 2);
+      const pickedCounters = seededShuffle(TRAVEL_COUNTERS, todaySeed + 10).slice(0, 2);
       const counterPrompts: WarmupPrompt[] = pickedCounters.map((tc) => ({
         label: '🧳 Essential Travel Counter',
         display: tc.display,
@@ -162,10 +338,10 @@ export default function DailyBento() {
       return [...kPrompts, ...counterPrompts];
     }
 
-    // Default N5 or N4: 3 Kana / Weak Kana + 2 Verb Conjugations
+    // Default N5 or N4: 2 Kana / Weak Kana + 2 Verb Conjugations + 1 Particle Slot Challenge
     const chosenWeak = weakKana.slice(0, 2);
     const nonWeak = HIRAGANA.filter((k) => !chosenWeak.some((w) => w.kana === k.kana));
-    const fillerKana = seededShuffle(nonWeak, todaySeed).slice(0, 3 - chosenWeak.length);
+    const fillerKana = seededShuffle(nonWeak, todaySeed).slice(0, 2 - chosenWeak.length);
     const kPool = [...chosenWeak, ...fillerKana];
 
     const cPool = seededShuffle(CONJUGATIONS, todaySeed + 1).slice(0, 2);
@@ -201,7 +377,19 @@ export default function DailyBento() {
       };
     });
 
-    return [...kPrompts, ...cPrompts];
+    const dailySlotChallenge =
+      PARTICLE_SLOT_CHALLENGES[todaySeed % PARTICLE_SLOT_CHALLENGES.length];
+    const slotPrompt: WarmupPrompt = {
+      label: `Particle Slot · ${dailySlotChallenge.title}`,
+      display: dailySlotChallenge.en,
+      sub: 'Slot particles into blanks',
+      answers: dailySlotChallenge.correctParticles,
+      audio: dailySlotChallenge.audioText,
+      options: dailySlotChallenge.particleBank,
+      slotChallenge: dailySlotChallenge,
+    };
+
+    return [...kPrompts, ...cPrompts, slotPrompt];
   }, [todaySeed, kanaStats, studyTrack]);
 
   const [wIdx, setWIdx] = useState(0);
@@ -306,6 +494,7 @@ export default function DailyBento() {
     if (curWarmup.display.length === 1) {
       recordKana(curWarmup.display, true);
     }
+    recordNutritionActivity('vocabProtein', 1);
     setWInput('');
     if (wIdx + 1 < warmups.length) {
       setWIdx((i) => i + 1);
@@ -336,13 +525,22 @@ export default function DailyBento() {
     }
   };
 
+
+  const effectiveStreak = useMemo(() => {
+    const todayMs = new Date(todayIso).getTime();
+    const y = new Date(todayMs - 864e5).toISOString().slice(0, 10);
+    return lastStudy === todayIso ? streak : lastStudy === y ? streak + 1 : 1;
+  }, [lastStudy, streak, todayIso]);
+
+  const dailyStamp = useMemo(() => {
+    return getDailyStamp(todayIso, effectiveStreak);
+  }, [todayIso, effectiveStreak]);
+
   const finishBento = () => {
-    completeBento();
+    completeBento(dailyStamp.id);
     playFanfare();
     setDish(4);
   };
-
-  const uenoStamp = STAMPS.find((s) => s.id === 'ueno')!;
 
   const timerMin = Math.floor(secondsLeft / 60);
   const timerSec = String(secondsLeft % 60).padStart(2, '0');
@@ -387,6 +585,14 @@ export default function DailyBento() {
         <Link to="/" className="muted small">← Dashboard</Link>
       </div>
 
+      {/* Bento Nutrition Engine & Streak Status */}
+      <BentoNutritionPlateCard
+        plate={nutritionPlate}
+        shields={streakShields}
+        vacation={vacationMode}
+        onToggleVacation={toggleVacationMode}
+      />
+
       {/* Course progress bar */}
       <div className="bento-steps">
         <div className={`bento-step ${dish === 1 ? 'active' : dish > 1 ? 'done-step' : ''}`}>
@@ -404,55 +610,72 @@ export default function DailyBento() {
       </div>
 
       {dish === 1 && curWarmup && (
-        <div className="drill" onClick={() => inputRef.current?.focus()}>
-          <span className="tag">🍙 Dish 1 of 3 · {curWarmup.label}</span>
-          <div className="drill-char" style={{ fontSize: '4.2rem', margin: '0.4rem 0' }}>
-            {curWarmup.display}
+        curWarmup.slotChallenge ? (
+          <div>
+            <div className="row-between" style={{ marginBottom: '0.5rem' }}>
+              <span className="tag">🍙 Dish 1 of 3 · {curWarmup.label} (Prompt {wIdx + 1}/{warmups.length})</span>
+            </div>
+            <ParticleSlotGrid
+              key={curWarmup.slotChallenge.id}
+              challenge={curWarmup.slotChallenge}
+              standalone={false}
+              onComplete={(ok) => {
+                if (ok) advanceWarmup();
+              }}
+              onNext={advanceWarmup}
+            />
           </div>
-          <div className="muted small" style={{ marginBottom: '0.8rem' }}>{curWarmup.sub}</div>
-          <input
-            ref={inputRef}
-            autoFocus
-            value={wInput}
-            onChange={(e) => onWarmupInput(e.target.value)}
-            placeholder="type answer or tap below…"
-            className="drill-input"
-            autoComplete="off"
-            autoCapitalize="off"
-          />
-          <div className="controls center" style={{ marginTop: '1rem' }}>
-            {curWarmup.options.map((opt) => (
+        ) : (
+          <div className="drill" onClick={() => inputRef.current?.focus()}>
+            <span className="tag">🍙 Dish 1 of 3 · {curWarmup.label}</span>
+            <div className="drill-char" style={{ fontSize: '4.2rem', margin: '0.4rem 0' }}>
+              {curWarmup.display}
+            </div>
+            <div className="muted small" style={{ marginBottom: '0.8rem' }}>{curWarmup.sub}</div>
+            <input
+              ref={inputRef}
+              autoFocus
+              value={wInput}
+              onChange={(e) => onWarmupInput(e.target.value)}
+              placeholder="type answer or tap below…"
+              className="drill-input"
+              autoComplete="off"
+              autoCapitalize="off"
+            />
+            <div className="controls center" style={{ marginTop: '1rem' }}>
+              {curWarmup.options.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  className="chip"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (
+                      curWarmup.answers.includes(opt.toLowerCase()) ||
+                      curWarmup.answers.includes(opt)
+                    ) {
+                      advanceWarmup();
+                    } else {
+                      setWInput(curWarmup.answers[0]);
+                    }
+                  }}
+                >
+                  {opt}
+                </button>
+              ))}
               <button
-                key={opt}
                 type="button"
-                className="chip"
+                className="chip on"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (
-                    curWarmup.answers.includes(opt.toLowerCase()) ||
-                    curWarmup.answers.includes(opt)
-                  ) {
-                    advanceWarmup();
-                  } else {
-                    setWInput(curWarmup.answers[0]);
-                  }
+                  advanceWarmup();
                 }}
               >
-                {opt}
+                Skip →
               </button>
-            ))}
-            <button
-              type="button"
-              className="chip on"
-              onClick={(e) => {
-                e.stopPropagation();
-                advanceWarmup();
-              }}
-            >
-              Skip →
-            </button>
+            </div>
           </div>
-        </div>
+        )
       )}
 
       {dish === 2 && memoryCards[mIdx] && (
@@ -529,7 +752,10 @@ export default function DailyBento() {
                     className={cls}
                     onClick={() => {
                       setSignChoice(idx);
-                      if (idx === streetSign.answer) playDing();
+                      if (idx === streetSign.answer) {
+                        playDing();
+                        recordNutritionActivity('kanjiFiber', 1);
+                      }
                     }}
                   >
                     {opt}
@@ -561,10 +787,15 @@ export default function DailyBento() {
             You warmed up your recall, reviewed your SRS deck, traced kanji, and decoded a real Tokyo sign.
           </p>
           <div style={{ width: '140px', margin: '0.6rem auto' }}>
-            <StampSvg stamp={uenoStamp} unlocked={true} />
+            <StampSvg stamp={dailyStamp} unlocked={true} />
           </div>
+          {effectiveStreak > 0 && effectiveStreak % 7 === 0 && (
+            <div className="chip ok" style={{ margin: '0.5rem auto', display: 'inline-block' }}>
+              ⭐ {effectiveStreak}-Day Streak Milestone Seal Unlocked!
+            </div>
+          )}
           <p className="ok-text small">
-            🔖 Stamped: <b>{uenoStamp.nameEn}</b> in your Goshuincho!
+            🔖 Stamped: <b>{dailyStamp.nameEn}</b> in your Goshuincho!
           </p>
           <div className="controls center">
             <Link className="chip on" to="/stamps">📖 Open Stamp Book (御朱印帳) →</Link>

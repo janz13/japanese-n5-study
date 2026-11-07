@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { type Token } from '../data/stories';
+import { type Token, type FuriganaMode } from '../data/stories';
 import { useStore } from '../lib/store';
 import { speak, stopSpeaking } from '../lib/tts';
 import { storyUnlocked } from '../lib/progress';
@@ -8,6 +8,8 @@ import { playFanfare } from '../lib/sfx';
 import { useCampaignMission } from '../lib/useCampaignMission';
 import CampaignBanner from '../components/CampaignBanner';
 import { findStory } from '../lib/findStory';
+
+export type ReaderMode = 'standard' | 'blind_audio';
 
 const plain = (tokens: Token[]) => tokens.map((t) => t.r ?? t.t).join('');
 
@@ -35,37 +37,79 @@ function splitFurigana(t: string, r: string) {
   return { prefix, base: base || t, rt: base ? rt : r, suffix: base ? suffix : '' };
 }
 
-function Word({ tok, furigana, onTap, active }: { tok: Token; furigana: boolean; onTap: () => void; active: boolean }) {
+function Word({
+  tok,
+  furiganaMode,
+  isTapped,
+  onTapWord,
+  active,
+}: {
+  tok: Token;
+  furiganaMode: FuriganaMode;
+  isTapped: boolean;
+  onTapWord: () => void;
+  active: boolean;
+}) {
   const cls = `word${tok.en ? ' has-gloss' : ''}${active ? ' active' : ''}`;
-  if (tok.r && furigana) {
-    const { prefix, base, rt, suffix } = splitFurigana(tok.t, tok.r);
-    if (!prefix && !suffix) {
-      return (
-        <ruby className={cls} onClick={onTap}>
-          {base}
-          <rt>{rt}</rt>
-        </ruby>
-      );
-    }
+
+  if (!tok.r || furiganaMode === 'none') {
     return (
-      <span className={cls} onClick={onTap}>
-        {prefix}
-        <ruby>
-          {base}
-          <rt>{rt}</rt>
-        </ruby>
-        {suffix}
+      <span className={cls} onClick={onTapWord}>
+        {tok.t}
       </span>
     );
   }
-  return <span className={cls} onClick={onTap}>{tok.t}</span>;
+
+  const { prefix, base, rt, suffix } = splitFurigana(tok.t, tok.r);
+  const showRuby = furiganaMode === 'all' || isTapped;
+
+  const rubyElement = (
+    <ruby>
+      {base}
+      <rt
+        style={{
+          visibility: showRuby ? 'visible' : 'hidden',
+          opacity: showRuby ? 1 : 0,
+          transition: 'opacity 0.2s ease',
+          userSelect: 'none',
+        }}
+      >
+        {rt}
+      </rt>
+    </ruby>
+  );
+
+  if (!prefix && !suffix) {
+    return (
+      <span className={cls} onClick={onTapWord}>
+        {rubyElement}
+      </span>
+    );
+  }
+
+  return (
+    <span className={cls} onClick={onTapWord}>
+      {prefix}
+      {rubyElement}
+      {suffix}
+    </span>
+  );
 }
 
 export default function StoryReader() {
   const { id } = useParams();
   const story = findStory(id);
   const state = useStore();
-  const { showFurigana, toggleFurigana, saveWord, srs, completeStory, ttsRate, setTtsRate } = state;
+  const {
+    saveWord,
+    srs,
+    completeStory,
+    ttsRate,
+    setTtsRate,
+    cycleFuriganaMode,
+  } = state;
+  const furiganaMode: FuriganaMode = state.furiganaMode ?? (state.showFurigana ? 'all' : 'none');
+
   const {
     isCampaignMode,
     stage,
@@ -73,6 +117,11 @@ export default function StoryReader() {
     completeMission,
     returnToCampaign,
   } = useCampaignMission();
+
+  const [readerMode, setReaderMode] = useState<ReaderMode>('standard');
+  const [blindRevealed, setBlindRevealed] = useState(false);
+  const [tappedFurigana, setTappedFurigana] = useState<Set<string>>(new Set());
+
   const [gloss, setGloss] = useState<Token | null>(null);
   const [playing, setPlaying] = useState<number | null>(null);
   const [showEn, setShowEn] = useState(false);
@@ -132,6 +181,30 @@ export default function StoryReader() {
     speak(plain(story.paragraphs[i]), ttsRate, () => setPlaying(null));
   };
 
+  const toggleTapWord = (key: string, tok: Token) => {
+    setTappedFurigana((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+    if (tok.en) {
+      setGloss(tok);
+      speak(tok.r ?? tok.t);
+    }
+  };
+
+  const handleModeSwitch = (mode: ReaderMode) => {
+    stopSpeaking();
+    setPlaying(null);
+    setReaderMode(mode);
+    if (mode === 'blind_audio') {
+      setBlindRevealed(false);
+    }
+  };
+
+  const isMasked = readerMode === 'blind_audio' && !blindRevealed;
+
   return (
     <div className="page reader">
       {isCampaignMode && stage && (
@@ -139,16 +212,45 @@ export default function StoryReader() {
       )}
       <Link to="/stories" className="muted">← Stories</Link>
       <h1>{story.title} <span className="muted">{story.titleEn}</span></h1>
-      <div className="controls">
+
+      {/* Reader Mode Tabs */}
+      <div className="reader-tabs" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className={readerMode === 'standard' ? 'chip on' : 'chip'}
+          onClick={() => handleModeSwitch('standard')}
+        >
+          📖 Standard Reading
+        </button>
+        <button
+          type="button"
+          className={readerMode === 'blind_audio' ? 'chip on' : 'chip'}
+          onClick={() => handleModeSwitch('blind_audio')}
+        >
+          🎧 Blind Audio-First Mode
+        </button>
+      </div>
+
+      <div className="controls" style={{ flexWrap: 'wrap', gap: '0.4rem' }}>
         <button className="chip" onClick={() => (playing === null ? playFrom(0) : (stopSpeaking(), setPlaying(null)))}>
-          {playing === null ? '▶ Listen' : '■ Stop'}
+          {playing === null ? '▶ Listen All' : '■ Stop'}
         </button>
         {([0.75, 0.9, 1.0] as const).map((r) => (
           <button key={r} className={ttsRate === r ? 'chip on' : 'chip'} onClick={() => setTtsRate(r)}>
             {r}x
           </button>
         ))}
-        <button className={showFurigana ? 'chip on' : 'chip'} onClick={toggleFurigana}>ふりがな</button>
+
+        {/* Dynamic Tri-State Furigana Toggle */}
+        <button
+          type="button"
+          className="chip on"
+          onClick={cycleFuriganaMode}
+          title="Cycle Furigana: All -> Tap-to-Reveal -> None"
+        >
+          ふりがな: {furiganaMode === 'all' ? '全 (All)' : furiganaMode === 'tap' ? '押 (Tap)' : '無 (None)'}
+        </button>
+
         <button className={showEn ? 'chip on' : 'chip'} onClick={() => setShowEn(!showEn)}>English</button>
         {unsavedWords.length > 0 && (
           <button className="chip on" onClick={addAllChapterWords}>
@@ -157,6 +259,45 @@ export default function StoryReader() {
         )}
       </div>
 
+      {/* Blind Audio-First Callout Banner */}
+      {isMasked && (
+        <div
+          className="blind-banner"
+          style={{
+            background: 'rgba(56, 189, 248, 0.12)',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
+            borderRadius: '10px',
+            padding: '0.85rem 1.1rem',
+            margin: '1rem 0',
+          }}
+        >
+          <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent)' }}>
+            <span>🎧</span>
+            <span>Blind Audio-First Immersion</span>
+          </div>
+          <p style={{ margin: '0.35rem 0 0.65rem 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+            Story text is hidden to train pure auditory discrimination. Listen line-by-line or play the full story, attempt the comprehension checks, and reveal the transcript when ready!
+          </p>
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="chip on"
+              onClick={() => playFrom(0)}
+            >
+              ▶ Play Full Story
+            </button>
+            <button
+              type="button"
+              className="chip"
+              onClick={() => setBlindRevealed(true)}
+            >
+              👁️ Reveal Story Text & Shadowing
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Story Paragraphs / Masked Lines */}
       <div className="story-body">
         {story.paragraphs.map((para, i) => (
           <div key={i} className={`para${playing === i ? ' playing' : ''}`} style={{ marginBottom: '1.1rem' }}>
@@ -181,39 +322,79 @@ export default function StoryReader() {
               >
                 {playing === i ? '🔊' : '▶'}
               </button>
+
               <div style={{ flex: 1 }}>
-                <p
-                  className="story-line"
-                  style={{ cursor: 'pointer', margin: 0 }}
-                  onClick={(e) => {
-                    const target = e.target as HTMLElement;
-                    if (!target.closest('.word.has-gloss')) {
-                      playSentence(i);
-                    }
-                  }}
-                  title="Click to replay & shadow this sentence"
-                >
-                  {para.map((tok, j) => (
-                    <Word
-                      key={j}
-                      tok={tok}
-                      furigana={showFurigana}
-                      active={gloss === tok}
-                      onTap={() => {
-                        if (tok.en) {
-                          setGloss(tok);
-                          speak(tok.r ?? tok.t);
+                {isMasked ? (
+                  <div
+                    style={{
+                      padding: '0.55rem 0.85rem',
+                      borderRadius: '6px',
+                      background: playing === i ? 'rgba(56, 189, 248, 0.15)' : 'var(--surface2)',
+                      border: '1px dashed var(--border)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      userSelect: 'none',
+                    }}
+                    onClick={() => playSentence(i)}
+                  >
+                    <span style={{ filter: 'blur(5px)', opacity: 0.5 }}>
+                      わたしは日本語をべんきょうしています。
+                    </span>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--accent)', fontWeight: 600 }}>
+                      {playing === i ? '🔊 Playing Audio...' : `🎧 Line ${i + 1} (Tap to Listen)`}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <p
+                      className="story-line"
+                      style={{ cursor: 'pointer', margin: 0 }}
+                      onClick={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (!target.closest('.word.has-gloss')) {
+                          playSentence(i);
                         }
                       }}
-                    />
-                  ))}
-                </p>
-                {showEn && <p className="en" style={{ marginTop: '0.35rem' }}>{story.translation[i]}</p>}
+                      title="Click to replay & shadow this sentence"
+                    >
+                      {para.map((tok, j) => {
+                        const wordKey = `${i}-${j}`;
+                        return (
+                          <Word
+                            key={j}
+                            tok={tok}
+                            furiganaMode={furiganaMode}
+                            isTapped={tappedFurigana.has(wordKey)}
+                            active={gloss === tok}
+                            onTapWord={() => toggleTapWord(wordKey, tok)}
+                          />
+                        );
+                      })}
+                    </p>
+                    {showEn && <p className="en" style={{ marginTop: '0.35rem' }}>{story.translation[i]}</p>}
+                  </>
+                )}
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Post-Reveal Button for Blind Mode */}
+      {isMasked && (
+        <div style={{ textAlign: 'center', margin: '1.25rem 0' }}>
+          <button
+            type="button"
+            className="chip on"
+            style={{ padding: '0.55rem 1.25rem', fontSize: '0.95rem', fontWeight: 700 }}
+            onClick={() => setBlindRevealed(true)}
+          >
+            👁️ Reveal Story Transcript & Vocabulary Notes
+          </button>
+        </div>
+      )}
 
       {gloss && (
         <div className="gloss">
@@ -229,11 +410,51 @@ export default function StoryReader() {
         </div>
       )}
 
+      {/* Vocabulary Notes Drawer */}
+      {story.vocabularyNotes && story.vocabularyNotes.length > 0 && !isMasked && (
+        <div
+          className="vocab-notes"
+          style={{
+            marginTop: '1.5rem',
+            padding: '1rem',
+            background: 'var(--surface2)',
+            borderRadius: '10px',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.05rem' }}>
+            単語ノート <span className="muted">Vocabulary Notes</span>
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '0.6rem' }}>
+            {story.vocabularyNotes.map((vn, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: '0.5rem 0.65rem',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <b className="jp" style={{ fontSize: '1rem' }}>{vn.word}</b>
+                  {vn.jlpt && <span className="tag" style={{ fontSize: '0.7rem' }}>{vn.jlpt}</span>}
+                </div>
+                {vn.reading && <span className="muted small">（{vn.reading}）</span>}
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  {vn.meaning}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <h2>理解チェック <span className="muted">Comprehension</span></h2>
       {story.questions.map((q, i) => (
-        <div key={i} className="question">
-          <p className="jp">{q.q}</p>
-          <div className="controls">
+        <div key={i} className="question" style={{ marginBottom: '1.25rem' }}>
+          <p className="jp" style={{ fontWeight: 600 }}>{q.q}</p>
+          <div className="controls" style={{ flexWrap: 'wrap', gap: '0.4rem' }}>
             {q.options.map((o, j) => {
               const chosen = answers[i] === j;
               const cls = answers[i] === undefined ? 'chip' : j === q.answer ? 'chip ok' : chosen ? 'chip bad' : 'chip';
@@ -249,8 +470,14 @@ export default function StoryReader() {
               );
             })}
           </div>
+          {answers[i] !== undefined && q.explain && (
+            <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+              💡 {q.explain}
+            </div>
+          )}
         </div>
       ))}
+
       {allAnswered && (
         <div className="result">
           <span>Score: {score}%</span>

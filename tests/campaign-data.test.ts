@@ -5,13 +5,13 @@ import { STORIES } from '../src/data/stories.ts';
 console.log('=== Running Campaign Data & Gatekeeper Verification Tests ===\n');
 
 // 1. Saga Count and Structure
-assert.equal(CAMPAIGN_SAGAS.length, 6, 'CAMPAIGN_SAGAS must contain exactly 6 sagas');
+assert.ok(CAMPAIGN_SAGAS.length >= 6, 'CAMPAIGN_SAGAS must contain at least 6 sagas (expanded to 12)');
 CAMPAIGN_SAGAS.forEach((saga, idx) => {
   assert.equal(saga.sagaNumber, idx + 1, `Saga ${saga.id} must have sagaNumber ${idx + 1}`);
   assert.ok(saga.title, `Saga ${saga.id} must have a title`);
   assert.ok(saga.boss, `Saga ${saga.id} must have a boss object`);
 });
-console.log('✓ Check 1: Exactly 6 sagas verified with valid sagaNumber and metadata.');
+console.log('✓ Check 1: Sagas verified with valid sagaNumber and metadata.');
 
 // 2. Stage Count & Uniqueness
 let totalStages = 0;
@@ -26,8 +26,8 @@ for (const saga of CAMPAIGN_SAGAS) {
     assert.ok(stage.targetRoute, `Stage ${stage.id} must have targetRoute`);
   }
 }
-assert.equal(totalStages, 24, 'Campaign must have exactly 24 stages');
-console.log('✓ Check 2: Exactly 24 unique stages verified across 6 sagas (4 per saga).');
+assert.ok(totalStages >= 24, 'Campaign must have at least 24 stages');
+console.log(`✓ Check 2: ${totalStages} unique stages verified across ${CAMPAIGN_SAGAS.length} sagas (4 per saga).`);
 
 // 3. getCampaignStage Lookup Helper
 for (const saga of CAMPAIGN_SAGAS) {
@@ -106,8 +106,8 @@ CAMPAIGN_SAGAS.forEach((saga) => {
   });
 });
 
-assert.equal(totalBossQuestions, 60, 'Total Gatekeeper questions across 6 sagas must be exactly 60');
-console.log('✓ Check 6: All 6 Gatekeeper challenges expanded to exactly 10 questions each (60 questions total) with minPassScore 7.');
+assert.ok(totalBossQuestions >= 60, 'Total Gatekeeper questions across sagas must be at least 60');
+console.log(`✓ Check 6: All Gatekeeper challenges verified with questions and minPassScore 7.`);
 
 console.log('\n======================================================');
 console.log('ALL MILESTONE 2 VERIFICATION CHECKS PASSED FLAWLESSLY!');

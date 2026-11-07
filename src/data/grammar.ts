@@ -1,6 +1,32 @@
+export interface LayeredClozeHint {
+  layer1Nuance: string;
+  layer2Pattern: string;
+  layer3Rule: string;
+  layer4FullGrammar: string;
+}
+
+export interface NearMissWarning {
+  input: string;
+  warning: string;
+}
+
+export interface LayeredClozeExercise {
+  type: 'cloze';
+  id: string;
+  sentencePre: string;
+  sentencePost: string;
+  rootPrompt: string;
+  acceptableAnswers: string[];
+  hints: LayeredClozeHint;
+  nearMisses?: NearMissWarning[];
+  en?: string;
+  audioText?: string;
+}
+
 export type Exercise =
   | { type: 'mcq'; prompt: string; en: string; options: string[]; answer: number }
-  | { type: 'order'; en: string; tokens: string[] }; // tokens in correct order
+  | { type: 'order'; en: string; tokens: string[] }
+  | LayeredClozeExercise;
 
 export interface GrammarPoint {
   pattern: string;
@@ -66,6 +92,46 @@ export const LESSONS: Lesson[] = [
       { type: 'mcq', prompt: 'やまは きれい（　）。', en: 'The mountain was pretty.', options: ['です', 'でした', 'ました'], answer: 1 },
       { type: 'order', en: 'I came from America.', tokens: ['アメリカ', 'から', '来ました'] },
       { type: 'order', en: 'I rode the train.', tokens: ['電車', 'に', '乗りました'] },
+      {
+        type: 'cloze',
+        id: 'cloze-g1-1',
+        sentencePre: '私は アメリカ',
+        sentencePost: '来ました。',
+        rootPrompt: 'から (from: origin point)',
+        acceptableAnswers: ['から', 'kara'],
+        hints: {
+          layer1Nuance: 'Origin point: indicating where someone came from',
+          layer2Pattern: 'Noun + から',
+          layer3Rule: 'Attach から directly after the country noun',
+          layer4FullGrammar: 'から marks the starting point in space or time. Here: "from America". (Lesson g1)',
+        },
+        nearMisses: [
+          { input: 'に', warning: 'に indicates destination or arrival. For the starting origin, use から!' },
+          { input: 'で', warning: 'で marks means or location. To say "from", use から!' },
+        ],
+        en: 'I came from America.',
+        audioText: 'わたしは アメリカから きました。',
+      },
+      {
+        type: 'cloze',
+        id: 'cloze-g1-2',
+        sentencePre: 'きのう、東京に',
+        sentencePost: '。',
+        rootPrompt: '着く (arrive: polite past)',
+        acceptableAnswers: ['着きました', 'つきました', 'tsukimashita'],
+        hints: {
+          layer1Nuance: 'Past event: polite statement of arrival yesterday',
+          layer2Pattern: 'Verb Stem + ました (Polite Past)',
+          layer3Rule: 'Godan verb 着く (tsuku) -> i-stem 着き (tsuki) + ました -> 着きました',
+          layer4FullGrammar: 'Polite past inflection for Group 1 verbs: u -> i + ました. (Lesson g1)',
+        },
+        nearMisses: [
+          { input: '着きます', warning: 'This happened yesterday (きのう)! Use polite past -ました.' },
+          { input: '着いた', warning: '着いた is casual past. The polite sentence requires 着きました!' },
+        ],
+        en: 'Yesterday, I arrived in Tokyo.',
+        audioText: 'きのう、とうきょうに つきました。',
+      },
     ],
   },
   {
@@ -105,6 +171,25 @@ export const LESSONS: Lesson[] = [
       { type: 'mcq', prompt: '300円 is read…', en: '300 yen', options: ['さんひゃくえん', 'さんびゃくえん', 'さんぴゃくえん'], answer: 1 },
       { type: 'order', en: 'One coffee, please.', tokens: ['コーヒー', 'を', '一つ', 'ください'] },
       { type: 'order', en: 'How much is this?', tokens: ['これは', 'いくら', 'ですか'] },
+      {
+        type: 'cloze',
+        id: 'cloze-g2-1',
+        sentencePre: 'りんごを 二つ',
+        sentencePost: '。',
+        rootPrompt: 'ください (please give me)',
+        acceptableAnswers: ['ください', 'kudasai'],
+        hints: {
+          layer1Nuance: 'Polite request: asking for items at a store',
+          layer2Pattern: 'Item + を + Counter + ください',
+          layer3Rule: 'Place ください directly after the counter word',
+          layer4FullGrammar: 'Standard store request pattern: [Noun] を [Quantity] ください. (Lesson g2)',
+        },
+        nearMisses: [
+          { input: 'お願いします', warning: 'お願いします is polite, but with counters the standard request uses ください.' },
+        ],
+        en: 'Two apples, please.',
+        audioText: 'りんごを ふたつ ください。',
+      },
     ],
   },
   {
@@ -139,6 +224,45 @@ export const LESSONS: Lesson[] = [
       { type: 'mcq', prompt: '駅の 前に 赤い 門が（　）。', en: 'There is a red gate in front of the station.', options: ['あります', 'います', 'きます'], answer: 0 },
       { type: 'mcq', prompt: 'きのうは とても（　）です。', en: 'Yesterday was very fun.', options: ['たのしい', 'たのしかった', 'たのしくて'], answer: 1 },
       { type: 'order', en: 'I went with my friend Sakura.', tokens: ['友だちの', 'さくらと', '行きました'] },
+      {
+        type: 'cloze',
+        id: 'cloze-g3-1',
+        sentencePre: '駅の 前に 赤い 門が',
+        sentencePost: '。',
+        rootPrompt: 'ある (inanimate existence: polite non-past)',
+        acceptableAnswers: ['あります', 'arimasu'],
+        hints: {
+          layer1Nuance: 'Existence: stating that an inanimate object (gate) exists',
+          layer2Pattern: 'Inanimate Noun + が あります',
+          layer3Rule: 'Use あります for non-living objects (versus います for living things)',
+          layer4FullGrammar: 'あります is used for inanimate things (buildings, gates, items). (Lesson g3)',
+        },
+        nearMisses: [
+          { input: 'います', warning: 'A gate is inanimate! Use あります for objects, います for living beings.' },
+        ],
+        en: 'There is a red gate in front of the station.',
+        audioText: 'えきの まえに あかい もんが あります。',
+      },
+      {
+        type: 'cloze',
+        id: 'cloze-g3-2',
+        sentencePre: 'きのうの 旅行は とても',
+        sentencePost: 'です。',
+        rootPrompt: 'たのしい (fun/pleasant: past plain stem)',
+        acceptableAnswers: ['たのしかった', 'tanoshikatta', '楽しかった'],
+        hints: {
+          layer1Nuance: 'Past quality: describing how fun yesterday\'s trip was',
+          layer2Pattern: 'い-adj stem + かったです',
+          layer3Rule: 'Drop final い from たのしい and attach かったです',
+          layer4FullGrammar: 'い-adjective past polite: drop い + かったです. (Lesson g3)',
+        },
+        nearMisses: [
+          { input: 'たのしい', warning: 'This happened yesterday (きのう)! Use past tense: drop い and add かったです.' },
+          { input: 'たのしでした', warning: 'Never say [い-adj]でした! Drop い and add かったです.' },
+        ],
+        en: 'Yesterday\'s trip was very fun.',
+        audioText: 'きのうの りょこうは とても たのしかったです。',
+      },
     ],
   },
   {
@@ -170,6 +294,25 @@ export const LESSONS: Lesson[] = [
       { type: 'mcq', prompt: '新幹線（　）行きます。', en: 'I will go by bullet train.', options: ['に', 'を', 'で'], answer: 2 },
       { type: 'mcq', prompt: '映画を（　）、本を 読んだり します。', en: 'I do things like watch movies and read books.', options: ['見たり', '見て', '見る'], answer: 0 },
       { type: 'order', en: 'Tonight I will buy a ticket.', tokens: ['今晩', 'きっぷを', '買います'] },
+      {
+        type: 'cloze',
+        id: 'cloze-g4-1',
+        sentencePre: '京都へ',
+        sentencePost: 'です。',
+        rootPrompt: '行く (to go: speaker desire)',
+        acceptableAnswers: ['行きたい', 'いきたい', 'ikitai'],
+        hints: {
+          layer1Nuance: 'Speaker desire: expressing wanting to go to Kyoto',
+          layer2Pattern: 'Verb Stem + たいです',
+          layer3Rule: 'Godan verb 行く: shift u -> i (行き) + たい -> 行きたい',
+          layer4FullGrammar: '〜たい replaces ます to express first-person desire. (Lesson g4)',
+        },
+        nearMisses: [
+          { input: '行く', warning: 'Do not use plain dictionary form with です for desire! Use 行きたい.' },
+        ],
+        en: 'I want to go to Kyoto.',
+        audioText: 'きょうとへ いきたいです。',
+      },
     ],
   },
   {
@@ -201,6 +344,25 @@ export const LESSONS: Lesson[] = [
       { type: 'mcq', prompt: '写真を 撮っても（　）。', en: 'May I take a photo?', options: ['いいですか', 'くださいか', 'ありますか'], answer: 0 },
       { type: 'mcq', prompt: '「すみません」（　）言いました。', en: 'I said "excuse me".', options: ['と', 'を', 'で'], answer: 0 },
       { type: 'order', en: 'Please open the window.', tokens: ['窓を', '開けて', 'ください'] },
+      {
+        type: 'cloze',
+        id: 'cloze-g5-1',
+        sentencePre: 'ここで 写真を',
+        sentencePost: 'も いいですか。',
+        rootPrompt: '撮る (to take photo: permission te-form)',
+        acceptableAnswers: ['撮って', 'とって', 'totte'],
+        hints: {
+          layer1Nuance: 'Asking permission: politely inquiring if it is okay to take photos',
+          layer2Pattern: 'Verb て-form + も いいですか',
+          layer3Rule: 'Godan verb ending in る (toru) becomes って (totte)',
+          layer4FullGrammar: 'V-てもいいですか asks for permission. Te-form of 撮る is 撮って. (Lesson g5)',
+        },
+        nearMisses: [
+          { input: '撮る', warning: 'You must use the て-form before もいいですか!' },
+        ],
+        en: 'May I take a photo here?',
+        audioText: 'ここで しゃしんを とっても いいですか。',
+      },
     ],
   },
   {
@@ -232,6 +394,25 @@ export const LESSONS: Lesson[] = [
       { type: 'mcq', prompt: 'カメラ売り場は 五（　）です。', en: 'The camera section is on the 5th floor.', options: ['階', '枚', '本'], answer: 0 },
       { type: 'mcq', prompt: '電車の（　）が バスより 速いです。', en: 'The train is faster than the bus.', options: ['ほう', 'より', 'まで'], answer: 0 },
       { type: 'order', en: 'Tokyo is bigger than Kyoto.', tokens: ['東京の ほうが', '京都より', '大きいです'] },
+      {
+        type: 'cloze',
+        id: 'cloze-g6-1',
+        sentencePre: '電車の',
+        sentencePost: 'が バスより 速いです。',
+        rootPrompt: 'ほう (comparison: chosen alternative)',
+        acceptableAnswers: ['ほう', 'hou'],
+        hints: {
+          layer1Nuance: 'Comparative choice: designating which item is superior in speed',
+          layer2Pattern: 'Option A の ほうが + Option B より + Adjective',
+          layer3Rule: 'Attach ほう (direction/alternative) after noun + の',
+          layer4FullGrammar: 'A の ほうが B より expresses "A is more ... than B". (Lesson g6)',
+        },
+        nearMisses: [
+          { input: 'より', warning: 'より marks the thing being compared against. The winner takes ほう!' },
+        ],
+        en: 'The train is faster than the bus.',
+        audioText: 'でんしゃの ほうが バスより はやいです。',
+      },
     ],
   },
   {
@@ -269,6 +450,25 @@ export const LESSONS: Lesson[] = [
       { type: 'mcq', prompt: '明日は 早く 起き（　）なりません。', en: 'Tomorrow I must get up early.', options: ['なければ', 'ては', 'たら'], answer: 0 },
       { type: 'mcq', prompt: 'ここで 写真を 撮っては（　）。', en: 'You must not take photos here.', options: ['いけません', 'いいです', 'あります'], answer: 0 },
       { type: 'order', en: 'I plan to study Japanese.', tokens: ['日本語を', '勉強する', 'つもりです'] },
+      {
+        type: 'cloze',
+        id: 'cloze-g7-1',
+        sentencePre: '富士山に',
+        sentencePost: 'ことが あります。',
+        rootPrompt: '登る (to climb: experience past plain)',
+        acceptableAnswers: ['登った', 'のぼった', 'nobotta'],
+        hints: {
+          layer1Nuance: 'Lifetime experience: stating you have climbed Mt. Fuji before',
+          layer2Pattern: 'Verb Plain Past (た-form) + ことがある',
+          layer3Rule: 'Godan verb 登る (noboru) takes small-tsu past: 登った',
+          layer4FullGrammar: 'V-た + ことがある expresses past experience. (Lesson g7)',
+        },
+        nearMisses: [
+          { input: '登る', warning: 'Use the plain past (た-form) before ことがある, not dictionary form!' },
+        ],
+        en: 'I have climbed Mt. Fuji.',
+        audioText: 'ふじさんに のぼった ことが あります。',
+      },
     ],
   },
   {
@@ -306,6 +506,25 @@ export const LESSONS: Lesson[] = [
       { type: 'mcq', prompt: '母が 私に セーターを（　）。', en: 'My mother gave me a sweater.', options: ['くれました', 'あげました', 'もらいました'], answer: 0 },
       { type: 'mcq', prompt: '泳げる（　）なりました。', en: 'I have become able to swim.', options: ['ように', 'ために', 'ことが'], answer: 0 },
       { type: 'order', en: 'I want to try eating natto.', tokens: ['なっとうを', '食べて', 'みたいです'] },
+      {
+        type: 'cloze',
+        id: 'cloze-g8-1',
+        sentencePre: '母が 私に セーターを',
+        sentencePost: '。',
+        rootPrompt: 'くれる (give to me: polite past)',
+        acceptableAnswers: ['くれました', 'kuremashita'],
+        hints: {
+          layer1Nuance: 'Inward giving: mother gives something to ME (the speaker)',
+          layer2Pattern: 'Giver が Me に くれる / くれます',
+          layer3Rule: 'Ichidan くれる -> くれ + ました -> くれました',
+          layer4FullGrammar: 'くれる is used when someone gives to the speaker. (Lesson g8)',
+        },
+        nearMisses: [
+          { input: 'あげました', warning: 'あげる is when YOU give outward. Mother gave to YOU, so use くれました!' },
+        ],
+        en: 'My mother gave me a sweater.',
+        audioText: 'ははが わたしに セーターを くれました。',
+      },
     ],
   },
   {
@@ -343,6 +562,25 @@ export const LESSONS: Lesson[] = [
       { type: 'mcq', prompt: 'カメラを 買う（　）、秋葉原の 店が いいですよ。', en: 'If you are buying a camera, the shops in Akihabara are good.', options: ['なら', 'たら', 'と'], answer: 0 },
       { type: 'mcq', prompt: '春に なる（　）、さくらが 咲きます。', en: 'Whenever spring comes, the cherry blossoms bloom.', options: ['と', 'なら', 'たらば'], answer: 0 },
       { type: 'order', en: 'When you arrive at the station, please call me.', tokens: ['駅に', '着いたら', '電話して', 'ください'] },
+      {
+        type: 'cloze',
+        id: 'cloze-g9-1',
+        sentencePre: '駅に',
+        sentencePost: '、電話して ください。',
+        rootPrompt: '着く (arrive: conditional "when/if you arrive")',
+        acceptableAnswers: ['着いたら', 'ついたら', 'tsuitara'],
+        hints: {
+          layer1Nuance: 'Sequential conditional: when an event occurs in the future, perform the request',
+          layer2Pattern: 'Verb Plain Past (た-form) + ら',
+          layer3Rule: 'Godan verb 着く (tsuku) -> past 着いた (tsuita) + ら -> 着いたら',
+          layer4FullGrammar: '〜たら expresses "when / if" and can precede requests or suggestions. (Lesson g9)',
+        },
+        nearMisses: [
+          { input: '着くと', warning: '〜と cannot be followed by a request (〜てください). Use 〜たら!' },
+        ],
+        en: 'When you arrive at the station, please call me.',
+        audioText: 'えきに ついたら、でんわして ください。',
+      },
     ],
   },
   {
@@ -380,6 +618,26 @@ export const LESSONS: Lesson[] = [
       { type: 'mcq', prompt: '少し ゆっくり 話して（　）。', en: 'Could you kindly speak a little more slowly?', options: ['いただけますか', 'いたしますか', 'ございますか'], answer: 0 },
       { type: 'mcq', prompt: 'こちらは 案内所で（　）。', en: 'This is the information desk (Super-polite).', options: ['ございます', 'いらっしゃいます', '申します'], answer: 0 },
       { type: 'order', en: 'I will guide you (Humble).', tokens: ['私が', 'ご案内', 'いたします'] },
+      {
+        type: 'cloze',
+        id: 'cloze-g10-1',
+        sentencePre: '私が ご案内',
+        sentencePost: '。',
+        rootPrompt: 'する (humble kenjougo: "I will guide you")',
+        acceptableAnswers: ['いたします', 'itashimasu'],
+        hints: {
+          layer1Nuance: 'Humble action: speaker humbling their own action of guiding',
+          layer2Pattern: 'ご + Sino-noun + いたす / いたします',
+          layer3Rule: 'Humble equivalent of します is いたします',
+          layer4FullGrammar: 'Kenjougo (Humble) lowers speaker actions to elevate the listener. (Lesson g10)',
+        },
+        nearMisses: [
+          { input: 'なさいます', warning: 'なさいます is Honorific (Sonkeigo)! For your own humble actions, use いたします.' },
+          { input: 'します', warning: 'Use humble keigo: する becomes いたします.' },
+        ],
+        en: 'I will guide you (Humble).',
+        audioText: 'わたしが ごあんない いたします。',
+      },
     ],
   },
   {
@@ -443,6 +701,25 @@ export const LESSONS: Lesson[] = [
         type: 'order',
         en: 'I was praised by the teacher.',
         tokens: ['先生に', 'たくさん', '褒められました'],
+      },
+      {
+        type: 'cloze',
+        id: 'cloze-g11-1',
+        sentencePre: '先生に たくさん',
+        sentencePost: 'ました。',
+        rootPrompt: '褒める (to praise: passive stem "was praised")',
+        acceptableAnswers: ['褒められ', 'ほめられ', 'homerare'],
+        hints: {
+          layer1Nuance: 'Passive recipient: speaker was praised by the teacher',
+          layer2Pattern: 'Group 2 Verb: drop る + られる',
+          layer3Rule: '褒める -> 褒められる -> stem before ました is 褒められ',
+          layer4FullGrammar: 'Ichidan passive: drop る + られる. In polite past: 褒められました. (Lesson g11)',
+        },
+        nearMisses: [
+          { input: '褒めさせ', warning: '褒めさせる is Causative ("made praise"). You were praised, so use Passive (褒められ)!' },
+        ],
+        en: 'I was praised a lot by the teacher.',
+        audioText: 'せんせいに たくさん ほめられました。',
       },
     ],
   },
