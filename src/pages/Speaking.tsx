@@ -4,6 +4,8 @@ import { SCENES } from '../data/scenes';
 import { useStore } from '../lib/store';
 import { speak, stopSpeaking } from '../lib/tts';
 import { listen, similarity, sttSupported } from '../lib/speech';
+import { useCampaignMission } from '../lib/useCampaignMission';
+import CampaignBanner from '../components/CampaignBanner';
 
 export function SceneList() {
   const done = useStore((s) => s.scenesDone);
@@ -36,6 +38,7 @@ export function ScenePlayer() {
   const { id } = useParams();
   const scene = SCENES.find((s) => s.id === id);
   const completeScene = useStore((s) => s.completeScene);
+  const { isCampaignMode, stage, saga, returnToCampaign, completeMission } = useCampaignMission();
   const [step, setStep] = useState(0);
   const [scores, setScores] = useState<Record<number, number>>({});
   const [heard, setHeard] = useState<string | null>(null);
@@ -125,6 +128,9 @@ export function ScenePlayer() {
 
   return (
     <div className="page">
+      {isCampaignMode && stage && (
+        <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
+      )}
       <Link to="/speaking" className="muted">← Speaking</Link>
       <h1>{scene.title} <span className="muted">{scene.setting}</span></h1>
       <div className="controls">
@@ -230,7 +236,16 @@ export function ScenePlayer() {
         <div className="result">
           <span>Scene complete · Average score: {avg}%</span>
           {!saved ? (
-            <button className="chip on" onClick={() => { completeScene(scene.id, avg); setSaved(true); }}>
+            <button
+              className="chip on"
+              onClick={() => {
+                completeScene(scene.id, avg);
+                if (isCampaignMode && avg >= PASS_LINE) {
+                  completeMission();
+                }
+                setSaved(true);
+              }}
+            >
               Save progress
             </button>
           ) : (

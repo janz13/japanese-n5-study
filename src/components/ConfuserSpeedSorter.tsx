@@ -29,6 +29,7 @@ export default function ConfuserSpeedSorter({ kind }: ConfuserSpeedSorterProps) 
     callout: string;
   } | null>(null);
   const [reviewPaused, setReviewPaused] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
   const [reactionTime, setReactionTime] = useState<number | null>(null);
   const startTimeRef = useRef<number>(0);
 
@@ -58,19 +59,21 @@ export default function ConfuserSpeedSorter({ kind }: ConfuserSpeedSorterProps) 
     startTimeRef.current = Date.now();
     setReactionTime(null);
     setReviewPaused(false);
+    setTransitioning(false);
     setLastReview(null);
     setFlash(null);
   };
 
   const resumeAfterReview = useCallback(() => {
     setReviewPaused(false);
+    setTransitioning(false);
     setLastReview(null);
     setFlash(null);
     pickNextChallenge();
   }, [pickNextChallenge]);
 
   const handleSelect = useCallback((chosenGlyph: string) => {
-    if (reviewPaused) return;
+    if (reviewPaused || transitioning) return;
     const now = Date.now();
     const elapsed = startTimeRef.current > 0 ? now - startTimeRef.current : 600;
     setReactionTime(elapsed);
@@ -89,8 +92,10 @@ export default function ConfuserSpeedSorter({ kind }: ConfuserSpeedSorterProps) 
 
     if (isCorrect) {
       setLastReview(null);
+      setTransitioning(true);
       setTimeout(() => {
         setFlash(null);
+        setTransitioning(false);
         pickNextChallenge();
       }, 350);
     } else {
@@ -106,6 +111,7 @@ export default function ConfuserSpeedSorter({ kind }: ConfuserSpeedSorterProps) 
     }
   }, [
     reviewPaused,
+    transitioning,
     activeChallenge.targetGlyph,
     activeChallenge.audioReading,
     session.total,

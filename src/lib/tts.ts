@@ -82,12 +82,13 @@ export function speak(rawText: string, rate?: number, onEnd?: () => void) {
 
   const turns = text.split('……').map((s) => s.trim()).filter(Boolean);
   if (turns.length > 1) return speakDialogue(turns, effectiveRate, onEnd);
-  generation++;
+  const myGen = ++generation;
   let called = false;
   const finish = () => {
     if (called) return;
     called = true;
     clearTimeout(fallbackTimer);
+    if (myGen !== generation) return;
     onEnd?.();
   };
 
@@ -113,12 +114,13 @@ export function speak(rawText: string, rate?: number, onEnd?: () => void) {
 }
 
 export function speakEnglish(text: string, rate = 1.02, onEnd?: () => void) {
-  generation++;
+  const myGen = ++generation;
   let called = false;
   const finish = () => {
     if (called) return;
     called = true;
     clearTimeout(fallbackTimer);
+    if (myGen !== generation) return;
     onEnd?.();
   };
   const estMs = Math.min(8000, Math.max(1100, (text.length * 85) / rate));

@@ -33,9 +33,10 @@ function checkAnswer(input: string, item: DrillItem): boolean {
   if (!clean) return false;
   if (item.expectedInputType === 'kana') {
     const asHira = toHiragana(clean);
+    const cleanHira = asHira.replace(/[・()（）]/g, '');
     return item.acceptableAnswers.some((ans) => {
       const cleanAns = normalize(ans).replace(/[・()（）]/g, '');
-      return clean === cleanAns || asHira === cleanAns || clean === toHiragana(cleanAns);
+      return clean === cleanAns || asHira === cleanAns || cleanHira === cleanAns || clean === toHiragana(cleanAns);
     });
   } else {
     // English meaning fuzzy match
@@ -104,7 +105,18 @@ export default function KanjiDojo() {
       // 2. Reading
       if (modeFilter === 'all' || modeFilter === 'reading') {
         const onParts = kj.on.split('、').map((s) => toHiragana(s.trim()));
-        const kunClean = kj.kun.replace(/[()（）-]/g, '').split('、').map((s) => toHiragana(s.trim()));
+        const kunParts: string[] = [];
+        kj.kun.split('、').forEach((s) => {
+          const raw = s.trim();
+          if (!raw || raw === '-') return;
+          const full = raw.replace(/[()（）-]/g, '').trim();
+          if (full) kunParts.push(toHiragana(full));
+          const stemMatch = raw.match(/^([^(（]+)[(（]/);
+          if (stemMatch && stemMatch[1]) {
+            const stem = stemMatch[1].replace(/[-]/g, '').trim();
+            if (stem) kunParts.push(toHiragana(stem));
+          }
+        });
         items.push({
           id: `r:${kj.k}`,
           kanjiObj: kj,
@@ -112,7 +124,7 @@ export default function KanjiDojo() {
           promptDisplay: kj.k,
           subLabel: `Reading · 音: ${kj.on} · 訓: ${kj.kun}`,
           expectedInputType: 'kana',
-          acceptableAnswers: [...onParts, ...kunClean],
+          acceptableAnswers: [...onParts, ...kunParts],
           displayAnswer: `${kj.on} / ${kj.kun}`,
           ttsAudio: kj.sound,
         });
@@ -157,7 +169,7 @@ export default function KanjiDojo() {
     const nextOk = session.ok + (ok ? 1 : 0);
     setSession({ ok: nextOk, total: nextTotal });
 
-    if (isCampaignMode && nextTotal >= CAMPAIGN_DRILL_GOAL && !missionTriggered) {
+    if (isCampaignMode && nextOk >= CAMPAIGN_DRILL_GOAL && !missionTriggered) {
       setMissionTriggered(true);
       completeMission();
       if (sfxEnabled) playFanfare();

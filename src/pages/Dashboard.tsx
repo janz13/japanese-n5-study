@@ -193,22 +193,51 @@ export default function Dashboard() {
   })();
 
   const exportProgress = () => {
+    const s = useStore.getState();
     const payload = {
-      kanaStats: p.kanaStats,
-      savedWords: p.savedWords,
-      srs: p.srs,
-      completedStories: p.completedStories,
-      grammarDone: p.grammarDone,
-      scenesDone: p.scenesDone,
-      examBest: p.examBest,
-      streak: p.streak,
-      lastStudy: p.lastStudy,
+      version: 10,
+      exportedAt: new Date().toISOString(),
+      kanaStats: s.kanaStats,
+      kanjiStats: s.kanjiStats,
+      conjLessonsDone: s.conjLessonsDone,
+      campaignClearedSagas: s.campaignClearedSagas,
+      campaignCompletedStages: s.campaignCompletedStages,
+      savedWords: s.savedWords,
+      srs: s.srs,
+      completedStories: s.completedStories,
+      grammarDone: s.grammarDone,
+      scenesDone: s.scenesDone,
+      examBest: s.examBest,
+      examHistory: s.examHistory,
+      bentoCount: s.bentoCount,
+      lastBentoDate: s.lastBentoDate,
+      unlockedStamps: s.unlockedStamps,
+      decodedSigns: s.decodedSigns,
+      shokkenkiDone: s.shokkenkiDone,
+      shokkenkiMissionIdx: s.shokkenkiMissionIdx,
+      terminalDone: s.terminalDone,
+      terminalMissionIndices: s.terminalMissionIndices,
+      multiVectorItems: s.multiVectorItems,
+      ghosts: s.ghosts,
+      streak: s.streak,
+      lastStudy: s.lastStudy,
+      streakShields: s.streakShields,
+      lastShieldUsedDate: s.lastShieldUsedDate,
+      vacationMode: s.vacationMode,
+      vacationStartDate: s.vacationStartDate,
+      nutritionPlate: s.nutritionPlate,
+      furiganaMode: s.furiganaMode,
+      showFurigana: s.showFurigana,
+      theme: s.theme,
+      ttsRate: s.ttsRate,
+      sfxEnabled: s.sfxEnabled,
+      dailyNewCardsCap: s.dailyNewCardsCap,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `japanese-n5-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `japanese-n5-backup-${todayStr()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

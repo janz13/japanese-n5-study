@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { HashRouter, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import StampBook from './pages/StampBook';
 import CommandPalette from './components/CommandPalette';
@@ -349,6 +349,8 @@ export default function App() {
             <Route path="/listening" element={<Listening />} />
             <Route path="/drive" element={<DriveMode />} />
             <Route path="/exam" element={<Exam />} />
+            <Route path="/settings" element={<Dashboard />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </main>

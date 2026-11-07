@@ -177,6 +177,14 @@ export const KANJI_SOUNDS: Record<string, string> = {
   旅: 'たび',
   館: 'かん',
   温: 'あたたかい',
+  機: 'き',
+  動: 'うごく',
+  寺: 'てら',
+  神: 'かみ',
+  京: 'きょう',
+  肉: 'にく',
+  員: 'いん',
+  早: 'はやい',
 };
 
 const STROKES: Record<string, number> = {
@@ -197,6 +205,7 @@ const STROKES: Record<string, number> = {
   思: 9, 知: 8, 考: 6, 教: 11, 習: 11, 勉: 10, 強: 11, 働: 13, 仕: 5, 事: 8,
   作: 7, 使: 8, 持: 9, 待: 9, 歩: 8, 走: 7, 起: 10, 寝: 13, 帰: 10, 住: 7,
   開: 12, 閉: 11, 始: 8, 終: 11, 旅: 10, 館: 16, 温: 12,
+  機: 16, 動: 11, 寺: 6, 神: 9, 京: 8, 肉: 6, 員: 10, 早: 6,
 };
 
 // Format: 字|meaning|on|kun|example:reading:meaning
@@ -302,7 +311,13 @@ const RAW = `日|day, sun|ニチ、ジツ|ひ、か|日本:にほん:Japan
 足|foot, leg|ソク|あし|足:あし:foot
 花|flower|カ|はな|花:はな:flower
 魚|fish|ギョ|さかな|魚:さかな:fish
-空|sky|クウ|そら|空港:くうこう:airport`;
+空|sky|クウ|そら|空港:くうこう:airport
+動|move, motion|ドウ|うご(く)|運動:うんどう:exercise
+寺|temple|ジ|てら|お寺:おてら:temple
+京|capital|キョウ、ケイ|みやこ|東京:とうきょう:Tokyo
+肉|meat|ニク|しし|牛肉:ぎゅうにく:beef
+員|member, employee|イン|—|店員:てんいん:store clerk
+早|early, fast|ソウ、サッ|はや(い)|早い:はやい:early`;
 
 const RAW_N4 = `家|house, family|カ、ケ|いえ、うち|家族:かぞく:family
 族|tribe, family|ゾク|—|家族:かぞく:family
@@ -350,7 +365,9 @@ const RAW_N4 = `家|house, family|カ、ケ|いえ、うち|家族:かぞく:fam
 終|end|シュウ|お(わる)|終わる:おわる:end
 旅|trip, travel|リョ|たび|旅館:りょかん:Japanese inn
 館|building, hall|カン|やかた|図書館:としょかん:library
-温|warm|オン|あたた(かい)|温泉:おんせん:hot spring`;
+温|warm|オン|あたた(かい)|温泉:おんせん:hot spring
+機|machine, mechanism|キ|はた|飛行機:ひこうき:airplane
+神|god, deity, spirit|シン、ジン|かみ|神社:じんじゃ:Shinto shrine`;
 
 const parseRaw = (raw: string, level: 'N5' | 'N4'): Kanji[] =>
   raw.split('\n').map((line) => {

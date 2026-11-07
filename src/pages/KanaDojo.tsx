@@ -21,9 +21,11 @@ function pick(pool: Kana[], stats: Record<string, { correct: number; wrong: numb
 }
 
 function matchesRomaji(input: string, k: Kana) {
-  const clean = input.trim().toLowerCase();
+  const trimmed = input.trim();
+  if (trimmed === k.kana) return true;
+  const clean = trimmed.toLowerCase();
   if (k.kana === 'ん' || k.kana === 'ン') {
-    return clean === 'nn';
+    return clean === 'nn' || clean === 'n';
   }
   return clean === k.romaji || (k.alts?.includes(clean) ?? false);
 }
@@ -96,7 +98,7 @@ export default function KanaDojo() {
     const nextOk = session.ok + (ok ? 1 : 0);
     setSession({ ok: nextOk, total: nextTotal });
 
-    if (isCampaignMode && nextTotal >= CAMPAIGN_DRILL_GOAL && !missionTriggered) {
+    if (isCampaignMode && nextOk >= CAMPAIGN_DRILL_GOAL && !missionTriggered) {
       setMissionTriggered(true);
       completeMission();
       if (sfxEnabled) playFanfare();
@@ -265,7 +267,7 @@ export default function KanaDojo() {
           autoFocus
           value={input}
           onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && input && submit(input)}
+          onKeyDown={(e) => e.key === 'Enter' && input.trim() && submit(input.trim())}
           placeholder="type romaji…"
           className="drill-input"
           autoComplete="off"

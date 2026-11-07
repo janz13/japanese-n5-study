@@ -161,10 +161,10 @@ check(afterState.unlockedStamps['ueno'] !== undefined, 'Stamp ueno awarded');
 useStore.getState().completeBento('ueno');
 const doubleState = useStore.getState();
 check(
-  doubleState.bentoCount === initialBentoCount + 2,
-  'CONFIRMED LOOPHOLE: completeBento can be invoked multiple times in a single day, continuously inflating bentoCount',
+  doubleState.bentoCount === initialBentoCount + 1,
+  'completeBento has same-day idempotency guard and does not inflate bentoCount',
 );
-console.log('  ✓ LOOPHOLE PROVEN: completeBento lacks same-day idempotency guard on bentoCount.\n');
+console.log('  ✓ LOOPHOLE REMEDIATED: completeBento enforces same-day idempotency guard on bentoCount.\n');
 
 // 1.5 Bento Nutrition Plate Macros & Midnight Rollover
 console.log('1.5 Testing Bento Nutrition Plate 4 Macros and Midnight Reset...');

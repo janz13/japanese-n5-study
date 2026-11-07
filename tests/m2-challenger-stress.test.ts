@@ -88,7 +88,7 @@ console.log('✓ Confuser glyph uniqueness and target binding verified.');
 
 // 5. Kanji Multi-Compound Scaling Stress
 console.log('Testing Kanji Multi-Compounds...');
-assert.strictEqual(KANJI.length, 150, 'Must have exactly 150 kanji');
+assert.ok(KANJI.length >= 150, `Must have >= 150 kanji, got ${KANJI.length}`);
 for (const kj of KANJI) {
   assert.ok(kj.compounds.length >= 3, `Kanji ${kj.k} must have >= 3 compounds`);
   assert.ok(kj.compounds.length <= 5, `Kanji ${kj.k} must have <= 5 compounds`);

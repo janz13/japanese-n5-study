@@ -18,6 +18,8 @@ import {
   type ExamMode,
   type ExamStage,
 } from '../lib/examStage';
+import { useCampaignMission } from '../lib/useCampaignMission';
+import CampaignBanner from '../components/CampaignBanner';
 
 function letterGrade(pct: number): 'A' | 'B' | 'C' {
   if (pct >= 67) return 'A';
@@ -66,11 +68,19 @@ function examQuestionToSrsCard(q: GeneratedExamQuestion): Omit<SrsItem, 'card'> 
 
 export default function Exam() {
   const { examBest, examHistory, completeExam, recordExamCertificate, sfxEnabled, srs, addCard } = useStore();
+  const {
+    isCampaignMode,
+    stage,
+    saga,
+    returnToCampaign,
+    completeMission,
+  } = useCampaignMission();
   const [level, setLevel] = useState<ExamLevel>('N5');
   const [mode, setMode] = useState<ExamMode>('full');
   const [activeSec, setActiveSec] = useState<ExamSection | 'all'>('all');
   const [edition, setEdition] = useState(1);
   const [showCertHistory, setShowCertHistory] = useState(false);
+  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
 
   const { questions, seenCount } = useMemo(
     () => generateFreshExam(level, mode),
@@ -78,9 +88,36 @@ export default function Exam() {
     [level, mode, edition],
   );
 
-  const [answers, setAnswers] = useState<Record<number, number>>({});
-  const [flagged, setFlagged] = useState<Record<number, boolean>>({});
-  const [starOrders, setStarOrders] = useState<Record<number, number[]>>({});
+  const [answers, setAnswers] = useState<Record<number, number>>(() => {
+    try {
+      const saved = localStorage.getItem('jlpt_active_exam');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.answers === 'object') return parsed.answers;
+      }
+    } catch {}
+    return {};
+  });
+  const [flagged, setFlagged] = useState<Record<number, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('jlpt_active_exam');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.flagged === 'object') return parsed.flagged;
+      }
+    } catch {}
+    return {};
+  });
+  const [starOrders, setStarOrders] = useState<Record<number, number[]>>(() => {
+    try {
+      const saved = localStorage.getItem('jlpt_active_exam');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.starOrders === 'object') return parsed.starOrders;
+      }
+    } catch {}
+    return {};
+  });
   const [submitted, setSubmitted] = useState(false);
 
   const [currentStage, setCurrentStage] = useState<ExamStage>('section_1');
@@ -89,6 +126,21 @@ export default function Exam() {
   const [showOmrSheet, setShowOmrSheet] = useState(false);
   const [playedAudio, setPlayedAudio] = useState<Record<number, boolean>>({});
   const [activeQuestionIdx, setActiveQuestionIdx] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (submitted) {
+      localStorage.removeItem('jlpt_active_exam');
+      return;
+    }
+    if (Object.keys(answers).length > 0 || Object.keys(flagged).length > 0) {
+      try {
+        localStorage.setItem(
+          'jlpt_active_exam',
+          JSON.stringify({ answers, flagged, starOrders, level, mode, currentStage }),
+        );
+      } catch {}
+    }
+  }, [answers, flagged, starOrders, level, mode, currentStage, submitted]);
 
   const advanceStage = () => {
     stopSpeaking();
@@ -205,8 +257,10 @@ export default function Exam() {
   const passedOverall = totalPts >= passTotalThreshold && passedLangSection && passedListenSection;
 
   const submit = () => {
+    if (submitted) return;
     stopSpeaking();
     setSubmitted(true);
+    localStorage.removeItem('jlpt_active_exam');
     completeExam(pctScore);
     const weakSet = Array.from(
       new Set(questions.filter((q, idx) => answers[idx] !== q.answer).map((q) => q.mondaiTitle.split('（')[0])),
@@ -224,6 +278,9 @@ export default function Exam() {
       grammarGrade: letterGrade(grammarStats.pct),
       weakMondai: weakSet,
     });
+    if (isCampaignMode && passedOverall) {
+      completeMission();
+    }
     if (sfxEnabled) (passedOverall ? playFanfare : playDing)();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -236,6 +293,7 @@ export default function Exam() {
 
   const generateNewTake = (nextLevel: ExamLevel = level, nextMode: ExamMode = mode) => {
     stopSpeaking();
+    localStorage.removeItem('jlpt_active_exam');
     setLevel(nextLevel);
     setMode(nextMode);
     setActiveSec('all');
@@ -259,6 +317,84 @@ export default function Exam() {
 
   return (
     <div className="page">
+      {isCampaignMode && stage && (
+        <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
+      )}
+
+      {confirmSubmitOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+          onClick={() => setConfirmSubmitOpen(false)}
+        >
+          <div
+            className="gp"
+            style={{
+              maxWidth: '480px',
+              width: '100%',
+              background: 'var(--surface, #1e293b)',
+              border: '2px solid var(--accent, #6366f1)',
+              borderRadius: '12px',
+              padding: '1.4rem',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="nomargin" style={{ marginBottom: '0.5rem' }}>
+              🎓 Submit &amp; Grade JLPT Exam?
+            </h3>
+            <p className="muted small" style={{ margin: '0.3rem 0 0.8rem' }}>
+              Please review your completion status before finalizing your official JLPT test attempt:
+            </p>
+            <div
+              style={{
+                background: 'var(--surface2)',
+                padding: '0.75rem 1rem',
+                borderRadius: '8px',
+                marginBottom: '1rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <div>✅ <b>Answered:</b> {answeredCount} / {total} questions ({total - answeredCount} unanswered)</div>
+              {flaggedCount > 0 && <div style={{ marginTop: '0.3rem' }}>🚩 <b>Flagged for Review:</b> {flaggedCount} questions</div>}
+              <div style={{ marginTop: '0.3rem' }}>⏱ <b>Current Section:</b> {SECTION_STAGE_META[currentStage]?.nameJp ?? currentStage}</div>
+            </div>
+            {total - answeredCount > 0 && (
+              <p className="warn small" style={{ margin: '0 0 1rem' }}>
+                ⚠️ You have {total - answeredCount} unanswered questions. Unanswered questions are scored as 0 points.
+              </p>
+            )}
+            <div className="controls center" style={{ justifyContent: 'flex-end', gap: '0.6rem' }}>
+              <button
+                type="button"
+                className="chip"
+                onClick={() => setConfirmSubmitOpen(false)}
+              >
+                Resume Exam
+              </button>
+              <button
+                type="button"
+                className="chip on"
+                style={{ background: 'var(--accent)', color: '#fff' }}
+                onClick={() => {
+                  setConfirmSubmitOpen(false);
+                  submit();
+                }}
+              >
+                Confirm &amp; Submit Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="row-between">
         <div>
           <h1 className="nomargin">
@@ -669,7 +805,7 @@ export default function Exam() {
               {showOmrSheet ? '✕ Hide OMR Sheet' : '📝 2B OMR Bubble Sheet (マークシート)'}
             </button>
             {!submitted && (
-              <button className="chip on" style={{ padding: '0.28rem 0.85rem', fontSize: '0.82rem' }} onClick={submit}>
+              <button className="chip on" style={{ padding: '0.28rem 0.85rem', fontSize: '0.82rem' }} onClick={() => setConfirmSubmitOpen(true)}>
                 🎓 Submit &amp; Grade Exam ({answeredCount}/{total})
               </button>
             )}
@@ -978,6 +1114,12 @@ export default function Exam() {
                   setStarOrders((prev) => ({ ...prev, [i]: nextOrder }));
                   if (nextOrder[starSlotIdx] !== undefined) {
                     setAnswers((a) => ({ ...a, [i]: nextOrder[starSlotIdx] }));
+                  } else {
+                    setAnswers((a) => {
+                      const next = { ...a };
+                      delete next[i];
+                      return next;
+                    });
                   }
                 };
 
@@ -999,7 +1141,14 @@ export default function Exam() {
                           type="button"
                           className="chip"
                           style={{ padding: '0.15rem 0.55rem', fontSize: '0.72rem' }}
-                          onClick={() => setStarOrders((prev) => ({ ...prev, [i]: [] }))}
+                          onClick={() => {
+                            setStarOrders((prev) => ({ ...prev, [i]: [] }));
+                            setAnswers((a) => {
+                              const next = { ...a };
+                              delete next[i];
+                              return next;
+                            });
+                          }}
                         >
                           ↺ Clear Slots
                         </button>
@@ -1060,7 +1209,16 @@ export default function Exam() {
                       key={j}
                       className={cls}
                       disabled={submitted}
-                      onClick={() => setAnswers((a) => ({ ...a, [i]: j }))}
+                      onClick={() =>
+                        setAnswers((a) => {
+                          if (a[i] === j) {
+                            const next = { ...a };
+                            delete next[i];
+                            return next;
+                          }
+                          return { ...a, [i]: j };
+                        })
+                      }
                     >
                       {j + 1}. {opt}
                     </button>
@@ -1094,6 +1252,42 @@ export default function Exam() {
                   </div>
                 </div>
               )}
+
+              <div
+                className="row-between"
+                style={{
+                  marginTop: '0.75rem',
+                  paddingTop: '0.45rem',
+                  borderTop: '1px solid var(--border, #334155)',
+                  alignItems: 'center',
+                }}
+              >
+                <button
+                  type="button"
+                  className="chip"
+                  style={{ fontSize: '0.76rem', padding: '0.2rem 0.6rem' }}
+                  disabled={i === 0}
+                  onClick={() => {
+                    const prevEl = document.getElementById(`exam-q-${i - 1}`);
+                    prevEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                >
+                  ← Prev Question
+                </button>
+                <span className="small muted">問{i + 1} of {total}</span>
+                <button
+                  type="button"
+                  className="chip"
+                  style={{ fontSize: '0.76rem', padding: '0.2rem 0.6rem' }}
+                  disabled={i === total - 1}
+                  onClick={() => {
+                    const nextEl = document.getElementById(`exam-q-${i + 1}`);
+                    nextEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                >
+                  Next Question →
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -1104,7 +1298,7 @@ export default function Exam() {
           <span className="muted">
             {answeredCount}/{total} answered {flaggedCount > 0 ? `(${flaggedCount} flagged)` : ''}
           </span>
-          <button className="chip on" onClick={submit}>
+          <button className="chip on" onClick={() => setConfirmSubmitOpen(true)}>
             🎓 Submit JLPT {level} Exam ({answeredCount}/{total})
           </button>
         </div>

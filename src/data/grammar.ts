@@ -126,10 +126,10 @@ export const LESSONS: Lesson[] = [
           layer4FullGrammar: 'Polite past inflection for Group 1 verbs: u -> i + ました. (Lesson g1)',
         },
         nearMisses: [
-          { input: 'つきます', warning: 'This happened yesterday (きのう)! Use polite past -ました.' },
           { input: '着きます', warning: 'This happened yesterday (きのう)! Use polite past -ました.' },
-          { input: 'ついた', warning: '着いた is casual past. The polite sentence requires 着きました!' },
+          { input: 'つきます', warning: 'This happened yesterday (きのう)! Use polite past -ました.' },
           { input: '着いた', warning: '着いた is casual past. The polite sentence requires 着きました!' },
+          { input: 'ついた', warning: '着いた is casual past. The polite sentence requires 着きました!' },
         ],
         en: 'Yesterday, I arrived in Tokyo.',
         audioText: 'きのう、とうきょうに つきました。',
@@ -187,8 +187,8 @@ export const LESSONS: Lesson[] = [
           layer4FullGrammar: 'Standard store request pattern: [Noun] を [Quantity] ください. (Lesson g2)',
         },
         nearMisses: [
-          { input: 'おねがいします', warning: 'お願いします is polite, but with counters the standard request uses ください.' },
           { input: 'お願いします', warning: 'お願いします is polite, but with counters the standard request uses ください.' },
+          { input: 'おねがいします', warning: 'お願いします is polite, but with counters the standard request uses ください.' },
         ],
         en: 'Two apples, please.',
         audioText: 'りんごを ふたつ ください。',
@@ -311,8 +311,8 @@ export const LESSONS: Lesson[] = [
           layer4FullGrammar: '〜たい replaces ます to express first-person desire. (Lesson g4)',
         },
         nearMisses: [
-          { input: 'いく', warning: 'Do not use plain dictionary form with です for desire! Use 行きたい.' },
           { input: '行く', warning: 'Do not use plain dictionary form with です for desire! Use 行きたい.' },
+          { input: 'いく', warning: 'Do not use plain dictionary form with です for desire! Use 行きたい.' },
         ],
         en: 'I want to go to Kyoto.',
         audioText: 'きょうとへ いきたいです。',
@@ -362,8 +362,8 @@ export const LESSONS: Lesson[] = [
           layer4FullGrammar: 'V-てもいいですか asks for permission. Te-form of 撮る is 撮って. (Lesson g5)',
         },
         nearMisses: [
-          { input: 'とる', warning: 'You must use the て-form before もいいですか!' },
           { input: '撮る', warning: 'You must use the て-form before もいいですか!' },
+          { input: 'とる', warning: 'You must use the て-form before もいいですか!' },
         ],
         en: 'May I take a photo here?',
         audioText: 'ここで しゃしんを とっても いいですか。',
@@ -469,8 +469,8 @@ export const LESSONS: Lesson[] = [
           layer4FullGrammar: 'V-た + ことがある expresses past experience. (Lesson g7)',
         },
         nearMisses: [
-          { input: 'のぼる', warning: 'Use the plain past (た-form) before ことがある, not dictionary form!' },
           { input: '登る', warning: 'Use the plain past (た-form) before ことがある, not dictionary form!' },
+          { input: 'のぼる', warning: 'Use the plain past (た-form) before ことがある, not dictionary form!' },
         ],
         en: 'I have climbed Mt. Fuji.',
         audioText: 'ふじさんに のぼった ことが あります。',
@@ -582,8 +582,8 @@ export const LESSONS: Lesson[] = [
           layer4FullGrammar: '〜たら expresses "when / if" and can precede requests or suggestions. (Lesson g9)',
         },
         nearMisses: [
-          { input: 'つくと', warning: '〜と cannot be followed by a request (〜てください). Use 〜たら!' },
           { input: '着くと', warning: '〜と cannot be followed by a request (〜てください). Use 〜たら!' },
+          { input: 'つくと', warning: '〜と cannot be followed by a request (〜てください). Use 〜たら!' },
         ],
         en: 'When you arrive at the station, please call me.',
         audioText: 'えきに ついたら、でんわして ください。',
@@ -723,8 +723,8 @@ export const LESSONS: Lesson[] = [
           layer4FullGrammar: 'Ichidan passive: drop る + られる. In polite past: 褒められました. (Lesson g11)',
         },
         nearMisses: [
-          { input: 'ほめさせ', warning: '褒めさせる is Causative ("made praise"). You were praised, so use Passive (褒められ)!' },
           { input: '褒めさせ', warning: '褒めさせる is Causative ("made praise"). You were praised, so use Passive (褒められ)!' },
+          { input: 'ほめさせ', warning: '褒めさせる is Causative ("made praise"). You were praised, so use Passive (褒められ)!' },
         ],
         en: 'I was praised a lot by the teacher.',
         audioText: 'せんせいに たくさん ほめられました。',

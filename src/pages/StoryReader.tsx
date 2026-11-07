@@ -13,29 +13,7 @@ export type ReaderMode = 'standard' | 'blind_audio';
 
 const plain = (tokens: Token[]) => tokens.map((t) => t.r ?? t.t).join('');
 
-const isKana = (ch: string) => {
-  const c = ch.charCodeAt(0);
-  return (c >= 0x3040 && c <= 0x309f) || (c >= 0x30a0 && c <= 0x30ff);
-};
-
-function splitFurigana(t: string, r: string) {
-  let p = 0;
-  while (p < t.length && p < r.length && t[p] === r[p] && isKana(t[p])) p++;
-  let s = 0;
-  while (
-    s < t.length - p &&
-    s < r.length - p &&
-    t[t.length - 1 - s] === r[r.length - 1 - s] &&
-    isKana(t[t.length - 1 - s])
-  ) {
-    s++;
-  }
-  const prefix = t.slice(0, p);
-  const suffix = s > 0 ? t.slice(t.length - s) : '';
-  const base = t.slice(p, t.length - s);
-  const rt = r.slice(p, r.length - s);
-  return { prefix, base: base || t, rt: base ? rt : r, suffix: base ? suffix : '' };
-}
+import { splitFurigana } from '../lib/furigana.ts';
 
 function Word({
   tok,
@@ -52,7 +30,7 @@ function Word({
 }) {
   const cls = `word${tok.en ? ' has-gloss' : ''}${active ? ' active' : ''}`;
 
-  if (!tok.r || furiganaMode === 'none') {
+  if (!tok.r || furiganaMode === 'none' || tok.t === tok.r || !/[\u4e00-\u9faf]/.test(tok.t)) {
     return (
       <span className={cls} onClick={onTapWord}>
         {tok.t}
@@ -139,12 +117,12 @@ export default function StoryReader() {
     : 0;
 
   useEffect(() => {
-    if (isCampaignMode && allAnswered && !campaignCompletedRef.current) {
+    if (isCampaignMode && allAnswered && score >= 60 && !campaignCompletedRef.current) {
       campaignCompletedRef.current = true;
       completeMission();
       if (state.sfxEnabled) playFanfare();
     }
-  }, [isCampaignMode, allAnswered, completeMission, state.sfxEnabled]);
+  }, [isCampaignMode, allAnswered, score, completeMission, state.sfxEnabled]);
 
   if (!story) return <div className="page">Story not found. <Link to="/stories">Back</Link></div>;
   if (!isCampaignMode && !forceOpen && !isAlreadyCompleted && !storyUnlocked(story.chapter, state)) {
@@ -451,6 +429,20 @@ export default function StoryReader() {
       )}
 
       <h2>理解チェック <span className="muted">Comprehension</span></h2>
+      {Object.keys(answers).length > 0 && (
+        <div style={{ marginBottom: '0.8rem' }}>
+          <button
+            className="chip"
+            style={{ fontSize: '0.8rem', padding: '0.2rem 0.6rem' }}
+            onClick={() => {
+              setAnswers({});
+              setSavedScore(false);
+            }}
+          >
+            ↺ Retry Quiz
+          </button>
+        </div>
+      )}
       {story.questions.map((q, i) => (
         <div key={i} className="question" style={{ marginBottom: '1.25rem' }}>
           <p className="jp" style={{ fontWeight: 600 }}>{q.q}</p>

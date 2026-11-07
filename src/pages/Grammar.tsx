@@ -79,7 +79,9 @@ const shuffle = <T,>(a: T[]) => {
     const j = Math.floor(Math.random() * (i + 1));
     [b[i], b[j]] = [b[j], b[i]];
   }
-  return b.join() === a.join() && a.length > 1 ? [...b.slice(1), b[0]] : b;
+  const toStr = (x: unknown) => (typeof x === 'object' && x !== null && 't' in x ? String((x as any).t) : String(x));
+  const isSame = b.map(toStr).join('|') === a.map(toStr).join('|');
+  return isSame && a.length > 1 ? [...b.slice(1), b[0]] : b;
 };
 
 function OrderEx({ ex, onAnswer }: { ex: Extract<Exercise, { type: 'order' }>; onAnswer: (ok: boolean) => void }) {

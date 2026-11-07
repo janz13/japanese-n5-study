@@ -15,6 +15,8 @@ import { SIGNS } from '../data/signs';
 import { FORM_LABELS } from '../data/conjugations';
 import { PARTICLE_SLOT_CHALLENGES, type ParticleSlotChallenge } from '../data/particles';
 import { ParticleSlotGrid } from '../components/ParticleSlotGrid';
+import { useCampaignMission } from '../lib/useCampaignMission';
+import CampaignBanner from '../components/CampaignBanner';
 
 /** Simple date-seeded PRNG so every Bento dish is different each calendar day
  *  but deterministic within the same day (reload-safe). */
@@ -225,6 +227,7 @@ export default function DailyBento() {
     kanaStats,
     streak,
     lastStudy,
+    lastBentoDate,
     streakShields,
     vacationMode,
     toggleVacationMode,
@@ -232,7 +235,8 @@ export default function DailyBento() {
     recordNutritionActivity,
     resetDailyPlateIfNewDay,
   } = useStore();
-  const [dish, setDish] = useState<1 | 2 | 3 | 4>(1);
+  const { isCampaignMode, stage, saga, returnToCampaign, completeMission } = useCampaignMission();
+  const [dish, setDish] = useState<1 | 2 | 3 | 4>(() => (!isCampaignMode && lastBentoDate === todayStr() ? 4 : 1));
 
   useEffect(() => {
     resetDailyPlateIfNewDay();
@@ -552,6 +556,9 @@ export default function DailyBento() {
     if (submittingBento) return;
     setSubmittingBento(true);
     completeBento(dailyStamp.id);
+    if (isCampaignMode) {
+      completeMission();
+    }
     playFanfare();
     setDish(4);
   };
@@ -561,6 +568,9 @@ export default function DailyBento() {
 
   return (
     <div className="page">
+      {isCampaignMode && stage && (
+        <CampaignBanner stage={stage} saga={saga} onReturn={returnToCampaign} />
+      )}
       <div className="row-between">
         <div>
           <h1>今日の弁当 <span className="muted">Today's 5-Minute Bento</span></h1>

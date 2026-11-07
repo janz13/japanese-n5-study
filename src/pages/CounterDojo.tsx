@@ -20,7 +20,15 @@ function matchesCounter(input: string, item: CounterItem) {
 
 export default function CounterDojo() {
   const { srs, addCard, sfxEnabled } = useStore();
-  const { isCampaignMode, stage, saga, targetCategory, returnToCampaign } = useCampaignMission();
+  const {
+    isCampaignMode,
+    stage,
+    saga,
+    targetCategory,
+    targetItems,
+    completeMission,
+    returnToCampaign,
+  } = useCampaignMission();
   const [filter, setFilter] = useState<CounterGroup | 'all' | 'traps'>(() => {
     if (targetCategory && targetCategory in COUNTER_GROUPS) {
       return targetCategory as CounterGroup;
@@ -42,10 +50,16 @@ export default function CounterDojo() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const pool = useMemo(() => {
-    if (filter === 'all') return COUNTERS;
-    if (filter === 'traps') return COUNTERS.filter((c) => c.irregular);
-    return COUNTERS.filter((c) => c.group === filter);
-  }, [filter]);
+    let list = COUNTERS;
+    if (isCampaignMode && targetItems && targetItems.length > 0) {
+      const cleanTargets = targetItems.map((t) => t.trim());
+      const filtered = list.filter((c) => cleanTargets.includes(c.id) || cleanTargets.includes(c.kana) || cleanTargets.includes(c.kanji));
+      if (filtered.length > 0) list = filtered;
+    }
+    if (filter === 'all') return list;
+    if (filter === 'traps') return list.filter((c) => c.irregular);
+    return list.filter((c) => c.group === filter);
+  }, [filter, isCampaignMode, targetItems]);
 
   const pickNext = (last?: CounterItem | null) => {
     if (!pool.length) return null;
@@ -71,7 +85,14 @@ export default function CounterDojo() {
   const submit = (val: string) => {
     if (!current) return;
     const ok = matchesCounter(val, current);
-    setSession((s) => ({ ok: s.ok + (ok ? 1 : 0), total: s.total + 1 }));
+    setSession((s) => {
+      const nextOk = s.ok + (ok ? 1 : 0);
+      const nextTotal = s.total + 1;
+      if (isCampaignMode && ok && nextOk >= 5) {
+        completeMission();
+      }
+      return { ok: nextOk, total: nextTotal };
+    });
     setFlash(ok ? 'ok' : 'bad');
     if (sfxEnabled) (ok ? playDing : playMiss)();
     speak(current.kana);

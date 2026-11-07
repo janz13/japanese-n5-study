@@ -53,7 +53,7 @@ export default function Campaign() {
   const [bossQuestions, setBossQuestions] = useState<BossQuestion[]>([]);
   const [bossQIdx, setBossQIdx] = useState<number>(0);
   const [bossHp, setBossHp] = useState<number>(100);
-  const [playerHearts, setPlayerHearts] = useState<number>(3);
+  const [playerHearts, setPlayerHearts] = useState<number>(4);
   const [bossAnswers, setBossAnswers] = useState<Record<number, number>>({});
   const [turnFeedback, setTurnFeedback] = useState<{
     isHit: boolean;
@@ -91,7 +91,7 @@ export default function Campaign() {
     setBossQuestions(sampled);
     setBossQIdx(0);
     setBossHp(100);
-    setPlayerHearts(3);
+    setPlayerHearts(4);
     setBossAnswers({});
     setTurnFeedback(null);
     setBossSubmitted(false);
@@ -107,12 +107,13 @@ export default function Campaign() {
     setBossAnswers((prev) => ({ ...prev, [bossQIdx]: optIdx }));
 
     if (isCorrect) {
-      const nextHp = Math.max(0, bossHp - 10);
+      const dmg = Math.ceil(100 / bossQuestions.length);
+      const nextHp = Math.max(0, bossHp - dmg);
       setBossHp(nextHp);
       if (sfxEnabled) playDing();
       setTurnFeedback({
         isHit: true,
-        message: '⚡ DIRECT HIT! Gatekeeper took 10 damage!',
+        message: `⚡ DIRECT HIT! Gatekeeper took ${dmg} damage!`,
         explanation: curQ.explanation,
       });
     } else {
@@ -647,9 +648,9 @@ export default function Campaign() {
                   <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Hearts:</span>
                   <span style={{ letterSpacing: '2px', fontSize: '1.1rem' }}>
                     {'❤️'.repeat(Math.max(0, playerHearts))}
-                    {'🖤'.repeat(Math.max(0, 3 - playerHearts))}
+                    {'🖤'.repeat(Math.max(0, 4 - playerHearts))}
                   </span>
-                  <span className="small muted">({playerHearts}/3 remaining)</span>
+                  <span className="small muted">({playerHearts}/4 remaining)</span>
                 </div>
                 <div className="small muted">
                   Pass Goal: ≥ {bossSaga.boss.minPassScore} / {bossQuestions.length} correct

@@ -25,7 +25,15 @@ const ALL_ONO_CATS = Object.keys(ONOMATO_CATEGORIES) as OnomatoCategory[];
 
 export default function ParticleDojo() {
   const { srs, addCard, sfxEnabled } = useStore();
-  const { isCampaignMode, stage, saga, targetCategory, returnToCampaign } = useCampaignMission();
+  const {
+    isCampaignMode,
+    stage,
+    saga,
+    targetCategory,
+    targetItems,
+    completeMission,
+    returnToCampaign,
+  } = useCampaignMission();
   const [dojoTab, setDojoTab] = useState<'particles' | 'onomatopoeia'>('particles');
 
   // Particle Dojo State
@@ -54,10 +62,15 @@ export default function ParticleDojo() {
   const [onoIdx, setOnoIdx] = useState(0);
   const [onoPicked, setOnoPicked] = useState<string | null>(null);
 
-  const pool = useMemo(
-    () => (cat === 'all' ? PARTICLES : PARTICLES.filter((p) => p.category === cat)),
-    [cat],
-  );
+  const pool = useMemo(() => {
+    let list = PARTICLES;
+    if (isCampaignMode && targetItems && targetItems.length > 0) {
+      const cleanTargets = targetItems.map((t) => t.trim());
+      const filtered = list.filter((p) => cleanTargets.includes(p.answer) || cleanTargets.includes(p.id));
+      if (filtered.length > 0) list = filtered;
+    }
+    return cat === 'all' ? list : list.filter((p) => p.category === cat);
+  }, [cat, isCampaignMode, targetItems]);
 
   const onoPool = useMemo(
     () => (onoCat === 'all' ? ONOMATOPOEIA : ONOMATOPOEIA.filter((o) => o.category === onoCat)),
@@ -87,7 +100,14 @@ export default function ParticleDojo() {
     if (!current || picked !== null) return;
     setPicked(opt);
     const ok = opt === current.answer;
-    setSession((s) => ({ ok: s.ok + (ok ? 1 : 0), total: s.total + 1 }));
+    setSession((s) => {
+      const nextOk = s.ok + (ok ? 1 : 0);
+      const nextTotal = s.total + 1;
+      if (isCampaignMode && ok && nextOk >= 5) {
+        completeMission();
+      }
+      return { ok: nextOk, total: nextTotal };
+    });
     if (sfxEnabled) (ok ? playDing : playMiss)();
     speak(current.audio);
   };
@@ -116,7 +136,14 @@ export default function ParticleDojo() {
     if (!currentOno || onoPicked !== null) return;
     setOnoPicked(opt);
     const ok = opt === currentOno.word;
-    setSession((s) => ({ ok: s.ok + (ok ? 1 : 0), total: s.total + 1 }));
+    setSession((s) => {
+      const nextOk = s.ok + (ok ? 1 : 0);
+      const nextTotal = s.total + 1;
+      if (isCampaignMode && ok && nextOk >= 5) {
+        completeMission();
+      }
+      return { ok: nextOk, total: nextTotal };
+    });
     if (sfxEnabled) (ok ? playDing : playMiss)();
     speak(currentOno.audio);
   };

@@ -893,4 +893,47 @@ export const KANJI_COMPOUNDS: Record<string, KanjiCompound[]> = {
     { w: '気温', r: 'きおん', en: 'air temperature', type: 'on', sentenceJp: '今日の気温は二十五度です。', sentenceEn: 'Today\'s temperature is 25 degrees.' },
     { w: '温度', r: 'おんど', en: 'temperature', type: 'on', sentenceJp: 'お風呂の温度を測りました。', sentenceEn: 'I checked the bath temperature.' },
   ],
+  '機': [
+    { w: '飛行機', r: 'ひこうき', en: 'airplane', type: 'on', sentenceJp: '飛行機で東京へ行きます。', sentenceEn: 'I go to Tokyo by airplane.' },
+    { w: '機械', r: 'きかい', en: 'machine', type: 'on', sentenceJp: '工場で新しい機械を使います。', sentenceEn: 'We use a new machine in the factory.' },
+    { w: '機会', r: 'きかい', en: 'opportunity', type: 'on', sentenceJp: '日本へ行く機会がありました。', sentenceEn: 'I had an opportunity to go to Japan.' },
+  ],
+  '動': [
+    { w: '運動', r: 'うんどう', en: 'exercise, sports', type: 'on', sentenceJp: '毎朝公園で運動します。', sentenceEn: 'I exercise in the park every morning.' },
+    { w: '動く', r: 'うごく', en: 'to move', type: 'kun', sentenceJp: '電車がゆっくり動き出しました。', sentenceEn: 'The train began to move slowly.' },
+    { w: '動物', r: 'どうぶつ', en: 'animal', type: 'on', sentenceJp: '上野の動物園に行きました。', sentenceEn: 'I went to the zoo in Ueno.' },
+    { w: '自動車', r: 'じどうしゃ', en: 'automobile, car', type: 'on', sentenceJp: '日本の自動車は有名です。', sentenceEn: 'Japanese cars are famous.' },
+  ],
+  '寺': [
+    { w: 'お寺', r: 'おてら', en: 'temple', type: 'kun', sentenceJp: '京都のお寺を案内しました。', sentenceEn: 'I guided them around Kyoto temples.' },
+    { w: '寺院', r: 'じいん', en: 'Buddhist temple', type: 'on', sentenceJp: '浅草の歴史ある寺院を参拝しました。', sentenceEn: 'I visited the historic temple in Asakusa.' },
+    { w: '金閣寺', r: 'きんかくじ', en: 'Kinkaku-ji temple', type: 'on', sentenceJp: '金閣寺の写真を撮りました。', sentenceEn: 'I took photos of Kinkaku-ji.' },
+  ],
+  '神': [
+    { w: '神社', r: 'じんじゃ', en: 'Shinto shrine', type: 'on', sentenceJp: 'お正月に神社へお参りに行きました。', sentenceEn: 'I went to pray at the shrine on New Year.' },
+    { w: '神様', r: 'かみさま', en: 'god, deity', type: 'kun', sentenceJp: '神様に健康をお祈りしました。', sentenceEn: 'I prayed to God for good health.' },
+    { w: '神道', r: 'しんとう', en: 'Shinto', type: 'on', sentenceJp: '日本の神道について学びました。', sentenceEn: 'I learned about Japanese Shinto.' },
+  ],
+  '京': [
+    { w: '東京', r: 'とうきょう', en: 'Tokyo', type: 'on', sentenceJp: '東京駅で新幹線に乗りました。', sentenceEn: 'I boarded the Shinkansen at Tokyo Station.' },
+    { w: '京都', r: 'きょうと', en: 'Kyoto', type: 'on', sentenceJp: '来週京都へ旅行に行きます。', sentenceEn: 'I will go on a trip to Kyoto next week.' },
+    { w: '上京', r: 'じょうきょう', en: 'going to Tokyo', type: 'on', sentenceJp: '大学に入るために上京しました。', sentenceEn: 'I moved to Tokyo to enter university.' },
+  ],
+  '肉': [
+    { w: '牛肉', r: 'ぎゅうにく', en: 'beef', type: 'on', sentenceJp: 'すき焼きには牛肉を使います。', sentenceEn: 'We use beef for sukiyaki.' },
+    { w: '豚肉', r: 'ぶたにく', en: 'pork', type: 'on', sentenceJp: '今晩は豚肉と野菜を炒めます。', sentenceEn: 'Tonight I will stir-fry pork and vegetables.' },
+    { w: '鳥肉', r: 'とりにく', en: 'chicken meat', type: 'on', sentenceJp: '鳥肉のから揚げが好きです。', sentenceEn: 'I like fried chicken.' },
+    { w: '肉屋', r: 'にくや', en: 'butcher shop', type: 'on', sentenceJp: '近所の肉屋でコロッケを買いました。', sentenceEn: 'I bought croquettes at the local butcher.' },
+  ],
+  '員': [
+    { w: '店員', r: 'てんいん', en: 'store clerk', type: 'on', sentenceJp: '親切な店員に案内してもらいました。', sentenceEn: 'The kind store clerk showed me around.' },
+    { w: '会社員', r: 'かいしゃいん', en: 'company employee', type: 'on', sentenceJp: '父は丸の内の会社員です。', sentenceEn: 'My father is a company employee in Marunouchi.' },
+    { w: '駅員', r: 'えきいん', en: 'station attendant', type: 'on', sentenceJp: '駅員に出口の場所を聞きました。', sentenceEn: 'I asked the station attendant where the exit was.' },
+    { w: '全員', r: 'ぜんいん', en: 'all members, everyone', type: 'on', sentenceJp: 'クラスの全員が合格しました。', sentenceEn: 'Everyone in the class passed.' },
+  ],
+  '早': [
+    { w: '早い', r: 'はやい', en: 'early', type: 'kun', sentenceJp: '今朝は早く起きました。', sentenceEn: 'I woke up early this morning.' },
+    { w: '早口', r: 'はやくち', en: 'fast-talking', type: 'kun', sentenceJp: 'アナウンサーは早口言葉を練習します。', sentenceEn: 'Announcers practice tongue-twisters.' },
+    { w: '早速', r: 'さっそく', en: 'immediately, right away', type: 'on', sentenceJp: '早速手紙の返事を書きました。', sentenceEn: 'I wrote a reply to the letter right away.' },
+  ],
 };

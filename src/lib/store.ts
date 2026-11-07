@@ -181,7 +181,13 @@ export interface State {
   resetProgress: () => void;
 }
 
-export const todayStr = () => new Date().toISOString().slice(0, 10);
+export const todayStr = (): string => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 export function diffCalendarDays(dateStrA: string, dateStrB: string): number {
   const [yA, mA, dA] = dateStrA.split('-').map(Number);
@@ -222,7 +228,7 @@ function feedAllNutrition(plate: BentoNutritionPlate | undefined, count = 2): Be
   };
 }
 
-function bumpStreak(s: State): Partial<State> {
+export function bumpStreak(s: State): Partial<State> {
   const t = todayStr();
   if (s.lastStudy === t) return {};
 
@@ -256,10 +262,13 @@ function bumpStreak(s: State): Partial<State> {
 
   if (missedDays > 0 && currentShields >= missedDays) {
     // Shield auto-consumption preserves streak!
+    const nextStreak = s.streak + 1;
+    const remainingShields = currentShields - missedDays;
+    const earnedShield = nextStreak > 0 && nextStreak % 7 === 0 && remainingShields < 2 ? 1 : 0;
     return {
       lastStudy: t,
-      streak: s.streak + 1,
-      streakShields: currentShields - missedDays,
+      streak: nextStreak,
+      streakShields: Math.min(2, remainingShields + earnedShield),
       lastShieldUsedDate: t,
     };
   }
@@ -802,17 +811,23 @@ export const useStore = create<State>()(
       },
       setDailyNewCardsCap: (dailyNewCardsCap: number) => set({ dailyNewCardsCap }),
       completeStory: (id, score) =>
-        set((s) => ({
-          ...bumpStreak(s),
-          completedStories: { ...s.completedStories, [id]: Math.max(score, s.completedStories[id] ?? 0) },
-          nutritionPlate: feedNutrition(s.nutritionPlate, 'listeningVitamins', 2),
-        })),
+        set((s) => {
+          const isPassing = score >= 60;
+          return {
+            ...(isPassing ? bumpStreak(s) : {}),
+            completedStories: { ...s.completedStories, [id]: Math.max(score, s.completedStories[id] ?? 0) },
+            nutritionPlate: isPassing ? feedNutrition(s.nutritionPlate, 'listeningVitamins', 2) : s.nutritionPlate,
+          };
+        }),
       completeLesson: (id, score) =>
-        set((s) => ({
-          ...bumpStreak(s),
-          grammarDone: { ...s.grammarDone, [id]: Math.max(score, s.grammarDone[id] ?? 0) },
-          nutritionPlate: feedNutrition(s.nutritionPlate, 'grammarCarbs', 2),
-        })),
+        set((s) => {
+          const isPassing = score >= 60;
+          return {
+            ...(isPassing ? bumpStreak(s) : {}),
+            grammarDone: { ...s.grammarDone, [id]: Math.max(score, s.grammarDone[id] ?? 0) },
+            nutritionPlate: isPassing ? feedNutrition(s.nutritionPlate, 'grammarCarbs', 2) : s.nutritionPlate,
+          };
+        }),
       completeScene: (id, score) =>
         set((s) => ({
           ...bumpStreak(s),
@@ -820,11 +835,14 @@ export const useStore = create<State>()(
           nutritionPlate: feedNutrition(s.nutritionPlate, 'listeningVitamins', 1),
         })),
       completeExam: (score) =>
-        set((s) => ({
-          ...bumpStreak(s),
-          examBest: Math.max(score, s.examBest ?? 0),
-          nutritionPlate: feedAllNutrition(s.nutritionPlate, 3),
-        })),
+        set((s) => {
+          const isValidExam = score >= 20;
+          return {
+            ...(isValidExam ? bumpStreak(s) : {}),
+            examBest: Math.max(score, s.examBest ?? 0),
+            nutritionPlate: isValidExam ? feedAllNutrition(s.nutritionPlate, 3) : s.nutritionPlate,
+          };
+        }),
       recordExamCertificate: (cert) =>
         set((s) => ({
           ...bumpStreak(s),
@@ -833,6 +851,12 @@ export const useStore = create<State>()(
       completeBento: (stampId?: string) =>
         set((s) => {
           const t = todayStr();
+          const nextStamps = stampId
+            ? { ...s.unlockedStamps, [stampId]: s.unlockedStamps[stampId] ?? t }
+            : s.unlockedStamps;
+          if (s.lastBentoDate === t) {
+            return { unlockedStamps: nextStamps };
+          }
           const bumped = bumpStreak(s);
           const effectiveStreak = bumped.streak ?? s.streak;
           const isMilestone = effectiveStreak > 0 && effectiveStreak % 7 === 0;
@@ -844,8 +868,8 @@ export const useStore = create<State>()(
             bentoCount: s.bentoCount + 1,
             lastBentoDate: t,
             unlockedStamps: {
-              ...s.unlockedStamps,
-              [awardedStampId]: s.unlockedStamps[awardedStampId] ?? t,
+              ...nextStamps,
+              [awardedStampId]: nextStamps[awardedStampId] ?? t,
             },
             nutritionPlate: feedAllNutrition(s.nutritionPlate, 2),
           };
@@ -891,37 +915,80 @@ export const useStore = create<State>()(
       toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
       toggleSfx: () => set((s) => ({ sfxEnabled: !s.sfxEnabled })),
       setTtsRate: (ttsRate) => set({ ttsRate }),
-      importData: (data) =>
-        set((s) => ({
-          ...s,
-          kanaStats: data.kanaStats ?? s.kanaStats,
-          kanjiStats: data.kanjiStats ?? s.kanjiStats,
-          conjLessonsDone: data.conjLessonsDone ?? s.conjLessonsDone,
-          campaignClearedSagas: data.campaignClearedSagas ?? s.campaignClearedSagas,
-          campaignCompletedStages: data.campaignCompletedStages ?? s.campaignCompletedStages,
-          savedWords: data.savedWords ?? s.savedWords,
-          srs: data.srs ?? s.srs,
-          completedStories: data.completedStories ?? s.completedStories,
-          grammarDone: data.grammarDone ?? s.grammarDone,
-          scenesDone: data.scenesDone ?? s.scenesDone,
-          examBest: data.examBest ?? s.examBest,
-          bentoCount: data.bentoCount ?? s.bentoCount,
-          lastBentoDate: data.lastBentoDate ?? s.lastBentoDate,
-          unlockedStamps: data.unlockedStamps ?? s.unlockedStamps,
-          decodedSigns: data.decodedSigns ?? s.decodedSigns,
-          shokkenkiDone: data.shokkenkiDone ?? s.shokkenkiDone,
-          shokkenkiMissionIdx: data.shokkenkiMissionIdx ?? s.shokkenkiMissionIdx,
-          terminalDone: data.terminalDone ?? s.terminalDone,
-          terminalMissionIndices: data.terminalMissionIndices ?? s.terminalMissionIndices,
-          multiVectorItems: data.multiVectorItems ?? s.multiVectorItems,
-          ghosts: data.ghosts ?? s.ghosts,
-          streak: data.streak ?? s.streak,
-          lastStudy: data.lastStudy ?? s.lastStudy,
-          streakShields: data.streakShields ?? s.streakShields,
-          vacationMode: data.vacationMode ?? s.vacationMode,
-          nutritionPlate: data.nutritionPlate ?? s.nutritionPlate,
-          furiganaMode: data.furiganaMode ?? s.furiganaMode,
-        })),
+      importData: (data) => {
+        if (!data || typeof data !== 'object') return;
+        set((s) => {
+          const sanitizedStreak = Math.max(0, Math.floor(Number(data.streak) || s.streak || 0));
+          const sanitizedShields = Math.max(0, Math.min(2, Math.floor(Number(data.streakShields) || s.streakShields || 0)));
+          const sanitizedBento = Math.max(0, Math.floor(Number(data.bentoCount) || s.bentoCount || 0));
+
+          // Filter out malformed SRS items missing ts-fsrs card
+          let safeSrs = s.srs;
+          if (data.srs && typeof data.srs === 'object') {
+            safeSrs = { ...s.srs };
+            for (const [k, v] of Object.entries(data.srs)) {
+              if (v && typeof v === 'object' && (v as any).card && (v as any).card.due) {
+                safeSrs[k] = v as any;
+              }
+            }
+          }
+
+          // Sanitize campaign cleared sagas
+          let safeCampaignCleared = s.campaignClearedSagas;
+          if (data.campaignClearedSagas && typeof data.campaignClearedSagas === 'object') {
+            safeCampaignCleared = {};
+            for (const [k, v] of Object.entries(data.campaignClearedSagas)) {
+              safeCampaignCleared[Number(k)] = Math.max(0, Number(v) || 0);
+            }
+          }
+
+          // Sanitize kana/kanji stats
+          let safeKanaStats = s.kanaStats;
+          if (data.kanaStats && typeof data.kanaStats === 'object') {
+            safeKanaStats = {};
+            for (const [k, v] of Object.entries(data.kanaStats)) {
+              if (v && typeof v === 'object') {
+                safeKanaStats[k] = {
+                  correct: Math.max(0, Number((v as any).correct) || 0),
+                  wrong: Math.max(0, Number((v as any).wrong) || 0),
+                };
+              }
+            }
+          }
+
+          return {
+            ...s,
+            kanaStats: safeKanaStats,
+            kanjiStats: data.kanjiStats ?? s.kanjiStats,
+            conjLessonsDone: data.conjLessonsDone ?? s.conjLessonsDone,
+            campaignClearedSagas: safeCampaignCleared,
+            campaignCompletedStages: data.campaignCompletedStages ?? s.campaignCompletedStages,
+            savedWords: Array.isArray(data.savedWords) ? data.savedWords : s.savedWords,
+            srs: safeSrs,
+            completedStories: data.completedStories ?? s.completedStories,
+            grammarDone: data.grammarDone ?? s.grammarDone,
+            scenesDone: data.scenesDone ?? s.scenesDone,
+            examBest: data.examBest !== undefined && data.examBest !== null ? Math.max(0, Number(data.examBest)) : s.examBest,
+            examHistory: Array.isArray(data.examHistory) ? data.examHistory : s.examHistory,
+            bentoCount: sanitizedBento,
+            lastBentoDate: typeof data.lastBentoDate === 'string' ? data.lastBentoDate : s.lastBentoDate,
+            unlockedStamps: data.unlockedStamps ?? s.unlockedStamps,
+            decodedSigns: data.decodedSigns ?? s.decodedSigns,
+            shokkenkiDone: data.shokkenkiDone ?? s.shokkenkiDone,
+            shokkenkiMissionIdx: Number.isFinite(data.shokkenkiMissionIdx) ? Math.max(0, Number(data.shokkenkiMissionIdx)) : s.shokkenkiMissionIdx,
+            terminalDone: data.terminalDone ?? s.terminalDone,
+            terminalMissionIndices: data.terminalMissionIndices ?? s.terminalMissionIndices,
+            multiVectorItems: data.multiVectorItems ?? s.multiVectorItems,
+            ghosts: data.ghosts ?? s.ghosts,
+            streak: sanitizedStreak,
+            lastStudy: typeof data.lastStudy === 'string' ? data.lastStudy : s.lastStudy,
+            streakShields: sanitizedShields,
+            vacationMode: Boolean(data.vacationMode ?? s.vacationMode),
+            nutritionPlate: data.nutritionPlate ?? s.nutritionPlate,
+            furiganaMode: data.furiganaMode ?? s.furiganaMode,
+          };
+        });
+      },
       resetProgress: () =>
         set((s) => ({
           ...initialData,

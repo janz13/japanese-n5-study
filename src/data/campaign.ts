@@ -2874,9 +2874,9 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         "icon": "💪",
         "category": "Conjugation",
         "description": "Master potential verb inflections across all Godan and Ichidan verbs to express what you can and cannot do.",
-        "targetRoute": "/conjugate?tab=practice",
+        "targetRoute": "/conjugate?tab=conjugate",
         "actionPrompt": "Practice Potential Forms →",
-        "targetTab": "practice"
+        "targetTab": "conjugate"
       },
       {
         "id": "s7-2",
@@ -4774,9 +4774,9 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         "icon": "🛡️",
         "category": "Conjugation",
         "description": "Express direct passive and indirect \"suffering passive\" (迷惑の受身).",
-        "targetRoute": "/conjugate?tab=practice",
+        "targetRoute": "/conjugate?tab=conjugate",
         "actionPrompt": "Conjugate Passive Forms →",
-        "targetTab": "practice"
+        "targetTab": "conjugate"
       },
       {
         "id": "s11-2",
@@ -4786,9 +4786,9 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         "icon": "⚡",
         "category": "Conjugation",
         "description": "Express making or letting someone perform an action.",
-        "targetRoute": "/conjugate?tab=practice",
+        "targetRoute": "/conjugate?tab=conjugate",
         "actionPrompt": "Conjugate Causative Forms →",
-        "targetTab": "practice"
+        "targetTab": "conjugate"
       },
       {
         "id": "s11-3",
@@ -5242,9 +5242,9 @@ export const CAMPAIGN_SAGAS: CampaignSaga[] = [
         "icon": "⚔️",
         "category": "Conjugation",
         "description": "Conquer the most demanding Japanese inflection: being forced to do something reluctantly.",
-        "targetRoute": "/conjugate?tab=practice",
+        "targetRoute": "/conjugate?tab=conjugate",
         "actionPrompt": "Master Causative-Passive →",
-        "targetTab": "practice"
+        "targetTab": "conjugate"
       },
       {
         "id": "s12-2",

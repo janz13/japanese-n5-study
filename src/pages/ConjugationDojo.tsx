@@ -43,7 +43,21 @@ function matchesTarget(input: string, word: ConjugatableWord, form: ConjForm) {
   if (!clean) return false;
   if (clean === target.romaji || clean === target.kana || clean === target.kanji) return true;
   const hira = toHiragana(clean);
-  return hira === target.kana;
+  if (hira === target.kana) return true;
+  if (form === 'negative') {
+    const baseTarget = target.kana;
+    if (baseTarget.endsWith('ではない')) {
+      const stem = baseTarget.slice(0, -4);
+      const variants = [
+        stem + 'じゃない',
+        stem + 'ではありません',
+        stem + 'じゃありません',
+        stem + 'ではない',
+      ];
+      if (variants.includes(hira) || variants.some((v) => clean === v)) return true;
+    }
+  }
+  return false;
 }
 
 export default function ConjugationDojo() {
@@ -58,9 +72,9 @@ export default function ConjugationDojo() {
     returnToCampaign,
   } = useCampaignMission();
   const [dojoMode, setDojoMode] = useState<'lessons' | 'conjugate' | 'deconjugate' | 'pairs'>(() => {
+    if (targetTab === 'practice' || targetTab === 'conjugate') return 'conjugate';
     if (
       targetTab === 'lessons' ||
-      targetTab === 'conjugate' ||
       targetTab === 'deconjugate' ||
       targetTab === 'pairs'
     ) {
@@ -70,9 +84,10 @@ export default function ConjugationDojo() {
   });
 
   useEffect(() => {
-    if (
+    if (targetTab === 'practice' || targetTab === 'conjugate') {
+      setDojoMode('conjugate');
+    } else if (
       targetTab === 'lessons' ||
-      targetTab === 'conjugate' ||
       targetTab === 'deconjugate' ||
       targetTab === 'pairs'
     ) {
@@ -120,7 +135,7 @@ export default function ConjugationDojo() {
     setDeconjSession((s) => {
       const nextOk = s.ok + (isAllOk ? 1 : 0);
       const nextTotal = s.total + 1;
-      if (isCampaignMode && nextTotal >= 5) {
+      if (isCampaignMode && isAllOk && nextOk >= 4) {
         completeMission();
       }
       return { ok: nextOk, total: nextTotal };
@@ -169,6 +184,10 @@ export default function ConjugationDojo() {
         ttsKana: p.transitive.exampleKana,
       });
     }
+    for (let i = list.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [list[i], list[j]] = [list[j], list[i]];
+    }
     return list;
   }, []);
 
@@ -205,7 +224,14 @@ export default function ConjugationDojo() {
     if (!current) return;
     const target = current.word.forms[current.form];
     const ok = matchesTarget(val, current.word, current.form);
-    setSession((s) => ({ ok: s.ok + (ok ? 1 : 0), total: s.total + 1 }));
+    setSession((s) => {
+      const nextOk = s.ok + (ok ? 1 : 0);
+      const nextTotal = s.total + 1;
+      if (isCampaignMode && ok && nextOk >= 5) {
+        completeMission();
+      }
+      return { ok: nextOk, total: nextTotal };
+    });
     setFlash(ok ? 'ok' : 'bad');
     if (sfxEnabled) (ok ? playDing : playMiss)();
     speak(target.kana);
@@ -243,7 +269,7 @@ export default function ConjugationDojo() {
     setSession((s) => {
       const nextOk = s.ok + (ok ? 1 : 0);
       const nextTotal = s.total + 1;
-      if (isCampaignMode && nextTotal >= 5) {
+      if (isCampaignMode && ok && nextOk >= 4) {
         completeMission();
       }
       return { ok: nextOk, total: nextTotal };
@@ -786,7 +812,7 @@ export default function ConjugationDojo() {
               </div>
 
               <div className="controls center" style={{ gap: '0.8rem' }}>
-                {(['intransitive', 'transitive'] as const).map((kind) => {
+                {(pairIdx % 2 === 1 ? (['transitive', 'intransitive'] as const) : (['intransitive', 'transitive'] as const)).map((kind) => {
                   const v = currentPairDrill.pair[kind];
                   const isTarget = currentPairDrill.targetKind === kind;
                   const cls = !pairPicked
@@ -846,6 +872,7 @@ export default function ConjugationDojo() {
                 </button>
                 <button
                   className="chip on"
+                  disabled={!pairPicked}
                   onClick={() => {
                     setPairPicked(null);
                     setPairIdx((i) => i + 1);

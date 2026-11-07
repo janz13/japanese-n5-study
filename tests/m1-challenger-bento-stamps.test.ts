@@ -251,10 +251,10 @@ assert.strictEqual(s.lastBentoDate, todayStr());
 assert.strictEqual(s.unlockedStamps['kinkakuji'], todayStr());
 console.log('✓ 4.1a: completeBento(stampId) records passed stampId in unlockedStamps.');
 
-// Calling again with another stamp preserves prior unlocks
+// Calling again with another stamp preserves prior unlocks while maintaining daily bentoCount idempotency
 useStore.getState().completeBento('fushimi-inari');
 s = useStore.getState();
-assert.strictEqual(s.bentoCount, 2);
+assert.strictEqual(s.bentoCount, 1, 'Same-day completion preserves bentoCount without inflation');
 assert.strictEqual(s.unlockedStamps['kinkakuji'], todayStr());
 assert.strictEqual(s.unlockedStamps['fushimi-inari'], todayStr());
 console.log('✓ 4.1b: Sequential completeBento calls preserve previously unlocked stamps.');
@@ -322,14 +322,14 @@ assert.ok(
 );
 console.log('✓ 4.4: completeBento() on day 14 successfully awards 14-day milestone seal (kinkakuji).');
 
-// 4.5 Store idempotency on same day: streak does not bump twice, but bentoCount increments
+// 4.5 Store idempotency on same day: streak does not bump twice, and bentoCount does not inflate
 const currentStreak = s.streak;
 const currentBentoCount = s.bentoCount;
 useStore.getState().completeBento();
 s = useStore.getState();
 assert.strictEqual(s.streak, currentStreak, 'Streak must not bump twice on same day');
-assert.strictEqual(s.bentoCount, currentBentoCount + 1, 'bentoCount must increment on repeat completions');
-console.log('✓ 4.5: Same-day repeated completeBento preserves streak while tracking session count.');
+assert.strictEqual(s.bentoCount, currentBentoCount, 'bentoCount must not inflate on repeat completions on same day');
+console.log('✓ 4.5: Same-day repeated completeBento preserves streak and bentoCount idempotency.');
 
 console.log('\n================================================================');
 console.log('ALL CHALLENGER EMPIRICAL STRESS TESTS PASSED WITH 100% SUCCESS!');

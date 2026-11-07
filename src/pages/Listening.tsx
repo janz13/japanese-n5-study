@@ -263,8 +263,9 @@ export default function Listening() {
     const n = idx + 1;
     setIdx(n);
     if (n >= round.length) {
-      if (sfx) playFanfare();
-      if (isCampaignMode) completeMission();
+      const pct = Math.round((score / round.length) * 100);
+      if (sfx && pct >= 60) playFanfare();
+      if (isCampaignMode && pct >= 60) completeMission();
     }
   };
 

@@ -33,6 +33,7 @@ export default function SignDecoder() {
   const {
     decodedSigns,
     recordSignChoice,
+    resetSignChoices,
     sfxEnabled: sfx,
     shokkenkiMissionIdx,
     setShokkenkiMissionIdx,
@@ -149,7 +150,7 @@ export default function SignDecoder() {
       {/* MODE 1: Street Signs */}
       {mode === 'signs' && (
         <>
-          <div className="controls" style={{ marginTop: '0.8rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+          <div className="controls" style={{ marginTop: '0.8rem', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
             <button className={cat === 'all' ? 'chip on' : 'chip'} onClick={() => setCat('all')}>
               All ({SIGNS.length} · {solved} decoded)
             </button>
@@ -158,6 +159,15 @@ export default function SignDecoder() {
                 {SIGN_CATEGORIES[c]} ({SIGNS.filter((s) => s.category === c).length})
               </button>
             ))}
+            {Object.keys(decodedSigns).length > 0 && (
+              <button
+                className="chip"
+                style={{ marginLeft: 'auto', fontSize: '0.78rem' }}
+                onClick={() => resetSignChoices()}
+              >
+                ↺ Reset Decoded Signs
+              </button>
+            )}
           </div>
 
           <div className="sign-grid">
@@ -294,11 +304,18 @@ export default function SignDecoder() {
 
           {/* 14-Button Japanese Ticket Machine Grid */}
           <div className="gp" style={{ padding: '1.2rem' }}>
-            <div className="row-between" style={{ marginBottom: '0.8rem' }}>
+            <div className="row-between" style={{ marginBottom: '0.8rem', flexWrap: 'wrap', gap: '0.5rem' }}>
               <b>🎫 自動券売機 (Ticket Vending Machine) — Tap buttons to select</b>
-              <span className="chip on" style={{ fontWeight: 700 }}>
-                投入金額 / Total: ¥{cartTotal.toLocaleString()} ({cart.length} items)
-              </span>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                {mission.maxBudget && cartTotal > mission.maxBudget && (
+                  <span className="chip bad" style={{ fontWeight: 700, fontSize: '0.82rem' }}>
+                    ⚠️ Over Budget (¥{cartTotal.toLocaleString()} &gt; ¥{mission.maxBudget.toLocaleString()})
+                  </span>
+                )}
+                <span className="chip on" style={{ fontWeight: 700 }}>
+                  投入金額 / Total: ¥{cartTotal.toLocaleString()} ({cart.length} items)
+                </span>
+              </div>
             </div>
 
             {(['dining', 'main', 'topping', 'side'] as const).map((rowKey) => {
