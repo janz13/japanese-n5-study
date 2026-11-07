@@ -140,19 +140,14 @@ export default function Review() {
     const allCards = Object.values(srs).filter((i) => !i.suspended);
     for (const item of allCards) {
       const dueTime = new Date(item.card.due).getTime();
-      const diffDays = Math.floor((dueTime - now) / (86400 * 1000));
-      if (diffDays <= 0) {
-        days[0]++;
-      } else if (diffDays < 30) {
-        days[diffDays]++;
-      } else {
-        const s = item.card.stability || 1;
-        let next = dueTime;
-        while (next <= now + 30 * 86400 * 1000) {
-          const d = Math.floor((next - now) / (86400 * 1000));
-          if (d >= 0 && d < 30) days[d]++;
-          next += Math.max(1, Math.round(s)) * 86400 * 1000;
+      const s = Math.max(1, Math.round(item.card.stability || 1));
+      let next = dueTime <= now ? now : dueTime;
+      while (next <= now + 30 * 864e5) {
+        const d = Math.floor((next - now) / 864e5);
+        if (d >= 0 && d < 30) {
+          days[d]++;
         }
+        next += s * 864e5;
       }
     }
     return days;

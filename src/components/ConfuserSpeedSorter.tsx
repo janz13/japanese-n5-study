@@ -32,6 +32,10 @@ export default function ConfuserSpeedSorter({ kind }: ConfuserSpeedSorterProps) 
   const [reactionTime, setReactionTime] = useState<number | null>(null);
   const startTimeRef = useRef<number>(0);
 
+  useEffect(() => {
+    startTimeRef.current = Date.now();
+  }, []);
+
   const pickNextChallenge = useCallback(() => {
     const pool = selectedGroupId === 'all' ? groups : groups.filter((g) => g.id === selectedGroupId);
     if (!pool.length) return;

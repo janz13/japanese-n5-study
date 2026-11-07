@@ -835,7 +835,10 @@ export const useStore = create<State>()(
           const t = todayStr();
           const bumped = bumpStreak(s);
           const effectiveStreak = bumped.streak ?? s.streak;
-          const awardedStampId = stampId || getDailyStamp(t, effectiveStreak).id;
+          const isMilestone = effectiveStreak > 0 && effectiveStreak % 7 === 0;
+          const awardedStampId = isMilestone
+            ? getDailyStamp(t, effectiveStreak).id
+            : (stampId || getDailyStamp(t, effectiveStreak).id);
           return {
             ...bumped,
             bentoCount: s.bentoCount + 1,
@@ -1005,6 +1008,14 @@ export const useStore = create<State>()(
     },
   ),
 );
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'n5-study' && event.newValue) {
+      (useStore as any).persist?.rehydrate?.();
+    }
+  });
+}
 
 /** Progression: lesson N unlocks after story N-1; story N unlocks after lesson N (≥60%). */
 export const PASS = 60;

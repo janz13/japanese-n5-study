@@ -7,6 +7,7 @@ export interface OmrBubbleSheetProps {
   submitted?: boolean;
   correctAnswers?: Record<number, number>;
   activeQuestionIdx?: number;
+  isQuestionLocked?: (questionIdx: number) => boolean;
   onSelectAnswer: (questionIdx: number, optionIdx: number) => void;
   onSelectQuestion: (questionIdx: number) => void;
   onToggleFlag?: (questionIdx: number) => void;
@@ -19,6 +20,7 @@ export const OmrBubbleSheet: React.FC<OmrBubbleSheetProps> = ({
   submitted = false,
   correctAnswers = {},
   activeQuestionIdx,
+  isQuestionLocked,
   onSelectAnswer,
   onSelectQuestion,
   onToggleFlag,
@@ -79,12 +81,15 @@ export const OmrBubbleSheet: React.FC<OmrBubbleSheetProps> = ({
           const isUnanswered = selectedOpt === undefined;
           const isCorrect = submitted && selectedOpt !== undefined && selectedOpt === correctAnswers[i];
           const isWrong = submitted && selectedOpt !== undefined && selectedOpt !== correctAnswers[i];
+          const locked = isQuestionLocked ? isQuestionLocked(i) : false;
 
           return (
             <div
               key={i}
               id={`omr-row-${i}`}
-              onClick={() => onSelectQuestion(i)}
+              onClick={() => {
+                if (!locked) onSelectQuestion(i);
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -97,9 +102,10 @@ export const OmrBubbleSheet: React.FC<OmrBubbleSheetProps> = ({
                   : isUnanswered && !submitted
                     ? '1px dashed rgba(245, 158, 11, 0.4)'
                     : '1px solid transparent',
-                cursor: 'pointer',
+                cursor: locked ? 'not-allowed' : 'pointer',
+                opacity: locked ? 0.4 : 1,
               }}
-              title={`Question ${i + 1}${isFlagged ? ' (Flagged)' : ''}`}
+              title={locked ? `Question ${i + 1} (Locked to current active section)` : `Question ${i + 1}${isFlagged ? ' (Flagged)' : ''}`}
             >
               <div
                 style={{
@@ -112,7 +118,11 @@ export const OmrBubbleSheet: React.FC<OmrBubbleSheetProps> = ({
                 }}
               >
                 <span>{i + 1}.</span>
-                {isFlagged && <span style={{ fontSize: '0.65rem' }}>🚩</span>}
+                {locked ? (
+                  <span style={{ fontSize: '0.65rem' }}>🔒</span>
+                ) : (
+                  isFlagged && <span style={{ fontSize: '0.65rem' }}>🚩</span>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: '3px', flex: 1, justifyContent: 'space-between' }}>
@@ -147,11 +157,13 @@ export const OmrBubbleSheet: React.FC<OmrBubbleSheetProps> = ({
                     <button
                       key={optIdx}
                       type="button"
-                      disabled={submitted}
+                      disabled={submitted || locked}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onSelectAnswer(i, optIdx);
-                        onSelectQuestion(i);
+                        if (!locked) {
+                          onSelectAnswer(i, optIdx);
+                          onSelectQuestion(i);
+                        }
                       }}
                       style={{
                         width: '20px',

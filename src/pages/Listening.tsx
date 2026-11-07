@@ -233,6 +233,7 @@ export default function Listening() {
   const [pitchTargetSide, setPitchTargetSide] = useState<'A' | 'B'>('A');
   const [pitchPicked, setPitchPicked] = useState<'A' | 'B' | null>(null);
   const [pitchDrillCount, setPitchDrillCount] = useState(0);
+  const [pitchCorrectCount, setPitchCorrectCount] = useState(0);
   const activePair = PITCH_PAIRS[pitchIdx % PITCH_PAIRS.length];
   const targetPitchWord = pitchTargetSide === 'A' ? activePair.wordA : activePair.wordB;
 
@@ -275,8 +276,10 @@ export default function Listening() {
     speak(targetPitchWord.sentenceTts);
     if (isCampaignMode) {
       const nextCount = pitchDrillCount + 1;
+      const nextCorrect = pitchCorrectCount + (ok ? 1 : 0);
       setPitchDrillCount(nextCount);
-      if (nextCount >= 5) {
+      setPitchCorrectCount(nextCorrect);
+      if (nextCount >= 5 && nextCorrect >= 4) {
         completeMission();
       }
     }
@@ -284,7 +287,7 @@ export default function Listening() {
 
   const nextPitchDrill = () => {
     setPitchPicked(null);
-    const nextSide: 'A' | 'B' = (pitchIdx + 1) % 2 === 0 ? 'A' : 'B';
+    const nextSide: 'A' | 'B' = Math.random() < 0.5 ? 'A' : 'B';
     setPitchTargetSide(nextSide);
     setPitchIdx((i) => i + 1);
   };

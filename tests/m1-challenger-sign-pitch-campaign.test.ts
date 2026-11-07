@@ -96,13 +96,13 @@ const persistedRaw = globalThis.localStorage.getItem('n5-study');
 assert.ok(persistedRaw, 'localStorage must contain n5-study key');
 const persistedParsed = JSON.parse(persistedRaw);
 assert.ok(persistedParsed.state, 'persisted payload must contain state object');
-assert.ok(persistedParsed.version >= 9, 'persisted version must be at least 9');
+assert.strictEqual(persistedParsed.version, 10, 'persisted version must be 10');
 assert.strictEqual(persistedParsed.state.shokkenkiDone['mission_shoyu_ramen'], true);
 assert.strictEqual(persistedParsed.state.shokkenkiMissionIdx, 2);
 assert.deepStrictEqual(persistedParsed.state.decodedSigns, {});
-console.log('✓ 1.5: Direct localStorage persistence verified (version 9 schema active in storage).');
+console.log('✓ 1.5: Direct localStorage persistence verified (version 10 schema active in storage).');
 
-// 1.6 Migration verification from Version 8 (lacking sign & shokkenki slices)
+// 1.6 Migration verification from Version 8 (lacking sign, shokkenki, and multi-vector slices)
 const v8State = {
   version: 8,
   state: {
@@ -118,11 +118,13 @@ const v8State = {
 const storePersistOptions = (useStore as any).persist?.getOptions?.();
 if (storePersistOptions?.migrate) {
   const migrated = storePersistOptions.migrate(v8State.state, 8);
-  assert.deepStrictEqual(migrated.decodedSigns, {}, 'v8->v9 migration must add default decodedSigns: {}');
-  assert.deepStrictEqual(migrated.shokkenkiDone, {}, 'v8->v9 migration must add default shokkenkiDone: {}');
-  assert.strictEqual(migrated.shokkenkiMissionIdx, 0, 'v8->v9 migration must add default shokkenkiMissionIdx: 0');
-  assert.strictEqual(migrated.streak, 5, 'v8->v9 migration must preserve streak');
-  console.log('✓ 1.6: Zustand store v8 -> v9 migration cleanly initializes missing slices without losing state.');
+  assert.deepStrictEqual(migrated.decodedSigns, {}, 'v8->v10 migration must add default decodedSigns: {}');
+  assert.deepStrictEqual(migrated.shokkenkiDone, {}, 'v8->v10 migration must add default shokkenkiDone: {}');
+  assert.strictEqual(migrated.shokkenkiMissionIdx, 0, 'v8->v10 migration must add default shokkenkiMissionIdx: 0');
+  assert.strictEqual(migrated.streak, 5, 'v8->v10 migration must preserve streak');
+  assert.deepStrictEqual(migrated.ghosts, {}, 'v8->v10 migration must add default ghosts: {}');
+  assert.ok(migrated.multiVectorItems, 'v8->v10 migration must initialize multiVectorItems');
+  console.log('✓ 1.6: Zustand store v8 -> v10 migration cleanly initializes missing slices without losing state.');
 }
 
 // 1.7 Stress test: 1,000 rapid sign recordings and shokkenki orders

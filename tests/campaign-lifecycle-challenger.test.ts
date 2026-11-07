@@ -7,7 +7,7 @@
  * 2. Kanji Dojo lifecycle (s1-2) with early return vs 5-drill completion & modal
  * 3. Grammar Lesson lifecycle (s1-3) with early return, fail (<70%), and pass (>=70%)
  * 4. Story Reader lifecycle (s1-4) with early return and question completion
- * 5. Full 24-stage navigation, query string syntax, and return URL mapping across all 6 sagas
+ * 5. Full 48-stage navigation, query string syntax, and return URL mapping across all 12 sagas
  * 6. Hostile edge cases: URL tampering, legacy params, corrupt storage, idempotence
  */
 
@@ -333,7 +333,7 @@ for (const saga of CAMPAIGN_SAGAS) {
   }
 }
 
-verify(stageCount === CAMPAIGN_SAGAS.length * 4, `Must have tested all ${CAMPAIGN_SAGAS.length * 4} stages, tested: ${stageCount}`);
+verify(stageCount === CAMPAIGN_SAGAS.length * 4 && stageCount === 48, `Must have tested all 48 stages across 12 sagas, tested: ${stageCount}`);
 console.log(`  ✓ Simulation 5 PASSED: All ${stageCount} stages across ${CAMPAIGN_SAGAS.length} sagas verified for routes, queries, returns, and idempotence.\n`);
 
 // ----------------------------------------------------------------------------
@@ -367,8 +367,9 @@ function simulateCampaignActiveSaga(sagaQuery: string | null, clearedSagas: Reco
 
 verify(simulateCampaignActiveSaga('1', {}) === 1, 'Valid saga 1');
 verify(simulateCampaignActiveSaga('6', {}) === 6, 'Valid saga 6');
+verify(simulateCampaignActiveSaga('12', {}) === 12, 'Valid saga 12');
 verify(simulateCampaignActiveSaga('0', {}) === 1, 'Out-of-bounds 0 falls back to first uncleared');
-verify(simulateCampaignActiveSaga('99', {}) === 1, 'Out-of-bounds 99 falls back to first uncleared');
+verify(simulateCampaignActiveSaga('13', {}) === 1, 'Out-of-bounds 13 falls back to first uncleared');
 verify(simulateCampaignActiveSaga('-5', {}) === 1, 'Negative saga falls back to first uncleared');
 verify(simulateCampaignActiveSaga('abc', {}) === 1, 'NaN string falls back to first uncleared');
 verify(simulateCampaignActiveSaga(null, { 1: 100, 2: 100 }) === 3, 'Null saga param resumes at first uncleared (Saga 3)');

@@ -54,15 +54,15 @@ type Pt = { x: number; y: number };
 export function TraceCanvas({ kanji }: { kanji: string }) {
   const [paths, setPaths] = useState<string[] | null>(null);
   const [strokes, setStrokes] = useState<Pt[][]>([]);
+  const [activeStroke, setActiveStroke] = useState<Pt[] | null>(null);
   const [guide, setGuide] = useState(true);
   const [result, setResult] = useState<{ ok: boolean[]; msg: string } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const drawing = useRef<Pt[] | null>(null);
-  const [, force] = useState(0);
 
   useEffect(() => {
     setPaths(null);
     setStrokes([]);
+    setActiveStroke(null);
     setResult(null);
     loadStrokes(kanji).then(setPaths, () => setPaths([]));
   }, [kanji]);
@@ -74,22 +74,21 @@ export function TraceCanvas({ kanji }: { kanji: string }) {
 
   const down = (e: React.PointerEvent) => {
     (e.target as Element).setPointerCapture(e.pointerId);
-    drawing.current = [toPt(e)];
+    setActiveStroke([toPt(e)]);
     setResult(null);
-    force((n) => n + 1);
   };
   const move = (e: React.PointerEvent) => {
-    if (!drawing.current) return;
-    drawing.current.push(toPt(e));
-    force((n) => n + 1);
+    setActiveStroke((prev) => (prev ? [...prev, toPt(e)] : null));
   };
   const up = () => {
-    if (drawing.current && drawing.current.length > 1) {
-      const next = [...strokes, drawing.current];
-      setStrokes(next);
-      if (paths && next.length === paths.length) check(next);
-    }
-    drawing.current = null;
+    setActiveStroke((curr) => {
+      if (curr && curr.length > 1) {
+        const next = [...strokes, curr];
+        setStrokes(next);
+        if (paths && next.length === paths.length) check(next);
+      }
+      return null;
+    });
   };
 
   const check = (ss: Pt[][]) => {
@@ -123,7 +122,7 @@ export function TraceCanvas({ kanji }: { kanji: string }) {
         {strokes.map((s, i) => (
           <path key={i} d={toD(s)} className={`stroke-user ${result ? (result.ok[i] ? 'ok' : 'bad') : ''}`} />
         ))}
-        {drawing.current && <path d={toD(drawing.current)} className="stroke-user" />}
+        {activeStroke && <path d={toD(activeStroke)} className="stroke-user" />}
       </svg>
       <div className="controls center">
         <button className="chip" onClick={() => { setStrokes((s) => s.slice(0, -1)); setResult(null); }}>↶ Undo</button>

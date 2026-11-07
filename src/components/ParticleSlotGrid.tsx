@@ -13,7 +13,7 @@ interface ParticleSlotGridProps {
 
 function getSemanticRoleGlow(role: string) {
   const r = role.toLowerCase();
-  if (r.includes('time') || r.includes('point') || r.includes('amber')) {
+  if (r.includes('time') || r.includes('temporal') || (r.includes('point') && !r.includes('departure') && !r.includes('endpoint')) || r.includes('amber')) {
     return {
       color: '#f59e0b',
       border: '#f59e0b',
@@ -29,7 +29,7 @@ function getSemanticRoleGlow(role: string) {
       glow: '0 0 12px rgba(20, 184, 166, 0.45)',
     };
   }
-  if (r.includes('destination') || r.includes('direction') || r.includes('goal') || r.includes('indigo') || r.includes('purpose')) {
+  if (r.includes('destination') || r.includes('direction') || r.includes('goal') || r.includes('indigo') || r.includes('purpose') || r.includes('endpoint') || r.includes('boundary')) {
     return {
       color: '#818cf8',
       border: '#6366f1',

@@ -529,14 +529,28 @@ export default function DailyBento() {
   const effectiveStreak = useMemo(() => {
     const todayMs = new Date(todayIso).getTime();
     const y = new Date(todayMs - 864e5).toISOString().slice(0, 10);
-    return lastStudy === todayIso ? streak : lastStudy === y ? streak + 1 : 1;
-  }, [lastStudy, streak, todayIso]);
+    if (lastStudy === todayIso) return streak;
+    if (lastStudy === y) return streak + 1;
+    if (vacationMode) return streak;
+    if (lastStudy) {
+      const diffDays = Math.round((todayMs - new Date(lastStudy).getTime()) / 864e5);
+      const missedDays = diffDays - 1;
+      if (missedDays > 0 && missedDays <= streakShields) {
+        return streak + 1;
+      }
+    }
+    return 1;
+  }, [lastStudy, streak, todayIso, vacationMode, streakShields]);
 
   const dailyStamp = useMemo(() => {
     return getDailyStamp(todayIso, effectiveStreak);
   }, [todayIso, effectiveStreak]);
 
+  const [submittingBento, setSubmittingBento] = useState(false);
+
   const finishBento = () => {
+    if (submittingBento) return;
+    setSubmittingBento(true);
     completeBento(dailyStamp.id);
     playFanfare();
     setDish(4);
@@ -769,7 +783,15 @@ export default function DailyBento() {
               </p>
             )}
             <div className="controls" style={{ marginTop: '1.2rem' }}>
-              <button className="chip on" onClick={finishBento}>
+              <button
+                className="chip on"
+                disabled={signChoice === null || submittingBento}
+                onClick={finishBento}
+                style={{
+                  opacity: signChoice === null || submittingBento ? 0.5 : 1,
+                  cursor: signChoice === null || submittingBento ? 'not-allowed' : 'pointer',
+                }}
+              >
                 🔖 Complete Today's Bento →
               </button>
             </div>

@@ -107,9 +107,9 @@ export default function ConjugationDojo() {
   };
 
   const submitDeconjugation = () => {
-    if (!selectedRoot || deconjAnswered) return;
+    if (!selectedRoot || !selectedVoice || deconjAnswered) return;
     const isRootOk = selectedRoot === currentDeconj.targetDictForm;
-    const isVoiceOk = selectedVoice ? selectedVoice === currentDeconj.formIdentified : true;
+    const isVoiceOk = selectedVoice === currentDeconj.formIdentified;
     const isAllOk = isRootOk && isVoiceOk;
 
     setDeconjAnswered(true);
@@ -583,9 +583,9 @@ export default function ConjugationDojo() {
                 <div className="controls center">
                   <button
                     type="button"
-                    className="chip on"
+                    className={selectedRoot && selectedVoice ? 'chip on' : 'chip'}
                     style={{ padding: '0.7rem 1.8rem', fontSize: '1.05rem', fontWeight: 700 }}
-                    disabled={!selectedRoot}
+                    disabled={!selectedRoot || !selectedVoice}
                     onClick={submitDeconjugation}
                   >
                     Check De-Conjugation ✓

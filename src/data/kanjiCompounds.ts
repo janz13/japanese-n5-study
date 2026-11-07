@@ -578,7 +578,7 @@ export const KANJI_COMPOUNDS: Record<string, KanjiCompound[]> = {
     { w: '入学', r: 'にゅうがく', en: 'entry to school', type: 'on', sentenceJp: '四月に大学へ入学しました。', sentenceEn: 'I entered university in April.' },
   ],
   '出': [
-    { w: '出口', r: 'でぐち', en: 'exit', type: 'kun', sentenceJp: '非常口はこちらです。', sentenceEn: 'The emergency exit is this way.' },
+    { w: '出口', r: 'でぐち', en: 'exit', type: 'kun', sentenceJp: '駅の出口で友達と待ち合わせました。', sentenceEn: 'I met with my friend at the station exit.' },
     { w: '出る', r: 'でる', en: 'to exit, leave', type: 'kun', sentenceJp: '七時に家を出ました。', sentenceEn: 'I left home at 7.' },
     { w: '出す', r: 'だす', en: 'to take out, submit', type: 'kun', sentenceJp: '宿題を先生に出しました。', sentenceEn: 'I submitted my homework to the teacher.' },
     { w: '出発', r: 'しゅっぱつ', en: 'departure', type: 'on', sentenceJp: '電車は九時に出発します。', sentenceEn: 'The train departs at 9.' },
@@ -668,7 +668,7 @@ export const KANJI_COMPOUNDS: Record<string, KanjiCompound[]> = {
   ],
   '室': [
     { w: '教室', r: 'きょうしつ', en: 'classroom', type: 'on', sentenceJp: '教室で授業を受けます。', sentenceEn: 'I take classes in the classroom.' },
-    { w: '部屋', r: 'へや', en: 'room', type: 'on', sentenceJp: '自分の部屋を片付けました。', sentenceEn: 'I tidied up my room.' },
+    { w: '図書室', r: 'としょしつ', en: 'library room', type: 'on', sentenceJp: '放課後に図書室で本を読みました。', sentenceEn: 'I read books in the library room after school.' },
     { w: '研究室', r: 'けんきゅうしつ', en: 'laboratory, professor office', type: 'on', sentenceJp: '教授の研究室を訪れました。', sentenceEn: 'I visited the professor\'s office.' },
     { w: '室内', r: 'しつない', en: 'indoors', type: 'on', sentenceJp: '室内では靴を脱ぎます。', sentenceEn: 'We take off our shoes indoors.' },
   ],
@@ -784,7 +784,7 @@ export const KANJI_COMPOUNDS: Record<string, KanjiCompound[]> = {
   ],
   '仕': [
     { w: '仕事', r: 'しごと', en: 'job, work', type: 'on', sentenceJp: '新しい仕事を始めました。', sentenceEn: 'I started a new job.' },
-    { w: '仕方', r: 'しかた', en: 'way, method', type: 'kun', sentenceJp: '機械の使い方が分かりません。', sentenceEn: 'I don\'t know the method of using this machine.' },
+    { w: '仕方', r: 'しかた', en: 'way, method', type: 'kun', sentenceJp: '雨が降ってきたので、帰るより仕方がありません。', sentenceEn: 'Since it started raining, there is no way but to return.' },
     { w: '仕送り', r: 'しおくり', en: 'allowance, remittance', type: 'kun', sentenceJp: '両親から仕送りが届きました。', sentenceEn: 'An allowance arrived from my parents.' },
   ],
   '事': [
@@ -801,7 +801,7 @@ export const KANJI_COMPOUNDS: Record<string, KanjiCompound[]> = {
   ],
   '使': [
     { w: '使う', r: 'つかう', en: 'to use', type: 'kun', sentenceJp: 'パソコンを使って勉強します。', sentenceEn: 'I study using a computer.' },
-    { w: '使い方', r: 'つかいかた', en: 'how to use', type: 'kun', sentenceJp: '切符の買い方を教えてください。', sentenceEn: 'Please teach me how to buy tickets.' },
+    { w: '使い方', r: 'つかいかた', en: 'how to use', type: 'kun', sentenceJp: '新しい辞書の使い方を覚えました。', sentenceEn: 'I learned how to use the new dictionary.' },
     { w: '使用', r: 'しよう', en: 'use, utilization', type: 'on', sentenceJp: 'この部屋は自由に使用できます。', sentenceEn: 'You can freely use this room.' },
     { w: '大使館', r: 'たいしかん', en: 'embassy', type: 'on', sentenceJp: 'ビザを取るため大使館へ行きました。', sentenceEn: 'I went to the embassy to get a visa.' },
   ],

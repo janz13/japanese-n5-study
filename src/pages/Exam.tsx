@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { SECTION_META, type ExamLevel, type ExamSection } from '../data/exam';
 import {
@@ -85,6 +85,7 @@ export default function Exam() {
 
   const [currentStage, setCurrentStage] = useState<ExamStage>('section_1');
   const [stageSecondsLeft, setStageSecondsLeft] = useState(() => getStageDurationSec('section_1', level, mode));
+  const stageEndRef = useRef<number>(0);
   const [showOmrSheet, setShowOmrSheet] = useState(false);
   const [playedAudio, setPlayedAudio] = useState<Record<number, boolean>>({});
   const [activeQuestionIdx, setActiveQuestionIdx] = useState<number | undefined>(undefined);
@@ -112,20 +113,44 @@ export default function Exam() {
     }
   };
 
+  const advanceStageRef = useRef(advanceStage);
+  advanceStageRef.current = advanceStage;
+
   useEffect(() => {
     if (submitted) return;
+    const durationSec = getStageDurationSec(currentStage, level, mode);
+    stageEndRef.current = Date.now() + durationSec * 1000;
+    setStageSecondsLeft(durationSec);
+
     const t = setInterval(() => {
-      setStageSecondsLeft((s) => {
-        if (s <= 1) {
-          setTimeout(() => advanceStage(), 0);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
+      const remaining = Math.max(0, Math.ceil((stageEndRef.current - Date.now()) / 1000));
+      setStageSecondsLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(t);
+        advanceStageRef.current();
+      }
+    }, 250);
+
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submitted, currentStage, level, mode]);
+
+  const currentExpectedSec = useMemo(() => {
+    if (submitted) return null;
+    if (currentStage === 'section_1') return 'vocab';
+    if (currentStage === 'section_2') return 'grammar';
+    if (currentStage === 'section_3') return 'listening';
+    return 'locked_intermission';
+  }, [submitted, currentStage]);
+
+  const isQuestionLocked = useCallback(
+    (qIdx: number) => {
+      if (submitted) return false;
+      const q = questions[qIdx];
+      if (!q) return true;
+      return q.section !== currentExpectedSec;
+    },
+    [submitted, questions, currentExpectedSec],
+  );
 
   useEffect(() => () => stopSpeaking(), []);
 
@@ -668,19 +693,17 @@ export default function Exam() {
                   : undefined
               }
               activeQuestionIdx={activeQuestionIdx}
+              isQuestionLocked={isQuestionLocked}
               onSelectAnswer={(qIdx, optIdx) => {
+                if (isQuestionLocked(qIdx)) return;
                 setAnswers((prev) => ({ ...prev, [qIdx]: optIdx }));
                 setActiveQuestionIdx(qIdx);
               }}
               onSelectQuestion={(qIdx) => {
+                if (isQuestionLocked(qIdx)) return;
                 setActiveQuestionIdx(qIdx);
-                const targetSec = questions[qIdx]?.section;
                 if (submitted) {
                   setActiveSec('all');
-                } else if (targetSec) {
-                  if (targetSec === 'vocab') setCurrentStage('section_1');
-                  else if (targetSec === 'grammar') setCurrentStage('section_2');
-                  else if (targetSec === 'listening') setCurrentStage('section_3');
                 }
                 setTimeout(() => {
                   document.getElementById(`exam-q-${qIdx}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -696,10 +719,13 @@ export default function Exam() {
             const isAnswered = answers[i] !== undefined;
             const isFlagged = !!flagged[i];
             const isCorrect = answers[i] === q.answer;
+            const locked = isQuestionLocked(i);
             const pillCls = !submitted
-              ? isAnswered
-                ? 'chip on'
-                : 'chip'
+              ? locked
+                ? 'chip'
+                : isAnswered
+                  ? 'chip on'
+                  : 'chip'
               : isCorrect
                 ? 'chip ok'
                 : 'chip bad';
@@ -707,25 +733,26 @@ export default function Exam() {
               <button
                 key={q.id + '-' + i}
                 className={pillCls}
+                disabled={locked}
                 style={{
                   padding: '0.2rem 0.5rem',
                   fontSize: '0.75rem',
                   minWidth: '2.1rem',
                   borderColor: isFlagged && !submitted ? 'var(--bad)' : undefined,
+                  opacity: locked ? 0.35 : 1,
+                  cursor: locked ? 'not-allowed' : 'pointer',
                 }}
                 onClick={() => {
+                  if (locked) return;
                   setActiveQuestionIdx(i);
                   if (submitted) {
                     setActiveSec('all');
-                  } else {
-                    if (q.section === 'vocab') setCurrentStage('section_1');
-                    else if (q.section === 'grammar') setCurrentStage('section_2');
-                    else if (q.section === 'listening') setCurrentStage('section_3');
                   }
                   setTimeout(() => {
                     document.getElementById(`exam-q-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }, 30);
                 }}
+                title={locked ? `Question ${i + 1} (Locked to current active section)` : undefined}
               >
                 {i + 1}
                 {isFlagged && !submitted ? '🚩' : ''}

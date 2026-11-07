@@ -34,11 +34,14 @@ export function LayeredClozeInput({ ex, onAnswer }: LayeredClozeInputProps) {
 
     // 1. Check for Near-Miss Error Interceptor
     const nearMiss = ex.nearMisses?.find((nm) => {
-      const nmClean = nm.input.trim().replace(/\s+/g, '');
-      return (
-        nmClean.toLowerCase() === clean.toLowerCase() ||
-        toHiragana(nmClean).toLowerCase() === toHiragana(clean).toLowerCase()
-      );
+      const inputs = Array.isArray(nm.input) ? nm.input : [nm.input];
+      return inputs.some((target) => {
+        const nmClean = target.trim().replace(/\s+/g, '');
+        return (
+          nmClean.toLowerCase() === clean.toLowerCase() ||
+          toHiragana(nmClean).toLowerCase() === toHiragana(clean).toLowerCase()
+        );
+      });
     });
 
     if (nearMiss) {
