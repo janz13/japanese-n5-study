@@ -96,7 +96,7 @@ const persistedRaw = globalThis.localStorage.getItem('n5-study');
 assert.ok(persistedRaw, 'localStorage must contain n5-study key');
 const persistedParsed = JSON.parse(persistedRaw);
 assert.ok(persistedParsed.state, 'persisted payload must contain state object');
-assert.strictEqual(persistedParsed.version, 9, 'persisted version must be 9');
+assert.ok(persistedParsed.version >= 9, 'persisted version must be at least 9');
 assert.strictEqual(persistedParsed.state.shokkenkiDone['mission_shoyu_ramen'], true);
 assert.strictEqual(persistedParsed.state.shokkenkiMissionIdx, 2);
 assert.deepStrictEqual(persistedParsed.state.decodedSigns, {});

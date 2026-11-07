@@ -298,9 +298,9 @@ verify(saga1Stages.every((id) => useStore.getState().campaignCompletedStages[id]
 console.log('  ✓ Simulation 4 PASSED: Story Reader early return & question completion lifecycle fully verified.\n');
 
 // ----------------------------------------------------------------------------
-// SIMULATION 5: All 24 Stages across all 6 Sagas Route & Return Verification
+// SIMULATION 5: All Stages Route & Return Verification
 // ----------------------------------------------------------------------------
-console.log('[Simulation 5] Verifying Route, Query String, and Return Mapping for all 24 Stages across all 6 Sagas...');
+console.log(`[Simulation 5] Verifying Route, Query String, and Return Mapping for all ${CAMPAIGN_SAGAS.length * 4} Stages across all ${CAMPAIGN_SAGAS.length} Sagas...`);
 
 let stageCount = 0;
 for (const saga of CAMPAIGN_SAGAS) {
@@ -333,8 +333,8 @@ for (const saga of CAMPAIGN_SAGAS) {
   }
 }
 
-verify(stageCount === 24, `Must have tested all 24 stages, tested: ${stageCount}`);
-console.log(`  ✓ Simulation 5 PASSED: All 24 stages across 6 sagas verified for routes, queries, returns, and idempotence.\n`);
+verify(stageCount === CAMPAIGN_SAGAS.length * 4, `Must have tested all ${CAMPAIGN_SAGAS.length * 4} stages, tested: ${stageCount}`);
+console.log(`  ✓ Simulation 5 PASSED: All ${stageCount} stages across ${CAMPAIGN_SAGAS.length} sagas verified for routes, queries, returns, and idempotence.\n`);
 
 // ----------------------------------------------------------------------------
 // SIMULATION 6: Hostile URL Tampering, Unknown Params, and Corrupted State
@@ -368,11 +368,12 @@ function simulateCampaignActiveSaga(sagaQuery: string | null, clearedSagas: Reco
 verify(simulateCampaignActiveSaga('1', {}) === 1, 'Valid saga 1');
 verify(simulateCampaignActiveSaga('6', {}) === 6, 'Valid saga 6');
 verify(simulateCampaignActiveSaga('0', {}) === 1, 'Out-of-bounds 0 falls back to first uncleared');
-verify(simulateCampaignActiveSaga('7', {}) === 1, 'Out-of-bounds 7 falls back to first uncleared');
+verify(simulateCampaignActiveSaga('99', {}) === 1, 'Out-of-bounds 99 falls back to first uncleared');
 verify(simulateCampaignActiveSaga('-5', {}) === 1, 'Negative saga falls back to first uncleared');
 verify(simulateCampaignActiveSaga('abc', {}) === 1, 'NaN string falls back to first uncleared');
 verify(simulateCampaignActiveSaga(null, { 1: 100, 2: 100 }) === 3, 'Null saga param resumes at first uncleared (Saga 3)');
-verify(simulateCampaignActiveSaga(null, { 1: 100, 2: 100, 3: 100, 4: 100, 5: 100, 6: 100 }) === 1, 'All cleared defaults to Saga 1');
+const allCleared = Object.fromEntries(Array.from({ length: CAMPAIGN_SAGAS.length }, (_, i) => [i + 1, 100]));
+verify(simulateCampaignActiveSaga(null, allCleared) === 1, 'All cleared defaults to Saga 1');
 
 // 6.5 Corrupted LocalStorage simulation
 clearMockStorage();

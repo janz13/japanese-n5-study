@@ -2,8 +2,6 @@ import assert from 'node:assert/strict';
 import {
   useStore,
   MEMORY_VECTORS,
-  type MemoryVectorType,
-  type GhostCard,
 } from '../src/lib/store.ts';
 import {
   SECTION_STAGE_META,
@@ -61,7 +59,7 @@ console.log('✓ Test 1 PASSED: Multi-Vector FSRS data models and methods verifi
 // Test 2: Isolated Ghost Review Queue (4h -> 12h -> 24h & 3-Win Evaporation)
 // -----------------------------------------------------------------------------
 console.log('[Test 2] Testing Isolated Ghost Review Queue lifecycle...');
-const initialGhostCount = Object.keys(useStore.getState().ghosts).length;
+const _initialGhostCount = Object.keys(useStore.getState().ghosts).length;
 
 // Spawn ghost
 useStore.getState().spawnGhost('w:taberu', 'meaning', '食べる', 'to eat');
