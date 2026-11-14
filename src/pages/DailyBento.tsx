@@ -18,6 +18,42 @@ import { ParticleSlotGrid } from '../components/ParticleSlotGrid';
 import { useCampaignMission } from '../lib/useCampaignMission';
 import CampaignBanner from '../components/CampaignBanner';
 
+const BENTO_SEEN_SIGNS_KEY = 'n5_bento_seen_signs';
+
+function readSeenSignIds(): string[] {
+  try {
+    const raw = localStorage.getItem(BENTO_SEEN_SIGNS_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function recordSeenSignId(id: string): void {
+  try {
+    const prev = readSeenSignIds();
+    const seenSet = new Set(prev);
+    const allCovered = SIGNS.every((s) => seenSet.has(s.id) || s.id === id);
+    const next = allCovered ? [id] : seenSet.has(id) ? prev : [...prev, id];
+    localStorage.setItem(BENTO_SEEN_SIGNS_KEY, JSON.stringify(next));
+  } catch {
+    // Ignore storage failures in restricted contexts
+  }
+}
+
+function pickNextBentoSign(seed: number) {
+  const seen = readSeenSignIds();
+  const seenSet = new Set(seen);
+  const unseen = SIGNS.filter((s) => !seenSet.has(s.id));
+  const lastSeenId = seen.length > 0 ? seen[seen.length - 1] : null;
+  const pool = unseen.length > 0 ? unseen : SIGNS.filter((s) => s.id !== lastSeenId);
+  const candidates = pool.length > 0 ? pool : SIGNS;
+  const idx = (seed + seen.length * 31) % candidates.length;
+  return candidates[idx];
+}
+
 /** Simple date-seeded PRNG so every Bento dish is different each calendar day
  *  but deterministic within the same day (reload-safe). */
 function dayHash(dateStr: string): number {
@@ -484,10 +520,7 @@ export default function DailyBento() {
     return list[todaySeed % list.length];
   }, [todaySeed, studyTrack]);
 
-  const streetSign = useMemo(() => {
-    const idx = (todaySeed + 77) % SIGNS.length;
-    return SIGNS[idx];
-  }, [todaySeed]);
+  const [streetSign] = useState(() => pickNextBentoSign(todaySeed));
   const [signChoice, setSignChoice] = useState<number | null>(null);
 
   const curWarmup = warmups[wIdx];
@@ -555,6 +588,7 @@ export default function DailyBento() {
   const finishBento = () => {
     if (submittingBento) return;
     setSubmittingBento(true);
+    recordSeenSignId(streetSign.id);
     completeBento(dailyStamp.id);
     if (isCampaignMode) {
       completeMission();
