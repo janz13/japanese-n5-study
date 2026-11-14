@@ -327,35 +327,45 @@ export default function Campaign() {
         </div>
       )}
 
-      {/* Saga Navigation Tabs */}
-      <div className="controls" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
-        {CAMPAIGN_SAGAS.map((saga) => {
-          const unlocked = isSagaUnlocked(saga.sagaNumber);
-          const cleared = !!campaignClearedSagas[saga.sagaNumber];
-          const active = saga.sagaNumber === activeSagaNum;
-          return (
-            <button
-              key={saga.id}
-              className={active ? 'chip on' : unlocked ? 'chip' : 'chip disabled'}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                opacity: unlocked ? 1 : 0.45,
-              }}
-              disabled={!unlocked}
-              onClick={() => setActiveSagaNum(saga.sagaNumber)}
-            >
-              <span>{cleared ? '✓' : unlocked ? '🔓' : '🔒'}</span>
-              <b>Saga {saga.sagaNumber}</b>
-              {cleared && (
-                <span className="tag" style={{ background: 'var(--ok)', color: '#000', padding: '0.1rem 0.35rem', fontSize: '0.65rem' }}>
-                  CLEARED
-                </span>
-              )}
-            </button>
-          );
-        })}
+      {/* Saga Navigation Tracks */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+        {[
+          { label: 'JLPT N5 Track (Sagas 1–6)', sagas: CAMPAIGN_SAGAS.filter((s) => s.sagaNumber <= 6) },
+          { label: 'JLPT N4 Track (Sagas 7–12)', sagas: CAMPAIGN_SAGAS.filter((s) => s.sagaNumber >= 7) },
+        ].map((track) => (
+          <div key={track.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span className="muted small" style={{ minWidth: '175px', fontWeight: 600 }}>
+              {track.label}:
+            </span>
+            <div className="controls nomargin" style={{ gap: '0.4rem', flexWrap: 'wrap' }}>
+              {track.sagas.map((saga) => {
+                const unlocked = isSagaUnlocked(saga.sagaNumber);
+                const cleared = !!campaignClearedSagas[saga.sagaNumber];
+                const active = saga.sagaNumber === activeSagaNum;
+                return (
+                  <button
+                    key={saga.id}
+                    className={active ? 'chip on' : cleared ? 'chip ok' : unlocked ? 'chip' : 'chip disabled'}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      opacity: unlocked ? 1 : 0.45,
+                      padding: '0.32rem 0.78rem',
+                      fontSize: '0.86rem',
+                    }}
+                    disabled={!unlocked}
+                    onClick={() => setActiveSagaNum(saga.sagaNumber)}
+                    title={saga.title}
+                  >
+                    <span>Saga {saga.sagaNumber}</span>
+                    <span>{cleared ? '✓' : unlocked ? '🔓' : '🔒'}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Active Saga Banner */}

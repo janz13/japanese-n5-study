@@ -52,23 +52,12 @@ interface NavItem {
   end?: boolean;
 }
 
-const LINKS: NavItem[] = [
-  { to: '/', icon: '🏠', label: 'Home (家)', end: true },
-  { to: '/bento', icon: '🍱', label: 'Bento (弁)' },
-  { to: '/kana', icon: '✍️', label: 'Kana (あ)' },
-  { to: '/kanji', icon: '🀄', label: 'Kanji (漢)' },
-  { to: '/conjugate', icon: '🔄', label: 'Verbs (活)' },
-  { to: '/counters', icon: '🔢', label: 'Counters (数)' },
-  { to: '/particles', icon: '🎯', label: 'Particles (助)' },
-  { to: '/review', icon: '🗂️', label: 'Review (復)' },
-  { to: '/grammar', icon: '📐', label: 'Grammar (文)' },
-  { to: '/stories', icon: '📖', label: 'Stories (物)' },
-  { to: '/speaking', icon: '🎤', label: 'Speak (話)' },
-  { to: '/listening', icon: '🎧', label: 'Listen (聴)' },
-  { to: '/drive', icon: '📻', label: 'Drive (音)' },
-  { to: '/signs', icon: '🍜', label: 'Signs (看)' },
-  { to: '/stamps', icon: '🔖', label: 'Stamps (印)' },
-  { to: '/exam', icon: '🎓', label: 'Exam (試)' },
+const MOBILE_TABS: NavItem[] = [
+  { to: '/', icon: '🏠', label: 'Home', end: true },
+  { to: '/campaign', icon: '🗺️', label: 'Campaign' },
+  { to: '/bento', icon: '🍱', label: 'Bento' },
+  { to: '/review', icon: '🗂️', label: 'Review' },
+  { to: '/kana', icon: '✍️', label: 'Practice' },
 ];
 
 const NAV_GROUPS: { id: string; label: string; icon: string; items: NavItem[] }[] = [
@@ -77,23 +66,22 @@ const NAV_GROUPS: { id: string; label: string; icon: string; items: NavItem[] }[
     label: 'Daily',
     icon: '🍱',
     items: [
-      { to: '/campaign', icon: '🗺️', label: '旅 Campaign Mode', shortLabel: 'Campaign' },
-      { to: '/bento', icon: '🍱', label: '弁 Daily Bento', shortLabel: 'Bento' },
-      { to: '/review', icon: '🗂️', label: '復 FSRS Review', shortLabel: 'Review' },
-      { to: '/stamps', icon: '🔖', label: '印 Stamp Book', shortLabel: 'Stamps' },
+      { to: '/bento', icon: '🍱', label: 'Daily Bento (5m)', shortLabel: 'Bento' },
+      { to: '/review', icon: '🗂️', label: 'SRS Review', shortLabel: 'Review' },
+      { to: '/stamps', icon: '🔖', label: 'Stamp Book', shortLabel: 'Stamps' },
     ],
   },
   {
     id: 'drills',
-    label: 'Drills',
+    label: 'Practice',
     icon: '⚡',
     items: [
-      { to: '/kana', icon: '✍️', label: 'あ Kana Dojo', shortLabel: 'Kana' },
-      { to: '/kanji-dojo', icon: '⚡', label: '漢 Pure Kanji Dojo', shortLabel: 'Kanji Dojo' },
-      { to: '/kanji', icon: '🀄', label: '字 Kanji Studio', shortLabel: 'Kanji' },
-      { to: '/conjugate', icon: '🔄', label: '活 Verb & Pair Dojo', shortLabel: 'Verbs' },
-      { to: '/counters', icon: '🔢', label: '数 Counter Dojo', shortLabel: 'Counters' },
-      { to: '/particles', icon: '🎯', label: '助 Particle Dojo', shortLabel: 'Particles' },
+      { to: '/kana', icon: '✍️', label: 'Kana Dojo', shortLabel: 'Kana' },
+      { to: '/kanji-dojo', icon: '⚡', label: 'Kanji Typing Dojo', shortLabel: 'Kanji Dojo' },
+      { to: '/kanji', icon: '🀄', label: 'Kanji Reference & Stroke', shortLabel: 'Kanji' },
+      { to: '/conjugate', icon: '🔄', label: 'Verbs & Conjugation', shortLabel: 'Verbs' },
+      { to: '/particles', icon: '🎯', label: 'Particles & Onomatopoeia', shortLabel: 'Particles' },
+      { to: '/counters', icon: '🔢', label: 'Counters & Numbers', shortLabel: 'Counters' },
     ],
   },
   {
@@ -101,12 +89,12 @@ const NAV_GROUPS: { id: string; label: string; icon: string; items: NavItem[] }[
     label: 'Immersion',
     icon: '🏮',
     items: [
-      { to: '/drive', icon: '📻', label: '音 Hands-Free Drive Podcast', shortLabel: 'Drive' },
-      { to: '/grammar', icon: '📐', label: '文 Grammar', shortLabel: 'Grammar' },
-      { to: '/stories', icon: '📖', label: '物 Graded Stories', shortLabel: 'Stories' },
-      { to: '/speaking', icon: '🎤', label: '話 Speaking', shortLabel: 'Speak' },
-      { to: '/listening', icon: '🎧', label: '聴 Listening', shortLabel: 'Listen' },
-      { to: '/signs', icon: '🍜', label: '看 Sign Decoder', shortLabel: 'Signs' },
+      { to: '/grammar', icon: '📐', label: 'Grammar Lessons', shortLabel: 'Grammar' },
+      { to: '/stories', icon: '📖', label: 'Graded Stories', shortLabel: 'Stories' },
+      { to: '/speaking', icon: '🎤', label: 'Speaking Role-Play', shortLabel: 'Speak' },
+      { to: '/listening', icon: '🎧', label: 'Listening & Pitch', shortLabel: 'Listen' },
+      { to: '/signs', icon: '🍜', label: 'Signs & Ticket Machines', shortLabel: 'Signs' },
+      { to: '/drive', icon: '📻', label: 'Hands-Free Drive Audio', shortLabel: 'Drive' },
     ],
   },
 ];
@@ -157,6 +145,15 @@ function HeaderNav({
       </NavLink>
 
       <nav className="top-links" aria-label="Main navigation">
+        <NavLink
+          to="/campaign"
+          className={({ isActive }) => `nav-group-btn ${isActive ? 'active' : ''}`}
+          style={{ textDecoration: 'none' }}
+          title="Guided Step-by-Step Odyssey: Zero to N4"
+        >
+          🗺️ Campaign
+        </NavLink>
+
         {NAV_GROUPS.map((group) => {
           const activeItem = group.items.find((i) => isRouteInItem(i.to));
           const isOpen = openGroup === group.id;
@@ -203,24 +200,6 @@ function HeaderNav({
             </div>
           );
         })}
-
-        <NavLink
-          to="/campaign"
-          className={({ isActive }) => `nav-group-btn ${isActive ? 'active' : ''}`}
-          style={{ textDecoration: 'none' }}
-          title="Guided Step-by-Step Odyssey: Zero to N4"
-        >
-          🗺️ Campaign
-        </NavLink>
-
-        <NavLink
-          to="/drive"
-          className={({ isActive }) => `nav-group-btn ${isActive ? 'active' : ''}`}
-          style={{ textDecoration: 'none' }}
-          title="Hands-Free Driving & Commute Podcast Mode"
-        >
-          📻 Drive
-        </NavLink>
 
         <NavLink
           to="/exam"
@@ -299,8 +278,12 @@ export default function App() {
       {drawerOpen && (
         <nav className="mobile-drawer" onClick={() => setDrawerOpen(false)}>
           <NavLink to="/" end className="drawer-link">
-            <span className="jp">家</span>
+            <span className="jp">🏠</span>
             <span>Dashboard Home</span>
+          </NavLink>
+          <NavLink to="/campaign" className="drawer-link">
+            <span className="jp">🗺️</span>
+            <span>Campaign Mode</span>
           </NavLink>
           {NAV_GROUPS.map((group) => (
             <div key={group.id}>
@@ -319,7 +302,7 @@ export default function App() {
           <div className="drawer-section-title">🎓 Official Exam</div>
           <NavLink to="/exam" className="drawer-link">
             <span className="jp">🎓</span>
-            <span>試 JLPT Mock Exam</span>
+            <span>JLPT Mock Exam</span>
           </NavLink>
         </nav>
       )}
@@ -357,7 +340,7 @@ export default function App() {
 
       {/* Mobile bottom tab bar */}
       <nav className="tabbar">
-        {LINKS.slice(0, 7).map((l) => (
+        {MOBILE_TABS.map((l) => (
           <NavLink key={l.to} to={l.to} end={l.end}>
             <span className="tab-icon">
               {l.icon}
