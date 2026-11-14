@@ -192,15 +192,19 @@ console.log('  ✓ Bento Nutrition Plate resets all 4 macros to 0 on new calenda
 
 // 1.6 Streak Shield Multi-Day Decay Simulation
 console.log('1.6 Testing Streak Shield multi-day gap protection...');
+const daysAgoStr = (daysAgo: number) => {
+  const d = new Date(Date.now() - daysAgo * 86400000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 // Case A: 1 missed day with 2 shields -> streak preserved, 1 shield used
-useStore.setState({ streak: 5, streakShields: 2, lastStudy: '2026-11-05' });
+useStore.setState({ streak: 5, streakShields: 2, lastStudy: daysAgoStr(2) });
 useStore.getState().recordKana('あ', true); // triggers bumpStreak
 const caseA = useStore.getState();
 check(caseA.streak === 6, `Streak should increment to 6, got ${caseA.streak}`);
 check(caseA.streakShields === 1, `Shields should decrement to 1, got ${caseA.streakShields}`);
 
 // Case B: 2 missed days with 1 shield -> shield insufficient, streak resets to 1, shields to 0
-useStore.setState({ streak: 10, streakShields: 1, lastStudy: '2026-11-04' }); // diff 3 days, missed 2
+useStore.setState({ streak: 10, streakShields: 1, lastStudy: daysAgoStr(3) }); // diff 3 days, missed 2
 useStore.getState().recordKana('あ', true);
 const caseB = useStore.getState();
 check(caseB.streak === 1, `Streak should reset to 1, got ${caseB.streak}`);
