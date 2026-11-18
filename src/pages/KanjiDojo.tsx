@@ -7,6 +7,7 @@ import { playDing, playFanfare, playMiss } from '../lib/sfx';
 import { useCampaignMission } from '../lib/useCampaignMission';
 import CampaignBanner from '../components/CampaignBanner';
 import ConfuserSpeedSorter from '../components/ConfuserSpeedSorter';
+import { DeckBag } from '../lib/deckSampler';
 
 type PromptKind = 'meaning' | 'reading' | 'vocab';
 type ModeFilter = 'all' | 'meaning' | 'reading' | 'vocab' | 'confuser';
@@ -18,6 +19,7 @@ interface DrillItem {
   kind: PromptKind;
   promptDisplay: string;
   subLabel: string;
+  hintText?: string;
   expectedInputType: 'en' | 'kana';
   acceptableAnswers: string[];
   displayAnswer: string;
@@ -64,13 +66,20 @@ export default function KanjiDojo() {
 
   const [level, setLevel] = useState<LevelFilter>('N5');
   const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
-  const [batchRange, setBatchRange] = useState<number>(20); // First 20, 50, all
+  const [batchRange, setBatchRange] = useState<number>(150); // All in level by default (vs 20, 50)
   const [currentItem, setCurrentItem] = useState<DrillItem | null>(null);
   const [input, setInput] = useState('');
   const [flash, setFlash] = useState<'ok' | 'bad' | null>(null);
   const [reveal, setReveal] = useState<string | null>(null);
+  const [showReadingHint, setShowReadingHint] = useState(false);
+  const [showGrid, setShowGrid] = useState(false);
   const [session, setSession] = useState({ ok: 0, total: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
+  const bagRef = useRef<DeckBag<DrillItem> | null>(null);
+  const kanjiStatsRef = useRef(kanjiStats);
+  useEffect(() => {
+    kanjiStatsRef.current = kanjiStats;
+  }, [kanjiStats]);
 
   const activeKanjiList = useMemo(() => {
     if (isCampaignMode && targetItems && targetItems.length > 0) {
@@ -122,7 +131,8 @@ export default function KanjiDojo() {
           kanjiObj: kj,
           kind: 'reading',
           promptDisplay: kj.k,
-          subLabel: `Reading · 音: ${kj.on} · 訓: ${kj.kun}`,
+          subLabel: `Kanji Reading (${kj.meaning.split(',')[0]}) — type On or Kun reading`,
+          hintText: `音: ${kj.on} · 訓: ${kj.kun}`,
           expectedInputType: 'kana',
           acceptableAnswers: [...onParts, ...kunParts],
           displayAnswer: `${kj.on} / ${kj.kun}`,
@@ -150,14 +160,24 @@ export default function KanjiDojo() {
     return items;
   }, [activeKanjiList, modeFilter]);
 
-  const pickNext = (last?: DrillItem | null) => {
-    if (!pool.length) return null;
-    const candidates = pool.length > 1 && last ? pool.filter((x) => x.id !== last.id) : pool;
-    return candidates[Math.floor(Math.random() * candidates.length)];
-  };
-
   useEffect(() => {
-    setCurrentItem(pickNext(null));
+    if (!pool.length) {
+      bagRef.current = null;
+      setCurrentItem(null);
+      return;
+    }
+    const bag = new DeckBag<DrillItem>(
+      pool,
+      (item) => item.id,
+      isCampaignMode ? undefined : `kanji_dojo_${level}_${modeFilter}`,
+      (item) => {
+        const st = kanjiStatsRef.current[item.kanjiObj.k] ?? { correct: 0, wrong: 0 };
+        return 1 + (st.wrong * 2) / (1 + st.correct * 0.5);
+      },
+    );
+    bagRef.current = bag;
+    setShowReadingHint(false);
+    setCurrentItem(bag.next());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pool]);
 
@@ -165,6 +185,9 @@ export default function KanjiDojo() {
     if (!currentItem) return;
     const ok = checkAnswer(val, currentItem);
     recordKanji(currentItem.kanjiObj.k, ok);
+    if (!ok) {
+      bagRef.current?.requeueMissed(currentItem, 4);
+    }
     const nextTotal = session.total + 1;
     const nextOk = session.ok + (ok ? 1 : 0);
     setSession({ ok: nextOk, total: nextTotal });
@@ -185,7 +208,8 @@ export default function KanjiDojo() {
       setReveal(`${currentItem.promptDisplay} = ${currentItem.displayAnswer}`);
     }
 
-    setCurrentItem(pickNext(currentItem));
+    setShowReadingHint(false);
+    setCurrentItem(bagRef.current?.next() ?? pool[0] ?? null);
     setInput('');
     setTimeout(() => setFlash(null), 250);
   };
@@ -361,9 +385,15 @@ export default function KanjiDojo() {
             {currentItem.promptDisplay}
           </div>
 
-          <div className="muted" style={{ marginBottom: '0.9rem', fontSize: '0.95rem' }}>
+          <div className="muted" style={{ marginBottom: '0.6rem', fontSize: '0.95rem' }}>
             {currentItem.subLabel}
           </div>
+
+          {showReadingHint && currentItem.hintText && (
+            <div className="chip on jp small" style={{ marginBottom: '0.7rem', cursor: 'default' }}>
+              💡 {currentItem.hintText}
+            </div>
+          )}
 
           {/* Typing Input */}
           <input
@@ -375,7 +405,7 @@ export default function KanjiDojo() {
             placeholder={currentItem.expectedInputType === 'kana' ? 'type reading (romaji auto-converts to kana)…' : 'type English meaning…'}
             className="drill-input"
             style={{
-              width: '320px',
+              width: 'min(320px, 100%)',
               borderColor: badgeColor,
             }}
             autoComplete="off"
@@ -383,6 +413,18 @@ export default function KanjiDojo() {
           />
 
           <div className="controls center" style={{ marginTop: '0.9rem', gap: '0.5rem' }}>
+            {currentItem.hintText && (
+              <button
+                type="button"
+                className={showReadingHint ? 'chip on' : 'chip'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowReadingHint((h) => !h);
+                }}
+              >
+                💡 {showReadingHint ? 'Hide Hint' : 'Reading Hint'}
+              </button>
+            )}
             <button
               type="button"
               className="chip"
@@ -433,27 +475,15 @@ export default function KanjiDojo() {
         )
       )}
 
-      {/* Kanji Mastery Heatmap & Weak Characters */}
-      <div className="row-between" style={{ marginTop: '1.8rem', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.6rem' }}>
-        <div className="controls nomargin" style={{ gap: '0.45rem', alignItems: 'center' }}>
-          <span className="muted small">Mastery:</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
-            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', border: '1px solid var(--border)' }} />
-            <span className="muted">Unseen</span>
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
-            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--accent)' }} />
-            <span className="muted">Learning</span>
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
-            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--ok)' }} />
-            <span className="muted">Mastered</span>
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
-            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--bad)' }} />
-            <span className="muted">Struggling</span>
-          </span>
-        </div>
+      {/* Collapsible Kanji Mastery Grid */}
+      <div className="row-between" style={{ marginTop: '1.3rem', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.6rem' }}>
+        <button
+          type="button"
+          className="disclosure-toggle"
+          onClick={() => setShowGrid((g) => !g)}
+        >
+          📊 Kanji Mastery Grid ({activeKanjiList.length}) {showGrid ? '▴' : '▾'}
+        </button>
 
         {(() => {
           const weak = activeKanjiList.filter((k) => {
@@ -462,42 +492,66 @@ export default function KanjiDojo() {
           });
           return weak.length > 0 ? (
             <span className="chip bad">
-              ⚠️ {weak.length} Struggling Kanji: {weak.map((w) => w.k).join(' ')}
+              ⚠️ {weak.length} Struggling: {weak.map((w) => w.k).join(' ')}
             </span>
           ) : null;
         })()}
       </div>
 
-      <div className="kanji-grid">
-        {activeKanjiList.map((k) => {
-          const st = kanjiStats[k.k];
-          const isStruggling = st && st.wrong > 0 && st.wrong >= st.correct;
-          const levelTier = !st || st.correct === 0 ? 0 : st.correct >= 3 && st.correct > st.wrong * 2 ? 2 : 1;
-          const borderStyle = isStruggling
-            ? '3px solid var(--bad)'
-            : levelTier === 2
-              ? '3px solid var(--ok)'
-              : levelTier === 1
-                ? '3px solid var(--accent)'
-                : '1px solid var(--border)';
-          return (
-            <div
-              key={k.k}
-              className={`kanji-cell${srs[`k:${k.k}`] ? ' in' : ''}`}
-              style={{
-                borderBottom: borderStyle,
-                cursor: 'pointer',
-              }}
-              onClick={() => speak(k.ex.r)}
-              title={`${k.meaning} (${k.on} / ${k.kun}) - Click for audio`}
-            >
-              <span>{k.k}</span>
-              <small>{k.meaning.split(',')[0]}</small>
-              <small style={{ fontSize: '0.62rem', opacity: 0.7 }}>{k.level}</small>
-            </div>
-          );
-        })}
-      </div>
+      {showGrid && (
+        <>
+          <div className="controls" style={{ gap: '0.45rem', alignItems: 'center', marginBottom: '0.6rem' }}>
+            <span className="muted small">Mastery:</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+              <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', border: '1px solid var(--border)' }} />
+              <span className="muted">Unseen</span>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+              <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--accent)' }} />
+              <span className="muted">Learning</span>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+              <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--ok)' }} />
+              <span className="muted">Mastered</span>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+              <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--bad)' }} />
+              <span className="muted">Struggling</span>
+            </span>
+          </div>
+
+          <div className="kanji-grid">
+            {activeKanjiList.map((k) => {
+              const st = kanjiStats[k.k];
+              const isStruggling = st && st.wrong > 0 && st.wrong >= st.correct;
+              const levelTier = !st || st.correct === 0 ? 0 : st.correct >= 3 && st.correct > st.wrong * 2 ? 2 : 1;
+              const borderStyle = isStruggling
+                ? '3px solid var(--bad)'
+                : levelTier === 2
+                  ? '3px solid var(--ok)'
+                  : levelTier === 1
+                    ? '3px solid var(--accent)'
+                    : '1px solid var(--border)';
+              return (
+                <div
+                  key={k.k}
+                  className={`kanji-cell${srs[`k:${k.k}`] ? ' in' : ''}`}
+                  style={{
+                    borderBottom: borderStyle,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => speak(k.ex.r)}
+                  title={`${k.meaning} (${k.on} / ${k.kun}) - Click for audio`}
+                >
+                  <span>{k.k}</span>
+                  <small>{k.meaning.split(',')[0]}</small>
+                  <small style={{ fontSize: '0.62rem', opacity: 0.7 }}>{k.level}</small>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {missionModalOpen && stage && (
         <div

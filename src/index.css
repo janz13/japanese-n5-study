@@ -251,16 +251,32 @@ rt {
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 .stroke-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; }
 .stroke-box { width: 100%; max-width: 320px; aspect-ratio: 1; background: var(--surface); border-radius: var(--radius); display: flex; }
+.stroke-box.compact { max-width: 240px; }
 .stroke-box.trace { touch-action: none; cursor: crosshair; }
 .grid-lines line { stroke: var(--surface2); stroke-width: 0.5; stroke-dasharray: 2 2; }
 .stroke-anim { fill: none; stroke: var(--text); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round;
   stroke-dasharray: 1; stroke-dashoffset: 1; animation-name: draw; animation-fill-mode: forwards; animation-timing-function: ease-in-out; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
-.stroke-num { fill: var(--accent); font-size: 6px; font-family: Inter; }
+.stroke-num { fill: var(--accent); font-size: 6px; font-family: Inter; font-weight: 700; }
 .stroke-guide { fill: none; stroke: var(--surface2); stroke-width: 4; stroke-linecap: round; }
+.stroke-guide-next { fill: none; stroke: color-mix(in srgb, var(--accent) 55%, var(--surface2)); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 3 3; }
+@keyframes pulseDot {
+  0%, 100% { r: 3.6; opacity: 0.95; }
+  50% { r: 5.2; opacity: 0.55; }
+}
+.stroke-start-dot { fill: var(--accent); animation: pulseDot 1.3s ease-in-out infinite; }
 .stroke-user { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
 .stroke-user.ok { stroke: var(--ok); }
 .stroke-user.bad { stroke: var(--bad); }
+
+.disclosure-toggle {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  background: var(--surface); color: var(--text); border: 1px solid var(--surface2);
+  border-radius: 999px; padding: 0.38rem 0.9rem; font: inherit; font-size: 0.86rem; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.disclosure-toggle:hover { background: var(--surface2); border-color: color-mix(in srgb, var(--accent) 45%, var(--surface2)); }
+.recommended-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.85rem; }
 
 /* review */
 .card-box { background: var(--surface); border-radius: var(--radius); padding: 2rem 1.5rem; min-height: 260px; margin-top: 1rem;
@@ -430,6 +446,10 @@ button, .chip, .cell, .kanji-cell { -webkit-tap-highlight-color: transparent; }
   .two-col { grid-template-columns: 1fr; }
   .kanji-big { font-size: 4.5rem; }
   .kanji-grid { grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); }
+  .stroke-box.trace { max-width: min(225px, 58vw); }
+  .bento-steps { flex-wrap: nowrap; gap: 0.35rem; margin: 0.5rem 0 0.8rem; }
+  .bento-step { flex: 1 1 0; min-width: 0; padding: 0.42rem 0.3rem; font-size: 0.72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recommended-grid { grid-template-columns: 1fr; gap: 0.65rem; }
   .gloss, .speak-panel { bottom: calc(4.2rem + env(safe-area-inset-bottom)); }
   .gloss { flex-wrap: wrap; }
   .chip { padding: 0.5rem 0.9rem; } /* bigger touch targets */

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   PARTICLES,
   PARTICLE_CATEGORIES,
@@ -19,6 +19,7 @@ import { speak } from '../lib/tts';
 import { playDing, playMiss } from '../lib/sfx';
 import { useCampaignMission } from '../lib/useCampaignMission';
 import CampaignBanner from '../components/CampaignBanner';
+import { DeckBag, bumpRoundSeq, readRoundSeq } from '../lib/deckSampler';
 
 const ALL_CATS = Object.keys(PARTICLE_CATEGORIES) as ParticleCategory[];
 const ALL_ONO_CATS = Object.keys(ONOMATO_CATEGORIES) as OnomatoCategory[];
@@ -55,12 +56,16 @@ export default function ParticleDojo() {
   const [showWhy, setShowWhy] = useState(false);
   const [session, setSession] = useState({ ok: 0, total: 0 });
   const [particleSubMode, setParticleSubMode] = useState<'traps' | 'matrix'>('traps');
-  const [slotIdx, setSlotIdx] = useState(0);
+  const [slotIdx, setSlotIdx] = useState(() => readRoundSeq('particle_slot_idx'));
+  const [showMatrixPicker, setShowMatrixPicker] = useState(false);
+  const [showParticleGuide, setShowParticleGuide] = useState(false);
+  const bagRef = useRef<DeckBag<ParticlePrompt> | null>(null);
 
   // Onomatopoeia Dojo State
   const [onoCat, setOnoCat] = useState<OnomatoCategory | 'all'>('all');
-  const [onoIdx, setOnoIdx] = useState(0);
+  const [onoIdx, setOnoIdx] = useState(() => readRoundSeq('onomato_idx'));
   const [onoPicked, setOnoPicked] = useState<string | null>(null);
+  const [showOnoRef, setShowOnoRef] = useState(false);
 
   const pool = useMemo(() => {
     let list = PARTICLES;
@@ -78,16 +83,21 @@ export default function ParticleDojo() {
   );
   const currentOno: OnomatopoeiaItem | undefined = onoPool[onoIdx % onoPool.length];
 
-  const pickNext = (last?: ParticlePrompt | null) => {
-    if (!pool.length) return null;
-    const candidates = pool.length > 1 && last ? pool.filter((p) => p.id !== last.id) : pool;
-    return candidates[Math.floor(Math.random() * candidates.length)];
-  };
-
   useEffect(() => {
     setPicked(null);
     setShowWhy(false);
-    setCurrent(pickNext(null));
+    if (!pool.length) {
+      bagRef.current = null;
+      setCurrent(null);
+      return;
+    }
+    const bag = new DeckBag<ParticlePrompt>(
+      pool,
+      (p) => p.id,
+      isCampaignMode ? undefined : `particle_traps_${cat}`,
+    );
+    bagRef.current = bag;
+    setCurrent(bag.next());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pool]);
 
@@ -100,6 +110,9 @@ export default function ParticleDojo() {
     if (!current || picked !== null) return;
     setPicked(opt);
     const ok = opt === current.answer;
+    if (!ok) {
+      bagRef.current?.requeueMissed(current, 4);
+    }
     setSession((s) => {
       const nextOk = s.ok + (ok ? 1 : 0);
       const nextTotal = s.total + 1;
@@ -115,7 +128,7 @@ export default function ParticleDojo() {
   const next = () => {
     setPicked(null);
     setShowWhy(false);
-    setCurrent(pickNext(current));
+    setCurrent(bagRef.current?.next() ?? pool[0] ?? null);
   };
 
   const srsId = current ? `g:particle:${current.id}` : '';
@@ -197,21 +210,35 @@ export default function ParticleDojo() {
 
           {particleSubMode === 'matrix' ? (
             <div>
-              <div className="controls" style={{ marginTop: '0.8rem', flexWrap: 'wrap', gap: '0.4rem' }}>
-                {PARTICLE_SLOT_CHALLENGES.map((ch, idx) => (
-                  <button
-                    key={ch.id}
-                    className={(slotIdx % PARTICLE_SLOT_CHALLENGES.length) === idx ? 'chip on' : 'chip'}
-                    onClick={() => setSlotIdx(idx)}
-                  >
-                    #{idx + 1} {ch.title}
-                  </button>
-                ))}
+              <div className="controls" style={{ marginTop: '0.6rem', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className={showMatrixPicker ? 'chip on' : 'chip'}
+                  onClick={() => setShowMatrixPicker((m) => !m)}
+                >
+                  🧩 Choose Challenge (#{(slotIdx % PARTICLE_SLOT_CHALLENGES.length) + 1} of {PARTICLE_SLOT_CHALLENGES.length}) {showMatrixPicker ? '▴' : '▾'}
+                </button>
               </div>
+              {showMatrixPicker && (
+                <div className="controls" style={{ marginTop: '0.4rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+                  {PARTICLE_SLOT_CHALLENGES.map((ch, idx) => (
+                    <button
+                      key={ch.id}
+                      className={(slotIdx % PARTICLE_SLOT_CHALLENGES.length) === idx ? 'chip on' : 'chip'}
+                      onClick={() => {
+                        setSlotIdx(idx);
+                        setShowMatrixPicker(false);
+                      }}
+                    >
+                      #{idx + 1} {ch.title}
+                    </button>
+                  ))}
+                </div>
+              )}
               <ParticleSlotGrid
                 key={PARTICLE_SLOT_CHALLENGES[slotIdx % PARTICLE_SLOT_CHALLENGES.length].id}
                 challenge={PARTICLE_SLOT_CHALLENGES[slotIdx % PARTICLE_SLOT_CHALLENGES.length]}
-                onNext={() => setSlotIdx((i) => (i + 1) % PARTICLE_SLOT_CHALLENGES.length)}
+                onNext={() => setSlotIdx(bumpRoundSeq('particle_slot_idx'))}
               />
             </div>
           ) : (
@@ -320,27 +347,37 @@ export default function ParticleDojo() {
             </>
           )}
 
-          <h2>Particle Cheat-Sheet Matrix <span className="muted">(tap any card to hear example)</span></h2>
-          <div className="story-list">
-            {PARTICLE_GUIDE.map((g) => (
-              <div
-                key={g.p}
-                className="gp"
-                style={{ cursor: 'pointer' }}
-                onClick={() => speak(g.exKana)}
-                title="Tap to hear example sentence"
-              >
-                <div className="gp-head">
-                  <b className="jp" style={{ fontSize: '1.5rem' }}>{g.p}</b>
-                  <span><b>{g.role}</b></span>
-                </div>
-                <p className="muted small">{g.tip}</p>
-                <p className="jp nomargin">
-                  🔊 {g.exJp} <span className="muted small">— {g.exEn}</span>
-                </p>
-              </div>
-            ))}
+          <div style={{ marginTop: '1rem' }}>
+            <button
+              type="button"
+              className="disclosure-toggle"
+              onClick={() => setShowParticleGuide((g) => !g)}
+            >
+              📊 Particle Cheat-Sheet Matrix ({PARTICLE_GUIDE.length}) {showParticleGuide ? '▴' : '▾'}
+            </button>
           </div>
+          {showParticleGuide && (
+            <div className="story-list">
+              {PARTICLE_GUIDE.map((g) => (
+                <div
+                  key={g.p}
+                  className="gp"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => speak(g.exKana)}
+                  title="Tap to hear example sentence"
+                >
+                  <div className="gp-head">
+                    <b className="jp" style={{ fontSize: '1.5rem' }}>{g.p}</b>
+                    <span><b>{g.role}</b></span>
+                  </div>
+                  <p className="muted small">{g.tip}</p>
+                  <p className="jp nomargin">
+                    🔊 {g.exJp} <span className="muted small">— {g.exEn}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -461,7 +498,7 @@ export default function ParticleDojo() {
                   className="chip on"
                   onClick={() => {
                     setOnoPicked(null);
-                    setOnoIdx((i) => i + 1);
+                    setOnoIdx(bumpRoundSeq('onomato_idx'));
                   }}
                 >
                   Next Sound Word →
@@ -470,33 +507,43 @@ export default function ParticleDojo() {
             </div>
           )}
 
-          <h2>Onomatopoeia &amp; Mimetic Word Reference ({ONOMATOPOEIA.length} Words)</h2>
-          <div className="story-list">
-            {onoPool.map((item) => (
-              <div
-                key={item.id}
-                className="gp"
-                style={{ cursor: 'pointer' }}
-                onClick={() => speak(item.audio)}
-              >
-                <div className="row-between">
-                  <div className="gp-head">
-                    <b className="jp" style={{ fontSize: '1.35rem' }}>
-                      🔊 {item.word} <span className="muted small">({item.kana})</span>
-                    </b>
-                    <span><b>{item.meaning}</b></span>
-                  </div>
-                  <span className="tag">{ONOMATO_CATEGORIES[item.category]}</span>
-                </div>
-                <p className="muted small">{item.vibeNote}</p>
-                <p className="jp nomargin">
-                  {item.before}
-                  <b style={{ color: 'var(--accent)' }}>{item.word}</b>
-                  {item.after} <span className="muted small">— {item.en}</span>
-                </p>
-              </div>
-            ))}
+          <div style={{ marginTop: '1rem' }}>
+            <button
+              type="button"
+              className="disclosure-toggle"
+              onClick={() => setShowOnoRef((r) => !r)}
+            >
+              📊 Onomatopoeia &amp; Mimetic Word Reference ({onoPool.length}) {showOnoRef ? '▴' : '▾'}
+            </button>
           </div>
+          {showOnoRef && (
+            <div className="story-list">
+              {onoPool.map((item) => (
+                <div
+                  key={item.id}
+                  className="gp"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => speak(item.audio)}
+                >
+                  <div className="row-between">
+                    <div className="gp-head">
+                      <b className="jp" style={{ fontSize: '1.35rem' }}>
+                        🔊 {item.word} <span className="muted small">({item.kana})</span>
+                      </b>
+                      <span><b>{item.meaning}</b></span>
+                    </div>
+                    <span className="tag">{ONOMATO_CATEGORIES[item.category]}</span>
+                  </div>
+                  <p className="muted small">{item.vibeNote}</p>
+                  <p className="jp nomargin">
+                    {item.before}
+                    <b style={{ color: 'var(--accent)' }}>{item.word}</b>
+                    {item.after} <span className="muted small">— {item.en}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>

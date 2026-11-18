@@ -62,6 +62,12 @@ export default function Campaign() {
   } | null>(null);
   const [bossSubmitted, setBossSubmitted] = useState<boolean>(false);
   const [placementOpen, setPlacementOpen] = useState<boolean>(false);
+  const [sagaTrack, setSagaTrack] = useState<'n5' | 'n4'>(() => (activeSagaNum >= 7 ? 'n4' : 'n5'));
+  const [prevSagaNum, setPrevSagaNum] = useState<number>(activeSagaNum);
+  if (activeSagaNum !== prevSagaNum) {
+    setPrevSagaNum(activeSagaNum);
+    setSagaTrack(activeSagaNum >= 7 ? 'n4' : 'n5');
+  }
 
   const curSaga = CAMPAIGN_SAGAS.find((s) => s.sagaNumber === activeSagaNum) || CAMPAIGN_SAGAS[0];
 
@@ -327,45 +333,51 @@ export default function Campaign() {
         </div>
       )}
 
-      {/* Saga Navigation Tracks */}
+      {/* Saga Navigation Tracks (1 track = 6 clean Saga pills at a time) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-        {[
-          { label: 'JLPT N5 Track (Sagas 1–6)', sagas: CAMPAIGN_SAGAS.filter((s) => s.sagaNumber <= 6) },
-          { label: 'JLPT N4 Track (Sagas 7–12)', sagas: CAMPAIGN_SAGAS.filter((s) => s.sagaNumber >= 7) },
-        ].map((track) => (
-          <div key={track.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <span className="muted small" style={{ minWidth: '175px', fontWeight: 600 }}>
-              {track.label}:
-            </span>
-            <div className="controls nomargin" style={{ gap: '0.4rem', flexWrap: 'wrap' }}>
-              {track.sagas.map((saga) => {
-                const unlocked = isSagaUnlocked(saga.sagaNumber);
-                const cleared = !!campaignClearedSagas[saga.sagaNumber];
-                const active = saga.sagaNumber === activeSagaNum;
-                return (
-                  <button
-                    key={saga.id}
-                    className={active ? 'chip on' : cleared ? 'chip ok' : unlocked ? 'chip' : 'chip disabled'}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      opacity: unlocked ? 1 : 0.45,
-                      padding: '0.32rem 0.78rem',
-                      fontSize: '0.86rem',
-                    }}
-                    disabled={!unlocked}
-                    onClick={() => setActiveSagaNum(saga.sagaNumber)}
-                    title={saga.title}
-                  >
-                    <span>Saga {saga.sagaNumber}</span>
-                    <span>{cleared ? '✓' : unlocked ? '🔓' : '🔒'}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+        <div className="controls nomargin" style={{ gap: '0.45rem' }}>
+          <button
+            type="button"
+            className={sagaTrack === 'n5' ? 'chip on' : 'chip'}
+            onClick={() => setSagaTrack('n5')}
+          >
+            🌱 JLPT N5 Track (Sagas 1–6)
+          </button>
+          <button
+            type="button"
+            className={sagaTrack === 'n4' ? 'chip on' : 'chip'}
+            onClick={() => setSagaTrack('n4')}
+          >
+            🚀 JLPT N4 Track (Sagas 7–12)
+          </button>
+        </div>
+        <div className="controls nomargin" style={{ gap: '0.4rem', flexWrap: 'wrap' }}>
+          {CAMPAIGN_SAGAS.filter((s) => (sagaTrack === 'n5' ? s.sagaNumber <= 6 : s.sagaNumber >= 7)).map((saga) => {
+            const unlocked = isSagaUnlocked(saga.sagaNumber);
+            const cleared = !!campaignClearedSagas[saga.sagaNumber];
+            const active = saga.sagaNumber === activeSagaNum;
+            return (
+              <button
+                key={saga.id}
+                className={active ? 'chip on' : cleared ? 'chip ok' : unlocked ? 'chip' : 'chip disabled'}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  opacity: unlocked ? 1 : 0.45,
+                  padding: '0.32rem 0.78rem',
+                  fontSize: '0.86rem',
+                }}
+                disabled={!unlocked}
+                onClick={() => setActiveSagaNum(saga.sagaNumber)}
+                title={saga.title}
+              >
+                <span>Saga {saga.sagaNumber}</span>
+                <span>{cleared ? '✓' : unlocked ? '🔓' : '🔒'}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Active Saga Banner */}

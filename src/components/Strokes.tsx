@@ -51,7 +51,15 @@ type Pt = { x: number; y: number };
  * Tracing / free-writing canvas. Checks stroke count, and that each stroke
  * starts and ends near the reference stroke (catches wrong order/direction).
  */
-export function TraceCanvas({ kanji }: { kanji: string }) {
+export function TraceCanvas({
+  kanji,
+  compact = false,
+  onComplete,
+}: {
+  kanji: string;
+  compact?: boolean;
+  onComplete?: (allGood: boolean) => void;
+}) {
   const [paths, setPaths] = useState<string[] | null>(null);
   const [strokes, setStrokes] = useState<Pt[][]>([]);
   const [activeStroke, setActiveStroke] = useState<Pt[] | null>(null);
@@ -80,16 +88,6 @@ export function TraceCanvas({ kanji }: { kanji: string }) {
   const move = (e: React.PointerEvent) => {
     setActiveStroke((prev) => (prev ? [...prev, toPt(e)] : null));
   };
-  const up = () => {
-    setActiveStroke((curr) => {
-      if (curr && curr.length > 1) {
-        const next = [...strokes, curr];
-        setStrokes(next);
-        if (paths && next.length === paths.length) check(next);
-      }
-      return null;
-    });
-  };
 
   const check = (ss: Pt[][]) => {
     if (!paths?.length) return;
@@ -105,24 +103,54 @@ export function TraceCanvas({ kanji }: { kanji: string }) {
       return dist(a, r.start) < TOL && (refLen < 12 || dist(b, r.end) < TOL);
     });
     const good = ok.filter(Boolean).length;
+    const allGood = good === paths.length;
     setResult({
       ok,
-      msg: good === paths.length ? '◎ Great! Correct order & direction.' : `${good}/${paths.length} strokes matched. Red = check order/direction.`,
+      msg: allGood ? '◎ Great! Correct order & direction.' : `${good}/${paths.length} strokes matched. Red = check order/direction.`,
     });
+    onComplete?.(allGood);
+  };
+
+  const up = () => {
+    const curr = activeStroke;
+    setActiveStroke(null);
+    if (!curr || curr.length <= 1) return;
+    const next = [...strokes, curr];
+    setStrokes(next);
+    if (paths && next.length === paths.length) {
+      check(next);
+    }
   };
 
   const toD = (s: Pt[]) => 'M' + s.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('L');
+  const nextStrokeIdx = strokes.length;
+  const ends = paths ? strokeEnds(paths) : [];
+  const nextStart = guide && ends[nextStrokeIdx] ? ends[nextStrokeIdx].start : null;
 
   return (
     <div className="stroke-wrap">
-      <svg ref={svgRef} viewBox="0 0 109 109" className="stroke-box trace"
+      <svg ref={svgRef} viewBox="0 0 109 109" className={`stroke-box trace${compact ? ' compact' : ''}`}
         onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         <Grid />
-        {guide && paths?.map((d, i) => <path key={i} d={d} className="stroke-guide" />)}
+        {guide && paths?.map((d, i) => (
+          <path
+            key={i}
+            d={d}
+            className={i === nextStrokeIdx ? 'stroke-guide-next' : 'stroke-guide'}
+          />
+        ))}
         {strokes.map((s, i) => (
           <path key={i} d={toD(s)} className={`stroke-user ${result ? (result.ok[i] ? 'ok' : 'bad') : ''}`} />
         ))}
         {activeStroke && <path d={toD(activeStroke)} className="stroke-user" />}
+        {nextStart && (
+          <g style={{ pointerEvents: 'none' }}>
+            <circle cx={nextStart.x} cy={nextStart.y} r="4.2" className="stroke-start-dot" />
+            <text x={Math.min(100, nextStart.x + 5)} y={Math.max(9, nextStart.y - 3)} className="stroke-num">
+              {nextStrokeIdx + 1}
+            </text>
+          </g>
+        )}
       </svg>
       <div className="controls center">
         <button className="chip" onClick={() => { setStrokes((s) => s.slice(0, -1)); setResult(null); }}>↶ Undo</button>
@@ -130,7 +158,13 @@ export function TraceCanvas({ kanji }: { kanji: string }) {
         <button className={guide ? 'chip on' : 'chip'} onClick={() => setGuide(!guide)}>Guide</button>
         <span className="muted small">{strokes.length}/{paths?.length ?? '?'}</span>
       </div>
-      {result && <p className={result.ok.every(Boolean) ? 'ok-text' : 'bad-text'}>{result.msg}</p>}
+      {result ? (
+        <p className={result.ok.every(Boolean) ? 'ok-text small nomargin' : 'bad-text small nomargin'}>{result.msg}</p>
+      ) : strokes.length === 0 && paths && paths.length > 0 ? (
+        <p className="muted small nomargin center">
+          Trace stroke 1 of {paths.length} starting at the pulsing dot
+        </p>
+      ) : null}
     </div>
   );
 }

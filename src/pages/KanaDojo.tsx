@@ -6,19 +6,9 @@ import { playDing, playFanfare, playMiss } from '../lib/sfx';
 import { useCampaignMission } from '../lib/useCampaignMission';
 import CampaignBanner from '../components/CampaignBanner';
 import ConfuserSpeedSorter from '../components/ConfuserSpeedSorter';
+import { DeckBag } from '../lib/deckSampler';
 
 type Script = 'hiragana' | 'katakana' | 'both';
-
-/** Weighted pick: characters you miss more appear more often. */
-function pick(pool: Kana[], stats: Record<string, { correct: number; wrong: number }>, last?: Kana) {
-  const weights = pool.map((k) => {
-    const s = stats[k.kana] ?? { correct: 0, wrong: 0 };
-    return k === last && pool.length > 1 ? 0 : 1 + (s.wrong * 2) / (1 + s.correct * 0.5);
-  });
-  let r = Math.random() * weights.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < pool.length; i++) if ((r -= weights[i]) <= 0) return pool[i];
-  return pool[0];
-}
 
 function matchesRomaji(input: string, k: Kana) {
   const trimmed = input.trim();
@@ -68,7 +58,14 @@ export default function KanaDojo() {
   const [session, setSession] = useState({ ok: 0, total: 0 });
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [autoAudio, setAutoAudio] = useState(false);
+  const [showRowPicker, setShowRowPicker] = useState(false);
+  const [showChart, setShowChart] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const bagRef = useRef<DeckBag<Kana> | null>(null);
+  const statsRef = useRef(kanaStats);
+  useEffect(() => {
+    statsRef.current = kanaStats;
+  }, [kanaStats]);
 
   const pool = useMemo(() => {
     if (isCampaignMode && targetItems && targetItems.length > 0) {
@@ -82,11 +79,20 @@ export default function KanaDojo() {
   }, [isCampaignMode, targetItems, targetScript, script, rows]);
 
   useEffect(() => {
-    if (pool.length) {
-      const nextKana = pick(pool, kanaStats);
-      setCurrent(nextKana);
-      if (autoAudio && nextKana) speak(nextKana.kana, 0.85);
-    }
+    if (!pool.length) return;
+    const bag = new DeckBag<Kana>(
+      pool,
+      (k) => k.kana,
+      isCampaignMode ? undefined : `kana_dojo_${script}`,
+      (k) => {
+        const s = statsRef.current[k.kana] ?? { correct: 0, wrong: 0 };
+        return 1 + (s.wrong * 2) / (1 + s.correct * 0.5);
+      },
+    );
+    bagRef.current = bag;
+    const nextKana = bag.next();
+    setCurrent(nextKana);
+    if (autoAudio && nextKana) speak(nextKana.kana, 0.85);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pool]);
 
@@ -94,6 +100,9 @@ export default function KanaDojo() {
     if (!current) return;
     const ok = matchesRomaji(val, current);
     recordKana(current.kana, ok);
+    if (!ok) {
+      bagRef.current?.requeueMissed(current, 4);
+    }
     const nextTotal = session.total + 1;
     const nextOk = session.ok + (ok ? 1 : 0);
     setSession({ ok: nextOk, total: nextTotal });
@@ -107,7 +116,7 @@ export default function KanaDojo() {
     setFlash(ok ? 'ok' : 'bad');
     if (sfxEnabled) (ok ? playDing : playMiss)();
     speak(current.kana, 0.85);
-    const nextKana = pick(pool, kanaStats, current);
+    const nextKana = bagRef.current?.next() ?? pool[0] ?? null;
     if (ok) {
       setReveal(null);
       setCurrent(nextKana);
@@ -227,15 +236,24 @@ export default function KanaDojo() {
             <button className={rows.length === ROWS.length ? 'chip on' : 'chip'} onClick={() => setRows(ROWS)}>
               All (104)
             </button>
+            <button
+              type="button"
+              className={showRowPicker ? 'chip on' : 'chip'}
+              onClick={() => setShowRowPicker((v) => !v)}
+            >
+              Rows ({rows.length}/{ROWS.length}) {showRowPicker ? '▴' : '▾'}
+            </button>
           </div>
 
-          <div className="controls">
-            {ROWS.map((r) => (
-              <button key={r} className={rows.includes(r) ? 'chip on' : 'chip'} onClick={() => toggleRow(r)}>
-                {refSource.find((k) => k.row === r)?.kana}
-              </button>
-            ))}
-          </div>
+          {showRowPicker && (
+            <div className="controls">
+              {ROWS.map((r) => (
+                <button key={r} className={rows.includes(r) ? 'chip on' : 'chip'} onClick={() => toggleRow(r)}>
+                  {refSource.find((k) => k.row === r)?.kana}
+                </button>
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -318,27 +336,14 @@ export default function KanaDojo() {
         </div>
       </div>
 
-      {/* Accuracy Heatmap Legend & Drill Weak */}
-      <div className="row-between" style={{ marginTop: '1.5rem', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.6rem' }}>
-        <div className="controls nomargin" style={{ gap: '0.45rem', alignItems: 'center' }}>
-          <span className="muted small">Mastery:</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
-            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', border: '1px solid var(--border)' }} />
-            <span className="muted">Unseen</span>
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
-            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--accent)' }} />
-            <span className="muted">Learning</span>
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
-            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--ok)' }} />
-            <span className="muted">Mastered</span>
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
-            <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--bad)' }} />
-            <span className="muted">Struggling</span>
-          </span>
-        </div>
+      <div className="row-between" style={{ marginTop: '1.2rem' }}>
+        <button
+          type="button"
+          className="disclosure-toggle"
+          onClick={() => setShowChart((c) => !c)}
+        >
+          📊 Kana Reference Chart &amp; Mastery Heatmap ({refSource.length}) {showChart ? '▴' : '▾'}
+        </button>
         {(() => {
           const src = script === 'katakana' ? KATAKANA : script === 'both' ? [...HIRAGANA, ...KATAKANA] : HIRAGANA;
           const weakKana = src.filter((k) => {
@@ -359,45 +364,69 @@ export default function KanaDojo() {
         })()}
       </div>
 
-      <h2>Basic, Dakuten &amp; Handakuten ({basicAndDakuten.length})</h2>
-      <div className="chart">
-        {basicAndDakuten.map((k) => {
-          const s = kanaStats[k.kana];
-          const isStruggling = s && s.wrong > 0 && s.wrong >= s.correct;
-          const level = !s || s.correct === 0 ? 0 : s.correct >= 3 && s.correct > s.wrong * 2 ? 2 : 1;
-          return (
-            <button
-              key={k.kana}
-              className={`cell l${level}`}
-              style={isStruggling ? { boxShadow: 'inset 0 -3px 0 var(--bad)' } : undefined}
-              onClick={() => speak(k.kana)}
-            >
-              <span>{k.kana}</span>
-              <small>{k.romaji}</small>
-            </button>
-          );
-        })}
-      </div>
+      {showChart && (
+        <>
+          <div className="controls" style={{ marginTop: '0.7rem', gap: '0.45rem', alignItems: 'center' }}>
+            <span className="muted small">Mastery:</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+              <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', border: '1px solid var(--border)' }} />
+              <span className="muted">Unseen</span>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+              <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--accent)' }} />
+              <span className="muted">Learning</span>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+              <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--ok)' }} />
+              <span className="muted">Mastered</span>
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+              <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--surface2)', borderBottom: '3px solid var(--bad)' }} />
+              <span className="muted">Struggling</span>
+            </span>
+          </div>
 
-      <h2>Combination Kana — Yōon 拗音 ({yoonList.length})</h2>
-      <div className="chart">
-        {yoonList.map((k) => {
-          const s = kanaStats[k.kana];
-          const isStruggling = s && s.wrong > 0 && s.wrong >= s.correct;
-          const level = !s || s.correct === 0 ? 0 : s.correct >= 3 && s.correct > s.wrong * 2 ? 2 : 1;
-          return (
-            <button
-              key={k.kana}
-              className={`cell l${level}`}
-              style={isStruggling ? { boxShadow: 'inset 0 -3px 0 var(--bad)' } : undefined}
-              onClick={() => speak(k.kana)}
-            >
-              <span>{k.kana}</span>
-              <small>{k.romaji}</small>
-            </button>
-          );
-        })}
-      </div>
+          <h2>Basic, Dakuten &amp; Handakuten ({basicAndDakuten.length})</h2>
+          <div className="chart">
+            {basicAndDakuten.map((k) => {
+              const s = kanaStats[k.kana];
+              const isStruggling = s && s.wrong > 0 && s.wrong >= s.correct;
+              const level = !s || s.correct === 0 ? 0 : s.correct >= 3 && s.correct > s.wrong * 2 ? 2 : 1;
+              return (
+                <button
+                  key={k.kana}
+                  className={`cell l${level}`}
+                  style={isStruggling ? { boxShadow: 'inset 0 -3px 0 var(--bad)' } : undefined}
+                  onClick={() => speak(k.kana)}
+                >
+                  <span>{k.kana}</span>
+                  <small>{k.romaji}</small>
+                </button>
+              );
+            })}
+          </div>
+
+          <h2>Combination Kana — Yōon 拗音 ({yoonList.length})</h2>
+          <div className="chart">
+            {yoonList.map((k) => {
+              const s = kanaStats[k.kana];
+              const isStruggling = s && s.wrong > 0 && s.wrong >= s.correct;
+              const level = !s || s.correct === 0 ? 0 : s.correct >= 3 && s.correct > s.wrong * 2 ? 2 : 1;
+              return (
+                <button
+                  key={k.kana}
+                  className={`cell l${level}`}
+                  style={isStruggling ? { boxShadow: 'inset 0 -3px 0 var(--bad)' } : undefined}
+                  onClick={() => speak(k.kana)}
+                >
+                  <span>{k.kana}</span>
+                  <small>{k.romaji}</small>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
       </>
       )}
 

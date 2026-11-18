@@ -18,6 +18,7 @@ import { playDing, playMiss } from '../lib/sfx';
 import ConjugationLessonViewer from '../components/ConjugationLessonViewer';
 import { useCampaignMission } from '../lib/useCampaignMission';
 import CampaignBanner from '../components/CampaignBanner';
+import { DeckBag, bumpRoundSeq, readRoundSeq } from '../lib/deckSampler';
 
 const ALL_GROUPS: WordGroup[] = ['ichidan', 'godan', 'irregular', 'i-adj', 'na-adj'];
 const ALL_FORMS: ConjForm[] = ['polite', 'te', 'negative', 'past', 'politePast'];
@@ -97,7 +98,7 @@ export default function ConjugationDojo() {
 
   // Deconjugation Drill State
   const [deconjFilterGroup, setDeconjFilterGroup] = useState<WordGroup | 'all'>('all');
-  const [deconjIdx, setDeconjIdx] = useState(0);
+  const [deconjIdx, setDeconjIdx] = useState(() => readRoundSeq('deconj_idx'));
   const [selectedRoot, setSelectedRoot] = useState<string | null>(null);
   const [selectedVoice, setSelectedVoice] = useState<string | null>(null);
   const [deconjAnswered, setDeconjAnswered] = useState(false);
@@ -147,7 +148,7 @@ export default function ConjugationDojo() {
     setSelectedVoice(null);
     setDeconjAnswered(false);
     setDeconjFlash(null);
-    setDeconjIdx((i) => i + 1);
+    setDeconjIdx(bumpRoundSeq('deconj_idx'));
   };
   const [groups, setGroups] = useState<WordGroup[]>(ALL_GROUPS);
   const [forms, setForms] = useState<ConjForm[]>(['polite', 'te', 'negative', 'past']);
@@ -156,8 +157,11 @@ export default function ConjugationDojo() {
   const [flash, setFlash] = useState<'ok' | 'bad' | null>(null);
   const [reveal, setReveal] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
+  const [showConjFilters, setShowConjFilters] = useState(false);
+  const [showConjChart, setShowConjChart] = useState(false);
   const [session, setSession] = useState({ ok: 0, total: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
+  const bagRef = useRef<DeckBag<PromptItem> | null>(null);
 
   // Transitive vs Intransitive Pair Drill State
   const pairDrills = useMemo<PairDrill[]>(() => {
@@ -191,7 +195,7 @@ export default function ConjugationDojo() {
     return list;
   }, []);
 
-  const [pairIdx, setPairIdx] = useState(0);
+  const [pairIdx, setPairIdx] = useState(() => readRoundSeq('verb_pair_idx'));
   const [pairPicked, setPairPicked] = useState<'intransitive' | 'transitive' | null>(null);
   const currentPairDrill = pairDrills[pairIdx % pairDrills.length];
 
@@ -206,17 +210,19 @@ export default function ConjugationDojo() {
     return out;
   }, [groups, forms]);
 
-  const pickNext = (last?: PromptItem | null) => {
-    if (!pool.length) return null;
-    const candidates =
-      pool.length > 1 && last
-        ? pool.filter((p) => !(p.word.id === last.word.id && p.form === last.form))
-        : pool;
-    return candidates[Math.floor(Math.random() * candidates.length)];
-  };
-
   useEffect(() => {
-    setCurrent(pickNext(null));
+    if (!pool.length) {
+      bagRef.current = null;
+      setCurrent(null);
+      return;
+    }
+    const bag = new DeckBag<PromptItem>(
+      pool,
+      (p) => `${p.word.id}:${p.form}`,
+      isCampaignMode ? undefined : 'conj_dojo',
+    );
+    bagRef.current = bag;
+    setCurrent(bag.next());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pool]);
 
@@ -224,6 +230,9 @@ export default function ConjugationDojo() {
     if (!current) return;
     const target = current.word.forms[current.form];
     const ok = matchesTarget(val, current.word, current.form);
+    if (!ok) {
+      bagRef.current?.requeueMissed(current, 4);
+    }
     setSession((s) => {
       const nextOk = s.ok + (ok ? 1 : 0);
       const nextTotal = s.total + 1;
@@ -240,7 +249,7 @@ export default function ConjugationDojo() {
     } else {
       setReveal(`${current.word.dict} (${FORM_LABELS[current.form].en}) = ${target.kanji} (${target.kana} / ${target.romaji})`);
     }
-    setCurrent(pickNext(current));
+    setCurrent(bagRef.current?.next() ?? pool[0] ?? null);
     setInput('');
     setShowHint(false);
     setTimeout(() => setFlash(null), 250);
@@ -330,26 +339,40 @@ export default function ConjugationDojo() {
         />
       ) : dojoMode === 'conjugate' ? (
         <>
-          <div className="controls" style={{ marginTop: '0.8rem' }}>
-            <span className="muted small" style={{ alignSelf: 'center' }}>Groups:</span>
-            {ALL_GROUPS.map((g) => (
-              <button key={g} className={groups.includes(g) ? 'chip on' : 'chip'} onClick={() => toggleGroup(g)}>
-                {GROUP_LABELS[g]}
-              </button>
-            ))}
-            <button className={groups.length === ALL_GROUPS.length ? 'chip on' : 'chip'} onClick={() => setGroups(ALL_GROUPS)}>
-              All Groups
+          <div className="controls" style={{ marginTop: '0.7rem', alignItems: 'center' }}>
+            <button
+              type="button"
+              className={showConjFilters ? 'chip on' : 'chip'}
+              onClick={() => setShowConjFilters((v) => !v)}
+            >
+              ⚙️ Filter Groups &amp; Forms ({groups.length}/{ALL_GROUPS.length} · {forms.length}/{ALL_FORMS.length}) {showConjFilters ? '▴' : '▾'}
             </button>
           </div>
 
-          <div className="controls">
-            <span className="muted small" style={{ alignSelf: 'center' }}>Forms:</span>
-            {ALL_FORMS.map((f) => (
-              <button key={f} className={forms.includes(f) ? 'chip on' : 'chip'} onClick={() => toggleForm(f)}>
-                {FORM_LABELS[f].jp}
-              </button>
-            ))}
-          </div>
+          {showConjFilters && (
+            <>
+              <div className="controls" style={{ marginTop: '0.4rem' }}>
+                <span className="muted small" style={{ alignSelf: 'center' }}>Groups:</span>
+                {ALL_GROUPS.map((g) => (
+                  <button key={g} className={groups.includes(g) ? 'chip on' : 'chip'} onClick={() => toggleGroup(g)}>
+                    {GROUP_LABELS[g]}
+                  </button>
+                ))}
+                <button className={groups.length === ALL_GROUPS.length ? 'chip on' : 'chip'} onClick={() => setGroups(ALL_GROUPS)}>
+                  All Groups
+                </button>
+              </div>
+
+              <div className="controls">
+                <span className="muted small" style={{ alignSelf: 'center' }}>Forms:</span>
+                {ALL_FORMS.map((f) => (
+                  <button key={f} className={forms.includes(f) ? 'chip on' : 'chip'} onClick={() => toggleForm(f)}>
+                    {FORM_LABELS[f].jp}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           {current && target && (
             <div className={`drill ${flash ?? ''}`} onClick={() => inputRef.current?.focus()}>
@@ -452,38 +475,49 @@ export default function ConjugationDojo() {
             </div>
           )}
 
-          <h2>Conjugation Reference Chart ({CONJUGATIONS.length} words)</h2>
-          <div className="story-list">
-            {CONJUGATIONS.filter((w) => groups.includes(w.group)).map((w) => (
-              <div key={w.id} className="gp">
-                <div className="row-between">
-                  <div className="gp-head">
-                    <b className="jp" onClick={() => speak(w.reading)} style={{ cursor: 'pointer' }}>
-                      🔊 {w.dict} <span className="muted small">({w.reading})</span>
-                    </b>
-                    <span className="muted">{w.en}</span>
-                  </div>
-                  <span className="tag">{GROUP_LABELS[w.group]}</span>
-                </div>
-                <div className="controls" style={{ marginTop: '0.5rem' }}>
-                  {ALL_FORMS.map((f) => {
-                    const tf = w.forms[f];
-                    return (
-                      <button
-                        key={f}
-                        className="chip"
-                        onClick={() => speak(tf.kana)}
-                        title={tf.rule}
-                      >
-                        <span className="muted small">{FORM_LABELS[f].en}: </span>
-                        <b className="jp">{tf.kanji}</b> <span className="muted small">({tf.romaji})</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+          <div style={{ marginTop: '1rem' }}>
+            <button
+              type="button"
+              className="disclosure-toggle"
+              onClick={() => setShowConjChart((c) => !c)}
+            >
+              📊 Conjugation Reference Chart ({CONJUGATIONS.length} words) {showConjChart ? '▴' : '▾'}
+            </button>
           </div>
+
+          {showConjChart && (
+            <div className="story-list">
+              {CONJUGATIONS.filter((w) => groups.includes(w.group)).map((w) => (
+                <div key={w.id} className="gp">
+                  <div className="row-between">
+                    <div className="gp-head">
+                      <b className="jp" onClick={() => speak(w.reading)} style={{ cursor: 'pointer' }}>
+                        🔊 {w.dict} <span className="muted small">({w.reading})</span>
+                      </b>
+                      <span className="muted">{w.en}</span>
+                    </div>
+                    <span className="tag">{GROUP_LABELS[w.group]}</span>
+                  </div>
+                  <div className="controls" style={{ marginTop: '0.5rem' }}>
+                    {ALL_FORMS.map((f) => {
+                      const tf = w.forms[f];
+                      return (
+                        <button
+                          key={f}
+                          className="chip"
+                          onClick={() => speak(tf.kana)}
+                          title={tf.rule}
+                        >
+                          <span className="muted small">{FORM_LABELS[f].en}: </span>
+                          <b className="jp">{tf.kanji}</b> <span className="muted small">({tf.romaji})</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       ) : dojoMode === 'deconjugate' ? (
         <>
@@ -875,7 +909,7 @@ export default function ConjugationDojo() {
                   disabled={!pairPicked}
                   onClick={() => {
                     setPairPicked(null);
-                    setPairIdx((i) => i + 1);
+                    setPairIdx(bumpRoundSeq('verb_pair_idx'));
                   }}
                 >
                   Next Pair Drill →

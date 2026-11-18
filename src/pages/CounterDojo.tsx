@@ -6,6 +6,7 @@ import { speak } from '../lib/tts';
 import { playDing, playMiss } from '../lib/sfx';
 import { useCampaignMission } from '../lib/useCampaignMission';
 import CampaignBanner from '../components/CampaignBanner';
+import { DeckBag } from '../lib/deckSampler';
 
 const ALL_GROUPS = Object.keys(COUNTER_GROUPS) as CounterGroup[];
 
@@ -46,8 +47,11 @@ export default function CounterDojo() {
   const [flash, setFlash] = useState<'ok' | 'bad' | null>(null);
   const [reveal, setReveal] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
+  const [showCategories, setShowCategories] = useState(false);
+  const [showRefChart, setShowRefChart] = useState(false);
   const [session, setSession] = useState({ ok: 0, total: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
+  const bagRef = useRef<DeckBag<CounterItem> | null>(null);
 
   const pool = useMemo(() => {
     let list = COUNTERS;
@@ -61,14 +65,19 @@ export default function CounterDojo() {
     return list.filter((c) => c.group === filter);
   }, [filter, isCampaignMode, targetItems]);
 
-  const pickNext = (last?: CounterItem | null) => {
-    if (!pool.length) return null;
-    const candidates = pool.length > 1 && last ? pool.filter((c) => c.id !== last.id) : pool;
-    return candidates[Math.floor(Math.random() * candidates.length)];
-  };
-
   useEffect(() => {
-    setCurrent(pickNext(null));
+    if (!pool.length) {
+      bagRef.current = null;
+      setCurrent(null);
+      return;
+    }
+    const bag = new DeckBag<CounterItem>(
+      pool,
+      (c) => c.id,
+      isCampaignMode ? undefined : `counter_dojo_${filter}`,
+    );
+    bagRef.current = bag;
+    setCurrent(bag.next());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pool]);
 
@@ -85,6 +94,9 @@ export default function CounterDojo() {
   const submit = (val: string) => {
     if (!current) return;
     const ok = matchesCounter(val, current);
+    if (!ok) {
+      bagRef.current?.requeueMissed(current, 4);
+    }
     setSession((s) => {
       const nextOk = s.ok + (ok ? 1 : 0);
       const nextTotal = s.total + 1;
@@ -101,7 +113,7 @@ export default function CounterDojo() {
     } else {
       setReveal(`${current.kanji} (${current.en}) = ${current.kana} (${current.romaji})`);
     }
-    setCurrent(pickNext(current));
+    setCurrent(bagRef.current?.next() ?? pool[0] ?? null);
     setInput('');
     setShowHint(false);
     setTimeout(() => setFlash(null), 250);
@@ -145,12 +157,31 @@ export default function CounterDojo() {
         <button className={filter === 'traps' ? 'chip on' : 'chip'} onClick={() => setFilter('traps')}>
           ⚡ Sound Changes &amp; Traps ({COUNTERS.filter((c) => c.irregular).length})
         </button>
-        {ALL_GROUPS.map((g) => (
-          <button key={g} className={filter === g ? 'chip on' : 'chip'} onClick={() => setFilter(g)}>
-            {COUNTER_GROUPS[g].label}
-          </button>
-        ))}
+        <button
+          type="button"
+          className={showCategories || (filter !== 'all' && filter !== 'traps') ? 'chip on' : 'chip'}
+          onClick={() => setShowCategories((c) => !c)}
+        >
+          {filter !== 'all' && filter !== 'traps' ? `Category: ${COUNTER_GROUPS[filter].label}` : 'Filter Category'} {showCategories ? '▴' : '▾'}
+        </button>
       </div>
+
+      {showCategories && (
+        <div className="controls">
+          {ALL_GROUPS.map((g) => (
+            <button
+              key={g}
+              className={filter === g ? 'chip on' : 'chip'}
+              onClick={() => {
+                setFilter(g);
+                setShowCategories(false);
+              }}
+            >
+              {COUNTER_GROUPS[g].label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {current && (
         <div className={`drill ${flash ?? ''}`} onClick={() => inputRef.current?.focus()}>
@@ -267,33 +298,45 @@ export default function CounterDojo() {
         </div>
       )}
 
-      <h2>Counter Reference Chart <span className="muted">(tap any card to hear pronunciation · highlighted = sound change)</span></h2>
-      {ALL_GROUPS.map((g) => {
-        const items = COUNTERS.filter((c) => c.group === g);
-        return (
-          <div key={g} style={{ marginBottom: '1.2rem' }}>
-            <h3 className="small-title" style={{ marginBottom: '0.3rem' }}>
-              {COUNTER_GROUPS[g].label} <span className="muted small">— {COUNTER_GROUPS[g].desc}</span>
-            </h3>
-            <div className="chart" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))' }}>
-              {items.map((c) => (
-                <button
-                  key={c.id}
-                  className={`cell ${c.irregular ? 'l1' : ''}`}
-                  onClick={() => speak(c.kana)}
-                  title={c.rule}
-                >
-                  <span>{c.kanji}</span>
-                  <small className="jp" style={{ color: c.irregular ? 'var(--accent)' : 'var(--text)', fontWeight: c.irregular ? 600 : 400 }}>
-                    {c.kana}
-                  </small>
-                  <small>{c.en}</small>
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })}
+      <div style={{ marginTop: '1rem' }}>
+        <button
+          type="button"
+          className="disclosure-toggle"
+          onClick={() => setShowRefChart((r) => !r)}
+        >
+          📊 Counter Reference Chart ({COUNTERS.length} items) {showRefChart ? '▴' : '▾'}
+        </button>
+      </div>
+      {showRefChart && (
+        <div style={{ marginTop: '0.8rem' }}>
+          {ALL_GROUPS.map((g) => {
+            const items = COUNTERS.filter((c) => c.group === g);
+            return (
+              <div key={g} style={{ marginBottom: '1.2rem' }}>
+                <h3 className="small-title" style={{ marginBottom: '0.3rem' }}>
+                  {COUNTER_GROUPS[g].label} <span className="muted small">— {COUNTER_GROUPS[g].desc}</span>
+                </h3>
+                <div className="chart" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))' }}>
+                  {items.map((c) => (
+                    <button
+                      key={c.id}
+                      className={`cell ${c.irregular ? 'l1' : ''}`}
+                      onClick={() => speak(c.kana)}
+                      title={c.rule}
+                    >
+                      <span>{c.kanji}</span>
+                      <small className="jp" style={{ color: c.irregular ? 'var(--accent)' : 'var(--text)', fontWeight: c.irregular ? 600 : 400 }}>
+                        {c.kana}
+                      </small>
+                      <small>{c.en}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

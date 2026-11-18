@@ -76,6 +76,7 @@ export default function Review() {
   // Workload Forecasting & Ghost Queue state
   const [showForecast, setShowForecast] = useState(false);
   const [showGhostQueue, setShowGhostQueue] = useState(false);
+  const [showVectors, setShowVectors] = useState(false);
   const [activeVector, setActiveVector] = useState<'all' | MemoryVectorType>('all');
   const [activeGhostDrill, setActiveGhostDrill] = useState(false);
   const [ghostIndex, setGhostIndex] = useState(0);
@@ -348,14 +349,17 @@ export default function Review() {
           </p>
         </div>
         <div className="controls">
+          <button className={showVectors ? 'chip on' : 'chip'} onClick={() => setShowVectors((v) => !v)}>
+            🧬 {showVectors ? 'Hide Vectors' : 'Memory Vectors'}
+          </button>
           <button className={showForecast ? 'chip on' : 'chip'} onClick={() => setShowForecast((f) => !f)}>
-            📊 {showForecast ? 'Hide Forecast' : 'Workload Forecast (24h & 30d)'}
+            📊 {showForecast ? 'Hide Forecast' : 'Workload Forecast'}
           </button>
           <button className={showGhostQueue ? 'chip on' : 'chip'} onClick={() => setShowGhostQueue((g) => !g)}>
-            👻 {showGhostQueue ? 'Hide Ghost Queue' : `Ghost Queue (${allGhosts.length})`}
+            👻 {showGhostQueue ? 'Hide Ghosts' : `Ghosts (${allGhosts.length})`}
           </button>
           <button className={showBrowser ? 'chip on' : 'chip'} onClick={() => setShowBrowser((b) => !b)}>
-            🗂️ {showBrowser ? 'Hide Deck Browser' : `Browse Deck (${total})`}
+            🗂️ {showBrowser ? 'Hide Deck' : `Browse Deck (${total})`}
           </button>
         </div>
       </div>
@@ -391,7 +395,8 @@ export default function Review() {
         </button>
       </div>
 
-      {/* Decoupled Multi-Vector Modality Switcher & Retention Metrics */}
+      {/* Decoupled Multi-Vector Modality Switcher & Retention Metrics (collapsed by default so flashcard sits at top) */}
+      {(showVectors || activeVector !== 'all') && (
       <div className="gp" style={{ margin: '0.8rem 0 0.5rem', padding: '0.65rem 0.9rem' }}>
         <div className="row-between" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
           <span className="small muted">
@@ -456,6 +461,7 @@ export default function Review() {
           })}
         </div>
       </div>
+      )}
 
       {/* 24-Hour & 30-Day Workload Forecast Drawer */}
       {showForecast && (
